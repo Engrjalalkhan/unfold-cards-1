@@ -19,6 +19,37 @@ function Header({ title, onBack }) {
   );
 }
 
+function MoodMeter({ onSelect }) {
+  const options = [
+    { id: 'excited', emoji: '🤩', label: 'Excited' },
+    { id: 'happy', emoji: '😀', label: 'Happy' },
+    { id: 'calm', emoji: '🙂', label: 'Calm' },
+    { id: 'neutral', emoji: '😐', label: 'Neutral' },
+    { id: 'sad', emoji: '😔', label: 'Sad' },
+    { id: 'angry', emoji: '😡', label: 'Angry' },
+    { id: 'tired', emoji: '😴', label: 'Tired' },
+    { id: 'overwhelmed', emoji: '😭', label: 'Overwhelmed' },
+  ];
+
+  return (
+    <View style={styles.moodOverlay}>
+      <View style={styles.moodCard}>
+        <Text style={styles.moodTitle}>How are you feeling today?</Text>
+        <Text style={styles.moodSubtitle}>Select one to set your vibe</Text>
+        <View style={styles.moodGrid}>
+          {options.map((o) => (
+            <TouchableOpacity key={o.id} style={styles.moodItem} onPress={() => onSelect(o)}>
+              <Text style={styles.moodEmoji}>{o.emoji}</Text>
+              <Text style={styles.moodLabel}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.moodHint}>You can change this anytime from the home screen later.</Text>
+      </View>
+    </View>
+  );
+}
+
 function CategoryCard({ category, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.categoryCard, { borderColor: category.color }]}> 
@@ -111,12 +142,26 @@ function CardScreen({ category, onBack }) {
 
 export default function App() {
   const [selected, setSelected] = React.useState(null);
+  const [showMood, setShowMood] = React.useState(true);
+  const [mood, setMood] = React.useState(null);
 
-  if (!selected) {
-    return <HomeScreen onSelectCategory={(c) => setSelected(c)} />;
-  }
+  const handleSelectMood = (m) => {
+    setMood(m);
+    setShowMood(false);
+  };
 
-  return <CardScreen category={selected} onBack={() => setSelected(null)} />;
+  const Screen = !selected ? (
+    <HomeScreen onSelectCategory={(c) => setSelected(c)} />
+  ) : (
+    <CardScreen category={selected} onBack={() => setSelected(null)} />
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      {Screen}
+      {showMood && <MoodMeter onSelect={handleSelectMood} />}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -192,4 +237,46 @@ const styles = StyleSheet.create({
   primaryText: { color: '#0F141A', fontWeight: '700' },
   progress: { alignItems: 'center', marginTop: 8 },
   progressText: { color: '#8B949E', fontSize: 13 },
+  moodOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  moodCard: {
+    width: '92%',
+    maxWidth: 560,
+    backgroundColor: '#111820',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#2A2F36',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  moodTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  moodSubtitle: { color: '#8B949E', fontSize: 14, textAlign: 'center', marginTop: 6 },
+  moodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  moodItem: {
+    width: '48%',
+    marginBottom: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#0F141A',
+    borderWidth: 1,
+    borderColor: '#2A2F36',
+    alignItems: 'center',
+  },
+  moodEmoji: { fontSize: 28 },
+  moodLabel: { color: '#C9D1D9', fontSize: 14, marginTop: 6 },
+  moodHint: { color: '#8B949E', fontSize: 12, textAlign: 'center', marginTop: 8 },
 });
