@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView } from 'react-native';
-import { decks } from './data/decks';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { zones } from './data/decks';
 
 function Header({ title, onBack }) {
   return (
@@ -19,33 +19,47 @@ function Header({ title, onBack }) {
   );
 }
 
-function DeckCard({ deck, onPress }) {
+function CategoryCard({ category, onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.deckCard, { borderColor: deck.color }]}> 
-      <View style={[styles.deckBadge, { backgroundColor: deck.color }]} />
+    <TouchableOpacity onPress={onPress} style={[styles.categoryCard, { borderColor: category.color }]}> 
+      <View style={[styles.deckBadge, { backgroundColor: category.color }]} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.deckTitle}>{deck.name}</Text>
-        <Text style={styles.deckSubtitle}>{deck.questions.length} questions</Text>
+        <Text style={styles.deckTitle}>{category.name}</Text>
+        <Text style={styles.deckSubtitle}>{category.questions.length} questions</Text>
       </View>
       <Text style={styles.chevron}>›</Text>
     </TouchableOpacity>
   );
 }
 
-function HomeScreen({ onSelectDeck }) {
+function ZoneSection({ zone, onSelectCategory }) {
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <Text style={[styles.sectionTitle, { color: zone.color }]}>{zone.name}</Text>
+      <FlatList
+        data={zone.categories}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+        renderItem={({ item }) => (
+          <CategoryCard category={item} onPress={() => onSelectCategory(item)} />
+        )}
+      />
+    </View>
+  );
+}
+
+function HomeScreen({ onSelectCategory }) {
   return (
     <SafeAreaView style={styles.screen}>
       <Header title="Unflod Cards" />
-      <Text style={styles.sectionTitle}>Choose a deck</Text>
-      <FlatList
-        data={decks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        renderItem={({ item }) => (
-          <DeckCard deck={item} onPress={() => onSelectDeck(item)} />
-        )}
-      />
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+        {zones.map((zone) => (
+          <ZoneSection key={zone.id} zone={zone} onSelectCategory={onSelectCategory} />
+        ))}
+      </ScrollView>
       <View style={styles.footerNote}>
         <Text style={styles.footerText}>Deepen connection through questions — for couples, friends, family, or anyone.</Text>
       </View>
@@ -53,9 +67,9 @@ function HomeScreen({ onSelectDeck }) {
   );
 }
 
-function CardScreen({ deck, onBack }) {
+function CardScreen({ category, onBack }) {
   const [index, setIndex] = React.useState(0);
-  const [order, setOrder] = React.useState([...deck.questions.map((_, i) => i)]);
+  const [order, setOrder] = React.useState([...category.questions.map((_, i) => i)]);
 
   const goNext = () => setIndex((prev) => (prev + 1) % order.length);
   const goPrev = () => setIndex((prev) => (prev - 1 + order.length) % order.length);
@@ -69,19 +83,19 @@ function CardScreen({ deck, onBack }) {
     setIndex(0);
   };
 
-  const q = deck.questions[order[index]];
+  const q = category.questions[order[index]];
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title={deck.name} onBack={onBack} />
-      <View style={[styles.card, { borderColor: deck.color }]}> 
+      <Header title={category.name} onBack={onBack} />
+      <View style={[styles.card, { borderColor: category.color }]}> 
         <Text style={styles.cardPrompt}>{q}</Text>
       </View>
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlBtn} onPress={goPrev}>
           <Text style={styles.controlText}>Previous</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn, { backgroundColor: deck.color }]} onPress={goNext}>
+        <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn, { backgroundColor: category.color }]} onPress={goNext}>
           <Text style={[styles.controlText, styles.primaryText]}>Next</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={shuffle}>
@@ -99,10 +113,10 @@ export default function App() {
   const [selected, setSelected] = React.useState(null);
 
   if (!selected) {
-    return <HomeScreen onSelectDeck={(d) => setSelected(d)} />;
+    return <HomeScreen onSelectCategory={(c) => setSelected(c)} />;
   }
 
-  return <CardScreen deck={selected} onBack={() => setSelected(null)} />;
+  return <CardScreen category={selected} onBack={() => setSelected(null)} />;
 }
 
 const styles = StyleSheet.create({
@@ -132,13 +146,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 16,
   },
-  deckCard: {
+  categoryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 14,
     backgroundColor: '#111820',
     borderWidth: 2,
+    minWidth: 260,
   },
   deckBadge: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   deckTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
