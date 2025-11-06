@@ -240,7 +240,7 @@ function FavoritesScreen({ items, onOpen, onRemove }) {
                   <View key={`${g.categoryId}-${i}`} style={styles.favoriteItemRow}>
                     <Text style={styles.favoriteQuestion}>{q}</Text>
                     <View style={styles.favoriteActions}>
-                      <TouchableOpacity style={[styles.answerBtn, { backgroundColor: g.color }]} onPress={() => onOpen({ categoryId: g.categoryId, question: q, color: g.color })}>
+                      <TouchableOpacity style={[styles.favoriteOpenBtn, { backgroundColor: g.color }]} onPress={() => onOpen({ categoryId: g.categoryId, question: q, color: g.color })}>
                         <Text style={styles.answerText}>Open</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove({ categoryId: g.categoryId, question: q })}>
@@ -639,9 +639,10 @@ const styles = StyleSheet.create({
   favoriteCountBadge: { marginLeft: 8, backgroundColor: theme.colors.surfaceTint, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   favoriteCountText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' },
   favoriteQuestionsList: { marginTop: 10 },
-  favoriteItemRow: { marginBottom: 8 },
-  favoriteQuestion: { color: theme.colors.text, fontSize: 16 },
-  favoriteActions: { flexDirection: 'row', marginTop: 10 },
+  favoriteItemRow: { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  favoriteQuestion: { color: theme.colors.text, fontSize: 16, flex: 1, marginRight: 12 },
+  favoriteActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  favoriteOpenBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
   removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
   removeText: { color: theme.colors.text },
   themeRow: { flexDirection: 'row', marginTop: 10 },
