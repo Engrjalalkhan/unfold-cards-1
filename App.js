@@ -1,10 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { zones } from './data/decks';
 import { theme } from './theme';
 import { allCategories } from './data/decks';
+
+const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
 
 function Header({ title, onBack, right }) {
   return (
@@ -188,6 +191,9 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     <SafeAreaView style={styles.screen}>
       <Header title={category.name} onBack={onBack} right={right} />
       <View style={[styles.card, { borderColor: category.color }]}> 
+        <TouchableOpacity style={styles.cardFavButton} onPress={() => onToggleFavorite(category, q)}>
+          <Text style={[styles.cardFavStar, favActive && styles.cardFavStarActive]}>⭐</Text>
+        </TouchableOpacity>
         <Text style={styles.cardPrompt}>{q}</Text>
       </View>
       <View style={styles.controls}>
@@ -209,23 +215,43 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
 }
 
 function FavoritesScreen({ items, onOpen, onRemove }) {
+  const grouped = React.useMemo(() => {
+    const map = {};
+    for (const f of items) {
+      if (!map[f.categoryId]) map[f.categoryId] = { categoryId: f.categoryId, categoryName: f.categoryName, color: f.color, questions: [] };
+      map[f.categoryId].questions.push(f.question);
+    }
+    return Object.values(map);
+  }, [items]);
+
   return (
     <SafeAreaView style={styles.screen}>
       <Header title="Favorites" />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {items.length === 0 ? (
+        {grouped.length === 0 ? (
           <Text style={styles.footerText}>No favorites yet. Add from any card.</Text>
         ) : (
-          items.map((f, i) => (
-            <View key={`${f.categoryId}-${i}`} style={styles.favoriteItem}>
-              <Text style={styles.favoriteQuestion}>{f.question}</Text>
-              <View style={styles.favoriteActions}>
-                <TouchableOpacity style={[styles.answerBtn, { backgroundColor: f.color }]} onPress={() => onOpen(f)}>
-                  <Text style={styles.answerText}>Open</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(f)}>
-                  <Text style={styles.removeText}>Remove</Text>
-                </TouchableOpacity>
+          grouped.map((g) => (
+            <View key={g.categoryId} style={styles.favoriteCategoryCard}>
+              <View style={styles.favoriteHeaderRow}>
+                <View style={[styles.zoneBadge, { backgroundColor: g.color }]} />
+                <Text style={styles.zoneHeaderTitle}>{g.categoryName}</Text>
+                <View style={styles.favoriteCountBadge}><Text style={styles.favoriteCountText}>{g.questions.length}</Text></View>
+              </View>
+              <View style={styles.favoriteQuestionsList}>
+                {g.questions.map((q, i) => (
+                  <View key={`${g.categoryId}-${i}`} style={styles.favoriteItemRow}>
+                    <Text style={styles.favoriteQuestion}>{q}</Text>
+                    <View style={styles.favoriteActions}>
+                      <TouchableOpacity style={[styles.answerBtn, { backgroundColor: g.color }]} onPress={() => onOpen({ categoryId: g.categoryId, question: q, color: g.color })}>
+                        <Text style={styles.answerText}>Open</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove({ categoryId: g.categoryId, question: q })}>
+                        <Text style={styles.removeText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
               </View>
             </View>
           ))
@@ -279,17 +305,20 @@ function ProfileScreen({ mode, setMode }) {
   );
 }
 
-function BottomNav({ current, setCurrent }) {
-  const item = (key, label, emoji) => (
+function BottomNav({ current, setCurrent, favoritesCount }) {
+  const item = (key, label, emoji, count = 0) => (
     <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => setCurrent(key)}>
       <Text style={styles.navEmoji}>{emoji}</Text>
+      {key === 'favorites' && count > 0 && (
+        <View style={styles.navBadge}><Text style={styles.navBadgeText}>{count}</Text></View>
+      )}
       <Text style={styles.navLabel}>{label}</Text>
     </TouchableOpacity>
   );
   return (
     <View style={styles.bottomNav}>
       {item('home','Home','🏠')}
-      {item('favorites','Favorites','⭐')}
+      {item('favorites','Favorites','⭐', favoritesCount)}
       {item('shuffle','Shuffle','🎲')}
       {item('profile','Profile','👤')}
     </View>
@@ -304,6 +333,36 @@ export default function App() {
   const [tab, setTab] = React.useState('home');
   const [uiMode, setUiMode] = React.useState('light');
   const [initialIndex, setInitialIndex] = React.useState(0);
+  const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setFavorites(parsed);
+          }
+        }
+      } catch (e) {
+        // noop: fail silently
+      } finally {
+        setHasHydratedFavorites(true);
+      }
+    })();
+  }, []);
+
+  React.useEffect(() => {
+    if (!hasHydratedFavorites) return;
+    (async () => {
+      try {
+        await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      } catch (e) {
+        // noop
+      }
+    })();
+  }, [favorites, hasHydratedFavorites]);
 
   const handleSelectMood = (m) => {
     setMood(m);
@@ -367,7 +426,7 @@ export default function App() {
   const Root = (
     <View style={{ flex: 1 }}>
       {Screen}
-      <BottomNav current={tab} setCurrent={setTab} />
+      <BottomNav current={tab} setCurrent={setTab} favoritesCount={favorites.length} />
       {showMood && <MoodMeter onSelect={handleSelectMood} />}
     </View>
   );
@@ -493,6 +552,9 @@ const styles = StyleSheet.create({
   favButton: { paddingHorizontal: 10, paddingVertical: 6 },
   favStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
   favStarActive: { color: theme.colors.primaryText, textShadowRadius: 14 },
+  cardFavButton: { position: 'absolute', right: 12, top: 12, padding: 4 },
+  cardFavStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 8 },
+  cardFavStarActive: { color: theme.colors.primaryText, textShadowRadius: 12 },
   moodOverlay: {
     position: 'absolute',
     top: 0,
@@ -548,10 +610,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     zIndex: 100,
   },
-  navItem: { alignItems: 'center', paddingHorizontal: 6 },
+  navItem: { alignItems: 'center', paddingHorizontal: 6, position: 'relative' },
   navItemActive: { },
   navEmoji: { fontSize: 18 },
   navLabel: { color: theme.colors.textMuted, fontSize: 12 },
+  navBadge: { position: 'absolute', top: -2, right: 6, backgroundColor: theme.colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  navBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   dailyCard: {
     marginTop: 12,
     padding: 16,
@@ -568,7 +632,12 @@ const styles = StyleSheet.create({
   dailyPrompt: { color: theme.colors.text, fontSize: 16, marginTop: 6 },
   answerBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', marginTop: 12 },
   answerText: { color: '#fff', fontWeight: '700' },
-  favoriteItem: { padding: 14, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 10 },
+  favoriteCategoryCard: { padding: 14, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 12 },
+  favoriteHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  favoriteCountBadge: { marginLeft: 8, backgroundColor: theme.colors.surfaceTint, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  favoriteCountText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  favoriteQuestionsList: { marginTop: 10 },
+  favoriteItemRow: { marginBottom: 8 },
   favoriteQuestion: { color: theme.colors.text, fontSize: 16 },
   favoriteActions: { flexDirection: 'row', marginTop: 10 },
   removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
