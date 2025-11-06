@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { zones } from './data/decks';
+import { theme } from './theme';
 
 function Header({ title, onBack }) {
   return (
@@ -15,6 +16,15 @@ function Header({ title, onBack }) {
       )}
       <Text style={styles.headerTitle}>{title}</Text>
       <View style={{ width: 64 }} />
+    </View>
+  );
+}
+
+function BrandHeader() {
+  return (
+    <View style={styles.brandHeader}>
+      <Text style={styles.brandIcon}>💜</Text>
+      <Text style={styles.brandTitle}>Unfold Cards</Text>
     </View>
   );
 }
@@ -85,7 +95,7 @@ function ZoneSection({ zone, onSelectCategory }) {
 function HomeScreen({ onSelectCategory }) {
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Unflod Cards" />
+      <BrandHeader />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         {zones.map((zone) => (
           <ZoneSection key={zone.id} zone={zone} onSelectCategory={onSelectCategory} />
@@ -167,7 +177,7 @@ export default function App() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0F141A',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -180,14 +190,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.colors.surfaceTint,
   },
-  backText: { color: '#C9D1D9', fontSize: 16 },
-  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '600' },
+  backText: { color: theme.colors.textMuted, fontSize: 16 },
+  headerTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '600' },
+  brandHeader: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 8,
+  },
+  brandIcon: { fontSize: 36 },
+  brandTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '700', marginTop: 6 },
   sectionTitle: {
-    color: '#C9D1D9',
+    color: theme.colors.textMuted,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 8,
     paddingHorizontal: 16,
   },
@@ -195,28 +212,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#111820',
-    borderWidth: 2,
+    borderRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     minWidth: 260,
+    shadowColor: theme.colors.shadow,
+    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
   },
   deckBadge: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  deckTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
-  deckSubtitle: { color: '#8B949E', fontSize: 13, marginTop: 2 },
-  chevron: { color: '#8B949E', fontSize: 24, marginLeft: 12 },
+  deckTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '700' },
+  deckSubtitle: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
+  chevron: { color: theme.colors.textMuted, fontSize: 24, marginLeft: 12 },
   footerNote: { paddingHorizontal: 16, paddingTop: 8 },
-  footerText: { color: '#8B949E', fontSize: 13 },
+  footerText: { color: theme.colors.textMuted, fontSize: 13 },
   card: {
     marginHorizontal: 16,
     marginTop: 8,
-    backgroundColor: '#111820',
-    borderRadius: 16,
-    borderWidth: 2,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
     padding: 20,
     minHeight: 220,
     justifyContent: 'center',
   },
-  cardPrompt: { color: '#FFFFFF', fontSize: 20, lineHeight: 28 },
+  cardPrompt: { color: theme.colors.text, fontSize: 20, lineHeight: 28 },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -229,21 +251,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.colors.surfaceTint,
     alignItems: 'center',
   },
   primaryBtn: {},
-  controlText: { color: '#C9D1D9', fontSize: 16, fontWeight: '500' },
-  primaryText: { color: '#0F141A', fontWeight: '700' },
+  controlText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+  primaryText: { color: '#FFFFFF', fontWeight: '700' },
   progress: { alignItems: 'center', marginTop: 8 },
-  progressText: { color: '#8B949E', fontSize: 13 },
+  progressText: { color: theme.colors.textMuted, fontSize: 13 },
   moodOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: theme.colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
@@ -251,15 +273,15 @@ const styles = StyleSheet.create({
   moodCard: {
     width: '92%',
     maxWidth: 560,
-    backgroundColor: '#111820',
+    backgroundColor: theme.colors.surface,
     borderRadius: 18,
-    borderWidth: 2,
-    borderColor: '#2A2F36',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     paddingVertical: 20,
     paddingHorizontal: 16,
   },
-  moodTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  moodSubtitle: { color: '#8B949E', fontSize: 14, textAlign: 'center', marginTop: 6 },
+  moodTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  moodSubtitle: { color: theme.colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 6 },
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -271,12 +293,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#0F141A',
+    backgroundColor: theme.colors.surfaceTint,
     borderWidth: 1,
-    borderColor: '#2A2F36',
+    borderColor: theme.colors.border,
     alignItems: 'center',
   },
   moodEmoji: { fontSize: 28 },
-  moodLabel: { color: '#C9D1D9', fontSize: 14, marginTop: 6 },
-  moodHint: { color: '#8B949E', fontSize: 12, textAlign: 'center', marginTop: 8 },
+  moodLabel: { color: theme.colors.text, fontSize: 14, marginTop: 6 },
+  moodHint: { color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
 });
