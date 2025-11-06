@@ -191,9 +191,6 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     <SafeAreaView style={styles.screen}>
       <Header title={category.name} onBack={onBack} right={right} />
       <View style={[styles.card, { borderColor: category.color }]}> 
-        <TouchableOpacity style={styles.cardFavButton} onPress={() => onToggleFavorite(category, q)}>
-          <Text style={[styles.cardFavStar, favActive && styles.cardFavStarActive]}>⭐</Text>
-        </TouchableOpacity>
         <Text style={styles.cardPrompt}>{q}</Text>
       </View>
       <View style={styles.controls}>
@@ -305,9 +302,9 @@ function ProfileScreen({ mode, setMode }) {
   );
 }
 
-function BottomNav({ current, setCurrent, favoritesCount }) {
+function BottomNav({ current, onNavigate, favoritesCount }) {
   const item = (key, label, emoji, count = 0) => (
-    <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => setCurrent(key)}>
+    <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => onNavigate(key)}>
       <Text style={styles.navEmoji}>{emoji}</Text>
       {key === 'favorites' && count > 0 && (
         <View style={styles.navBadge}><Text style={styles.navBadgeText}>{count}</Text></View>
@@ -423,10 +420,15 @@ export default function App() {
     }
   }
 
+  const navigate = (key) => {
+    setSelected(null);
+    setTab(key);
+  };
+
   const Root = (
     <View style={{ flex: 1 }}>
       {Screen}
-      <BottomNav current={tab} setCurrent={setTab} favoritesCount={favorites.length} />
+      <BottomNav current={tab} onNavigate={navigate} favoritesCount={favorites.length} />
       {showMood && <MoodMeter onSelect={handleSelectMood} />}
     </View>
   );
