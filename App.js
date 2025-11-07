@@ -1,13 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { zones } from './data/decks';
 import { theme } from './theme';
 import { allCategories } from './data/decks';
 
 const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
+const ONBOARDING_STORAGE_KEY = '@unflod_cards:onboarding_done:v1';
 
 function Header({ title, onBack, right }) {
   return (
@@ -31,6 +32,130 @@ function BrandHeader() {
       <Text style={styles.brandIcon}>💜</Text>
       <Text style={styles.brandTitle}>Unfold Cards</Text>
     </View>
+  );
+}
+
+function Particle({ seed }) {
+  const { size, startX, startY, driftX, driftY, duration, color, baseOpacity } = seed;
+  const x = React.useRef(new Animated.Value(startX)).current;
+  const y = React.useRef(new Animated.Value(startY)).current;
+  const opacity = React.useRef(new Animated.Value(baseOpacity)).current;
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(x, { toValue: startX + driftX, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(y, { toValue: startY + driftY, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: baseOpacity + 0.25, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.08, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(x, { toValue: startX - driftX, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(y, { toValue: startY - driftY, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: baseOpacity, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.0, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [x, y, opacity, scale, startX, startY, driftX, driftY, duration, baseOpacity]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        transform: [{ translateX: x }, { translateY: y }, { scale }],
+        opacity,
+        shadowColor: '#CBB2FF',
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+      }}
+    />
+  );
+}
+
+function SoftParticles() {
+  const { width, height } = Dimensions.get('window');
+  const palette = ['rgba(157,78,221,0.18)', 'rgba(201,179,255,0.20)', 'rgba(233,215,255,0.16)'];
+  const seeds = React.useMemo(() => {
+    const n = 14;
+    return Array.from({ length: n }).map(() => {
+      const size = 10 + Math.floor(Math.random() * 16); // 10–26px
+      const startX = Math.random() * width;
+      const startY = Math.random() * (height * 0.8);
+      const driftX = 12 + Math.random() * 24;
+      const driftY = 10 + Math.random() * 22;
+      const duration = 4000 + Math.floor(Math.random() * 3000);
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      const baseOpacity = 0.18 + Math.random() * 0.18; // 0.18–0.36
+      return { size, startX, startY, driftX, driftY, duration, color, baseOpacity };
+    });
+  }, [width, height]);
+
+  return (
+    <View pointerEvents="none" style={styles.particlesLayer}>
+      {seeds.map((seed, i) => (
+        <Particle key={i} seed={seed} />
+      ))}
+    </View>
+  );
+}
+
+function OnboardingScreen({ onContinue }) {
+  const pulse = React.useRef(new Animated.Value(1)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.06, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    ).start();
+  }, [pulse]);
+
+  const floating = [
+    { emoji: '💜', style: { top: 120, left: 24 } },
+    { emoji: '⭐', style: { top: 220, right: 32 } },
+    { emoji: '💬', style: { top: 320, left: 48 } },
+  ];
+
+  return (
+    <LinearGradient colors={["#E9D7FF", "#FFFFFF"]} style={styles.onboardingContainer}>
+      <SoftParticles />
+      <View style={styles.onboardingContent}>
+        <Text style={styles.onboardingIcon}>💬</Text>
+        <Text style={styles.onboardingTitle}>Unfold Cards</Text>
+        <Text style={styles.onboardingTagline}>Unfold deeper connections.</Text>
+
+        {floating.map((f, i) => (
+          <Text key={i} style={[styles.floatingIcon, f.style]}>{f.emoji}</Text>
+        ))}
+
+        <Animated.View style={{ transform: [{ scale: pulse }] }}>
+          <TouchableOpacity onPress={onContinue} activeOpacity={0.9} style={styles.ctaButton}>
+            <LinearGradient colors={["#9D4EDD", "#7B2CBF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaGradient}>
+              <Text style={styles.ctaText}>Get Started</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+        <TouchableOpacity onPress={onContinue} style={styles.guestLinkBtn}>
+          <Text style={styles.guestLink}>Continue as Guest</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dotsContainer}>
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -331,6 +456,7 @@ export default function App() {
   const [uiMode, setUiMode] = React.useState('light');
   const [initialIndex, setInitialIndex] = React.useState(0);
   const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(true);
 
   React.useEffect(() => {
     (async () => {
@@ -341,6 +467,10 @@ export default function App() {
           if (Array.isArray(parsed)) {
             setFavorites(parsed);
           }
+        }
+        const onboard = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
+        if (onboard === 'done') {
+          setShowOnboarding(false);
         }
       } catch (e) {
         // noop: fail silently
@@ -360,6 +490,13 @@ export default function App() {
       }
     })();
   }, [favorites, hasHydratedFavorites]);
+
+  const completeOnboarding = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'done');
+    } catch {}
+    setShowOnboarding(false);
+  };
 
   const handleSelectMood = (m) => {
     setMood(m);
@@ -425,11 +562,15 @@ export default function App() {
     setTab(key);
   };
 
+  if (showOnboarding) {
+    return <OnboardingScreen onContinue={completeOnboarding} />;
+  }
+
   const Root = (
     <View style={{ flex: 1 }}>
       {Screen}
       <BottomNav current={tab} onNavigate={navigate} favoritesCount={favorites.length} />
-      {showMood && <MoodMeter onSelect={handleSelectMood} />}
+      {showMood && !showOnboarding && <MoodMeter onSelect={handleSelectMood} />}
     </View>
   );
 
@@ -444,6 +585,21 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  onboardingContainer: { flex: 1, justifyContent: 'center' },
+  particlesLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  onboardingContent: { alignItems: 'center', paddingHorizontal: 24 },
+  onboardingIcon: { fontSize: 68, textShadowColor: '#CBB2FF', textShadowRadius: 16 },
+  onboardingTitle: { color: '#3B245A', fontSize: 32, fontWeight: '800', marginTop: 8 },
+  onboardingTagline: { color: '#6B4C9A', fontSize: 16, marginTop: 6 },
+  floatingIcon: { position: 'absolute', fontSize: 24, opacity: 0.7 },
+  ctaButton: { marginTop: 28, borderRadius: 18, overflow: 'hidden' },
+  ctaGradient: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 18 },
+  ctaText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  guestLinkBtn: { marginTop: 10 },
+  guestLink: { color: '#6B4C9A', fontSize: 14 },
+  dotsContainer: { position: 'absolute', bottom: 36, width: '100%', flexDirection: 'row', justifyContent: 'center' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D7C4F3', marginHorizontal: 4 },
+  dotActive: { backgroundColor: '#9D4EDD' },
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
