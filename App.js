@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { zones } from './data/decks';
 import { theme } from './theme';
@@ -9,6 +9,16 @@ import { allCategories } from './data/decks';
 
 const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
 const ONBOARDING_STORAGE_KEY = '@unflod_cards:onboarding_done:v1';
+const PROFILE_STORAGE_KEY = '@unflod_cards:profile:v1';
+const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
+
+// Helper to get a YYYY-MM-DD date key
+const getDateKey = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
 
 function Header({ title, onBack, right }) {
   return (
@@ -149,11 +159,6 @@ function OnboardingScreen({ onContinue }) {
           <Text style={styles.guestLink}>Continue as Guest</Text>
         </TouchableOpacity>
 
-        <View style={styles.dotsContainer}>
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
       </View>
     </LinearGradient>
   );
@@ -283,13 +288,19 @@ function HomeScreen({ onSelectCategory, onAnswerDaily }) {
   );
 }
 
-function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0 }) {
+function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0, onViewedCard, onShareQuestion }) {
   const [index, setIndex] = React.useState(0);
   const [order, setOrder] = React.useState([...category.questions.map((_, i) => i)]);
 
   React.useEffect(() => {
     setIndex(initialIndex);
   }, [initialIndex]);
+
+  React.useEffect(() => {
+    if (typeof onViewedCard === 'function') {
+      onViewedCard();
+    }
+  }, [index]);
 
   const goNext = () => setIndex((prev) => (prev + 1) % order.length);
   const goPrev = () => setIndex((prev) => (prev - 1 + order.length) % order.length);
@@ -327,6 +338,9 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={shuffle}>
           <Text style={styles.controlText}>Shuffle</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlBtn} onPress={() => onShareQuestion && onShareQuestion(q)}>
+          <Text style={styles.controlText}>Share</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.progress}>
@@ -409,11 +423,82 @@ function ShuffleScreen({ onOpen }) {
   );
 }
 
-function ProfileScreen({ mode, setMode }) {
+function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites }) {
+  const genders = ['Male','Female','Non-binary','Prefer not to say'];
   return (
     <SafeAreaView style={styles.screen}>
       <Header title="Profile" />
-      <View style={{ padding: 16 }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarCircle}><Text style={{ fontSize: 28 }}>🙂</Text></View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.profileGreeting}>Hi, {profile?.name || 'Friend'}!</Text>
+            <Text style={styles.footerText}>Connecting through meaningful questions</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}><Text style={styles.statLabel}>Questions Read</Text><Text style={styles.statValue}>{stats?.questionsRead ?? 0}</Text></View>
+          <View style={styles.statCard}><Text style={styles.statLabel}>Favorites Saved</Text><Text style={styles.statValue}>{favoritesCount}</Text></View>
+        </View>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}><Text style={styles.statLabel}>Times Shared</Text><Text style={styles.statValue}>{stats?.timesShared ?? 0}</Text></View>
+          <View style={styles.statCard}><Text style={styles.statLabel}>5-Day Connection Streak</Text><Text style={styles.statValue}>{stats?.streakDays ?? 1}</Text></View>
+        </View>
+
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.deckTitle}>Your Favorite Questions</Text>
+          {onViewAllFavorites && (
+            <TouchableOpacity onPress={onViewAllFavorites}><Text style={styles.viewAllLink}>View All</Text></TouchableOpacity>
+          )}
+        </View>
+        {favorites.length === 0 ? (
+          <Text style={styles.footerText}>You have no favorites yet. Save any question to see it here.</Text>
+        ) : (
+          <View>
+            {(favorites.slice(0,3)).map((f, i) => (
+              <View key={`${f.categoryId}-${i}`} style={styles.favoritePreviewRow}>
+                <View style={styles.favoriteDot} />
+                <Text style={styles.favoritePreviewText}>{f.question}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
+          <Text style={styles.deckTitle}>This Week's Highlights</Text>
+          <View style={styles.highlightsRow}>
+            {['Trending Now','For Deep Talks','Light & Fun'].map((label) => (
+              <View key={label} style={styles.chip}><Text style={styles.chipText}>{label}</Text></View>
+            ))}
+          </View>
+          <Text style={styles.highlightText}>
+            {(favorites[0]?.question) || (allCategories[0]?.questions?.[0]) || 'What’s one small thing that made you smile this week'}
+          </Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Profile Settings</Text>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Display Name</Text>
+          <TextInput
+            value={profile?.name ?? ''}
+            onChangeText={(t) => setProfile({ ...(profile||{}), name: t })}
+            placeholder="Your name"
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Gender</Text>
+          <View style={styles.genderRow}>
+            {genders.map((g) => (
+              <TouchableOpacity key={g} style={[styles.genderBtn, profile?.gender===g && styles.genderBtnActive]} onPress={() => setProfile({ ...(profile||{}), gender: g })}>
+                <Text style={styles.genderBtnText}>{g}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         <Text style={styles.deckTitle}>Theme</Text>
         <View style={styles.themeRow}>
           {['light','gradient'].map((m) => (
@@ -422,7 +507,7 @@ function ProfileScreen({ mode, setMode }) {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -457,6 +542,8 @@ export default function App() {
   const [initialIndex, setInitialIndex] = React.useState(0);
   const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(true);
+  const [profile, setProfile] = React.useState({ name: 'Friend', gender: 'Prefer not to say' });
+  const [stats, setStats] = React.useState({ questionsRead: 0, timesShared: 0, streakDays: 1, lastActiveDate: getDateKey() });
 
   React.useEffect(() => {
     (async () => {
@@ -471,6 +558,16 @@ export default function App() {
         const onboard = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
         if (onboard === 'done') {
           setShowOnboarding(false);
+        }
+        const profRaw = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
+        if (profRaw) {
+          const p = JSON.parse(profRaw);
+          if (p && typeof p === 'object') setProfile((prev) => ({ ...prev, ...p }));
+        }
+        const statsRaw = await AsyncStorage.getItem(STATS_STORAGE_KEY);
+        if (statsRaw) {
+          const s = JSON.parse(statsRaw);
+          if (s && typeof s === 'object') setStats((prev) => ({ ...prev, ...s }));
         }
       } catch (e) {
         // noop: fail silently
@@ -491,6 +588,33 @@ export default function App() {
     })();
   }, [favorites, hasHydratedFavorites]);
 
+  React.useEffect(() => {
+    (async () => {
+      try { await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile)); } catch {}
+    })();
+  }, [profile]);
+
+  React.useEffect(() => {
+    (async () => {
+      try { await AsyncStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats)); } catch {}
+    })();
+  }, [stats]);
+
+  // Update connection streak based on activity
+  const updateStreakOnActivity = () => {
+    setStats((prev) => {
+      const today = getDateKey();
+      if (prev.lastActiveDate === today) return prev;
+      const last = new Date(prev.lastActiveDate);
+      const curr = new Date(today);
+      const diffDays = Math.round((curr - last) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        return { ...prev, streakDays: (prev.streakDays || 1) + 1, lastActiveDate: today };
+      }
+      return { ...prev, streakDays: 1, lastActiveDate: today };
+    });
+  };
+
   const completeOnboarding = async () => {
     try {
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'done');
@@ -501,6 +625,7 @@ export default function App() {
   const handleSelectMood = (m) => {
     setMood(m);
     setShowMood(false);
+    updateStreakOnActivity();
   };
 
   const isFavorite = (categoryId, question) => favorites.some(f => f.categoryId === categoryId && f.question === question);
@@ -518,6 +643,18 @@ export default function App() {
     setTab('home');
   };
 
+  // Activity hooks
+  const onViewedCard = () => {
+    setStats((s) => ({ ...s, questionsRead: (s.questionsRead || 0) + 1 }));
+    updateStreakOnActivity();
+  };
+
+  const onShareQuestion = async (text) => {
+    try { await Share.share({ message: text }); } catch {}
+    setStats((s) => ({ ...s, timesShared: (s.timesShared || 0) + 1 }));
+    updateStreakOnActivity();
+  };
+
   let Screen;
   if (selected) {
     Screen = (
@@ -527,6 +664,8 @@ export default function App() {
         onBack={() => setSelected(null)}
         onToggleFavorite={toggleFavorite}
         isFavorite={isFavorite}
+        onViewedCard={onViewedCard}
+        onShareQuestion={onShareQuestion}
       />
     );
   } else {
@@ -548,7 +687,16 @@ export default function App() {
       );
     } else if (tab === 'profile') {
       Screen = (
-        <ProfileScreen mode={uiMode} setMode={setUiMode} />
+        <ProfileScreen
+          mode={uiMode}
+          setMode={setUiMode}
+          profile={profile}
+          setProfile={setProfile}
+          favoritesCount={favorites.length}
+          stats={stats}
+          favorites={favorites}
+          onViewAllFavorites={() => setTab('favorites')}
+        />
       );
     } else {
       Screen = (
@@ -597,9 +745,6 @@ const styles = StyleSheet.create({
   ctaText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   guestLinkBtn: { marginTop: 10 },
   guestLink: { color: '#6B4C9A', fontSize: 14 },
-  dotsContainer: { position: 'absolute', bottom: 36, width: '100%', flexDirection: 'row', justifyContent: 'center' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D7C4F3', marginHorizontal: 4 },
-  dotActive: { backgroundColor: '#9D4EDD' },
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -804,4 +949,27 @@ const styles = StyleSheet.create({
   themeRow: { flexDirection: 'row', marginTop: 10 },
   themeBtn: { marginRight: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.surfaceTint },
   themeBtnActive: { borderWidth: 1, borderColor: theme.colors.border },
+  profileHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  avatarCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
+  profileGreeting: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '700' },
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 },
+  statCard: { flex: 1, marginRight: 8, padding: 14, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+  statLabel: { color: theme.colors.textMuted, fontSize: 13 },
+  statValue: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '800', marginTop: 6 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 8, marginBottom: 6 },
+  viewAllLink: { color: theme.colors.textMuted, fontSize: 13 },
+  favoritePreviewRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, marginHorizontal: 16, marginBottom: 8 },
+  favoriteDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginRight: 10 },
+  favoritePreviewText: { color: theme.colors.text, fontSize: 16, flex: 1 },
+  highlightsRow: { flexDirection: 'row', marginTop: 10 },
+  chip: { backgroundColor: theme.colors.surfaceTint, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
+  chipText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
+  highlightText: { color: theme.colors.text, fontSize: 16, marginTop: 10 },
+  formRow: { marginTop: 12 },
+  formLabel: { color: theme.colors.textMuted, fontSize: 13, marginBottom: 6 },
+  input: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
+  genderRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  genderBtn: { marginRight: 8, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
+  genderBtnActive: { borderWidth: 1, borderColor: theme.colors.border },
+  genderBtnText: { color: theme.colors.text },
 });
