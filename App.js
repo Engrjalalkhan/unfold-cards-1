@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { zones } from './data/decks';
 import { theme } from './theme';
@@ -11,6 +11,20 @@ const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
 const ONBOARDING_STORAGE_KEY = '@unflod_cards:onboarding_done:v1';
 const PROFILE_STORAGE_KEY = '@unflod_cards:profile:v1';
 const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
+
+// Utilities
+const hexToRgba = (hex, alpha = 1) => {
+  try {
+    if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+      let c = hex.substring(1).split('');
+      if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+      c = '0x' + c.join('');
+      // eslint-disable-next-line no-bitwise
+      return `rgba(${[(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',')},${alpha})`;
+    }
+  } catch (e) {}
+  return hex;
+};
 
 // Helper to get a YYYY-MM-DD date key
 const getDateKey = (d = new Date()) => {
@@ -41,6 +55,66 @@ function BrandHeader() {
     <View style={styles.brandHeader}>
       <Text style={styles.brandIcon}>💜</Text>
       <Text style={styles.brandTitle}>Unfold Cards</Text>
+      <Text style={styles.brandTagline}>Build meaningful connections</Text>
+    </View>
+  );
+}
+
+// Small reusable UI primitives to match design
+function StatTile({ icon, label, value, suffix }) {
+  return (
+    <View style={styles.statTile}>
+      <View style={styles.statTileHeader}>
+        <Text style={styles.statTileIcon}>{icon}</Text>
+        <Text style={styles.statTileLabel}>{label}</Text>
+      </View>
+      <Text style={styles.statTileValue}>
+        {value}{suffix ? ` ${suffix}` : ''}
+      </Text>
+    </View>
+  );
+}
+
+function Chip({ label, selected, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+      {selected && <View style={styles.chipUnderline} />}
+    </TouchableOpacity>
+  );
+}
+
+function HighlightCard({ icon, title, subtitle }) {
+  return (
+    <View style={styles.highlightCard}>
+      <View style={styles.highlightIconWrap}><Text style={styles.highlightIcon}>{icon}</Text></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.highlightTitle}>{title}</Text>
+        <Text style={styles.highlightSubtitle}>{subtitle}</Text>
+      </View>
+      <Text style={styles.chevron}>›</Text>
+    </View>
+  );
+}
+
+function SettingsList({ onEditProfile }) {
+  return (
+    <View style={styles.listCard}>
+      <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
+        <Text style={styles.listIcon}>📘</Text>
+        <Text style={styles.listItemText}>Edit Profile & Account</Text>
+        <Text style={styles.listChevron}>›</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.listItemRow}>
+        <Text style={styles.listIcon}>🔔</Text>
+        <Text style={styles.listItemText}>Notifications</Text>
+        <Text style={styles.listChevron}>›</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.listItemRow}>
+        <Text style={styles.listIcon}>🔒</Text>
+        <Text style={styles.listItemText}>Privacy & Support</Text>
+        <Text style={styles.listChevron}>›</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -196,15 +270,33 @@ function MoodMeter({ onSelect }) {
 }
 
 function CategoryCard({ category, onPress }) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
+  const tint = hexToRgba(category.color || theme.colors.primary, 0.10);
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.categoryCard, { borderColor: category.color }]}> 
-      <View style={[styles.deckBadge, { backgroundColor: category.color }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.deckTitle}>{category.name}</Text>
-        <Text style={styles.deckSubtitle}>{category.questions.length} questions</Text>
-      </View>
-      <Text style={styles.chevron}>›</Text>
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={0.9}
+        style={[styles.categoryCard, { borderColor: category.color || theme.colors.border }]}
+      >
+        <LinearGradient
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
+          colors={[tint, theme.colors.surface]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={[styles.deckBadge, { backgroundColor: category.color }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.deckTitle}>{category.name}</Text>
+          <Text style={styles.deckSubtitle}>{category.questions.length} questions</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -228,8 +320,15 @@ function DailyQuestion({ onAnswer }) {
     <View style={styles.dailyCard}>
       <Text style={styles.dailyTitle}>Question of the Day 💭</Text>
       <Text style={styles.dailyPrompt}>{question}</Text>
-      <TouchableOpacity style={[styles.answerBtn, { backgroundColor: category.color }]} onPress={() => onAnswer(category, qIndex)}>
-        <Text style={styles.answerText}>Answer Now</Text>
+      <TouchableOpacity onPress={() => onAnswer(category, qIndex)} style={styles.ctaButton}>
+        <LinearGradient
+          style={styles.ctaGradient}
+          colors={[category.color, '#B388FF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.ctaText}>Answer Now</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -237,6 +336,7 @@ function DailyQuestion({ onAnswer }) {
 
 function HomeScreen({ onSelectCategory, onAnswerDaily }) {
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
+  const [filter, setFilter] = React.useState('Trending');
 
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -253,11 +353,29 @@ function HomeScreen({ onSelectCategory, onAnswerDaily }) {
     <SafeAreaView style={styles.screen}>
       <BrandHeader />
       <ScrollView contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}>
+        <View style={styles.chipFilterRow}>
+          <Chip label="Trending" selected={filter === 'Trending'} onPress={() => setFilter('Trending')} />
+          <Chip label="Deep Talks" selected={filter === 'Deep Talks'} onPress={() => setFilter('Deep Talks')} />
+          <Chip label="Light & Fun" selected={filter === 'Light & Fun'} onPress={() => setFilter('Light & Fun')} />
+        </View>
+
+        <View style={[styles.panel, { marginTop: 4 }]}>
+          <DailyQuestion onAnswer={onAnswerDaily} />
+        </View>
+
+        <Text style={styles.sectionTitle}>Explore Zones</Text>
+
         {zones.map((zone) => {
           const expanded = expandedZoneId === zone.id;
           return (
             <View key={zone.id} style={styles.zoneCard}>
-              <TouchableOpacity style={styles.zoneHeaderRow} onPress={() => toggleZone(zone.id)}>
+              <LinearGradient
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 18 }]}
+                colors={theme.gradients.zone}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <TouchableOpacity activeOpacity={0.85} style={styles.zoneHeaderRow} onPress={() => toggleZone(zone.id)}>
                 <View style={[styles.zoneBadge, { backgroundColor: zone.color }]} />
                 <Text style={styles.zoneHeaderTitle}>{zone.name}</Text>
                 <Text style={[styles.zoneChevron, expanded && styles.zoneChevronOpen]}>›</Text>
@@ -265,21 +383,13 @@ function HomeScreen({ onSelectCategory, onAnswerDaily }) {
               {expanded && (
                 <View style={styles.subcategoriesList}>
                   {zone.categories.map((item) => (
-                    <TouchableOpacity key={item.id} onPress={() => onSelectCategory(item)} style={[styles.categoryCard, { borderColor: theme.colors.border }]}> 
-                      <View style={[styles.deckBadge, { backgroundColor: item.color }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.deckTitle}>{item.name}</Text>
-                        <Text style={styles.deckSubtitle}>{item.questions.length} questions</Text>
-                      </View>
-                      <Text style={styles.chevron}>›</Text>
-                    </TouchableOpacity>
+                    <CategoryCard key={item.id} category={item} onPress={() => onSelectCategory(item)} />
                   ))}
                 </View>
               )}
             </View>
           );
         })}
-        <DailyQuestion onAnswer={onAnswerDaily} />
       </ScrollView>
       <View style={styles.footerNote}>
         <Text style={styles.footerText}>Deepen connection through questions — for couples, friends, family, or anyone.</Text>
@@ -302,8 +412,55 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     }
   }, [index]);
 
-  const goNext = () => setIndex((prev) => (prev + 1) % order.length);
-  const goPrev = () => setIndex((prev) => (prev - 1 + order.length) % order.length);
+  const width = Dimensions.get('window').width;
+  const panX = React.useRef(new Animated.Value(0)).current;
+  const rotate = panX.interpolate({
+    inputRange: [-width, 0, width],
+    outputRange: ['-8deg', '0deg', '8deg'],
+  });
+  const scale = panX.interpolate({
+    inputRange: [-width, 0, width],
+    outputRange: [0.96, 1, 0.96],
+    extrapolate: 'clamp',
+  });
+  const overlayOpacity = panX.interpolate({
+    inputRange: [-120, 0],
+    outputRange: [0.25, 0],
+    extrapolate: 'clamp',
+  });
+
+  const animateInFrom = (dir = 'right') => {
+    panX.setValue(dir === 'right' ? width * 0.75 : -width * 0.75);
+    Animated.spring(panX, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 90,
+      friction: 10,
+    }).start();
+  };
+
+  const goNext = () => {
+    Animated.timing(panX, {
+      toValue: -width,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIndex((prev) => (prev + 1) % order.length);
+      animateInFrom('right');
+    });
+  };
+  const goPrev = () => {
+    Animated.timing(panX, {
+      toValue: width,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIndex((prev) => (prev - 1 + order.length) % order.length);
+      animateInFrom('left');
+    });
+  };
   const shuffle = () => {
     const arr = [...order];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -312,6 +469,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     }
     setOrder(arr);
     setIndex(0);
+    animateInFrom('right');
   };
 
   const q = category.questions[order[index]];
@@ -326,21 +484,39 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   return (
     <SafeAreaView style={styles.screen}>
       <Header title={category.name} onBack={onBack} right={right} />
-      <View style={[styles.card, { borderColor: category.color }]}> 
+      <Animated.View
+        style={[
+          styles.card,
+          { borderColor: category.color },
+          { transform: [{ translateX: panX }, { rotate }], opacity: 1, shadowOpacity: 0.18 },
+          { transform: [{ translateX: panX }, { rotate }, { scale }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <LinearGradient
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: overlayOpacity }]}
+          colors={[hexToRgba(category.color, 0.08), 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
         <Text style={styles.cardPrompt}>{q}</Text>
-      </View>
+      </Animated.View>
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlBtn} onPress={goPrev}>
           <Text style={styles.controlText}>Previous</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn, { backgroundColor: category.color }]} onPress={goNext}>
-          <Text style={[styles.controlText, styles.primaryText]}>Next</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={shuffle}>
           <Text style={styles.controlText}>Shuffle</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={() => onShareQuestion && onShareQuestion(q)}>
           <Text style={styles.controlText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+        <TouchableOpacity style={styles.ctaButton} onPress={goNext}>
+          <LinearGradient style={styles.ctaGradient} colors={[category.color, '#B388FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <Text style={styles.ctaText}>Next Card</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
       <View style={styles.progress}>
@@ -425,87 +601,66 @@ function ShuffleScreen({ onOpen }) {
 
 function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
+  const [filter, setFilter] = React.useState('All');
+  const [showEdit, setShowEdit] = React.useState(false);
+  const highlightZone = zones[0];
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Profile" />
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarCircle}><Text style={{ fontSize: 28 }}>🙂</Text></View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.profileGreeting}>Hi, {profile?.name || 'Friend'}!</Text>
-            <Text style={styles.footerText}>Connecting through meaningful questions</Text>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        <View style={styles.panel}>
+          <Text style={styles.heroTitle}>Hi, {profile?.name || 'Friend'}!</Text>
+
+          <View style={styles.tileRow}>
+            <StatTile icon="📖" label="Questions Read" value={stats?.questionsRead ?? 0} />
+            <StatTile icon="💗" label="Favorites Saved" value={favoritesCount ?? 0} />
+            <StatTile icon="🔥" label="Connection Streak" value={stats?.streakDays ?? 1} suffix="Days" />
           </View>
-        </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}><Text style={styles.statLabel}>Questions Read</Text><Text style={styles.statValue}>{stats?.questionsRead ?? 0}</Text></View>
-          <View style={styles.statCard}><Text style={styles.statLabel}>Favorites Saved</Text><Text style={styles.statValue}>{favoritesCount}</Text></View>
-        </View>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}><Text style={styles.statLabel}>Times Shared</Text><Text style={styles.statValue}>{stats?.timesShared ?? 0}</Text></View>
-          <View style={styles.statCard}><Text style={styles.statLabel}>5-Day Connection Streak</Text><Text style={styles.statValue}>{stats?.streakDays ?? 1}</Text></View>
-        </View>
+          <View style={styles.chipFilterRow}>
+            {['All','Personal','Social'].map((l) => (
+              <Chip key={l} label={l} selected={filter===l} onPress={() => setFilter(l)} />
+            ))}
+          </View>
 
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.deckTitle}>Your Favorite Questions</Text>
-          {onViewAllFavorites && (
-            <TouchableOpacity onPress={onViewAllFavorites}><Text style={styles.viewAllLink}>View All</Text></TouchableOpacity>
-          )}
-        </View>
-        {favorites.length === 0 ? (
-          <Text style={styles.footerText}>You have no favorites yet. Save any question to see it here.</Text>
-        ) : (
-          <View>
-            {(favorites.slice(0,3)).map((f, i) => (
-              <View key={`${f.categoryId}-${i}`} style={styles.favoritePreviewRow}>
-                <View style={styles.favoriteDot} />
-                <Text style={styles.favoritePreviewText}>{f.question}</Text>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>This Week’s Highlights</Text>
+          <HighlightCard icon="👥" title={highlightZone?.name || 'Friendship Zone'} subtitle={`Try a question from ${highlightZone?.name || 'this zone'} today`} />
+
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Profile Settings</Text>
+          <SettingsList onEditProfile={() => setShowEdit((v) => !v)} />
+
+          {showEdit && (
+            <View style={{ marginTop: 10 }}>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Display Name</Text>
+                <TextInput
+                  value={profile?.name ?? ''}
+                  onChangeText={(t) => setProfile({ ...(profile||{}), name: t })}
+                  placeholder="Your name"
+                  style={styles.input}
+                />
               </View>
-            ))}
-          </View>
-        )}
 
-        <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
-          <Text style={styles.deckTitle}>This Week's Highlights</Text>
-          <View style={styles.highlightsRow}>
-            {['Trending Now','For Deep Talks','Light & Fun'].map((label) => (
-              <View key={label} style={styles.chip}><Text style={styles.chipText}>{label}</Text></View>
-            ))}
-          </View>
-          <Text style={styles.highlightText}>
-            {(favorites[0]?.question) || (allCategories[0]?.questions?.[0]) || 'What’s one small thing that made you smile this week'}
-          </Text>
-        </View>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Gender</Text>
+                <View style={styles.genderRow}>
+                  {genders.map((g) => (
+                    <TouchableOpacity key={g} style={[styles.genderBtn, profile?.gender===g && styles.genderBtnActive]} onPress={() => setProfile({ ...(profile||{}), gender: g })}>
+                      <Text style={styles.genderBtnText}>{g}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
-        <Text style={styles.sectionTitle}>Profile Settings</Text>
-        <View style={styles.formRow}>
-          <Text style={styles.formLabel}>Display Name</Text>
-          <TextInput
-            value={profile?.name ?? ''}
-            onChangeText={(t) => setProfile({ ...(profile||{}), name: t })}
-            placeholder="Your name"
-            style={styles.input}
-          />
-        </View>
-
-        <View style={styles.formRow}>
-          <Text style={styles.formLabel}>Gender</Text>
-          <View style={styles.genderRow}>
-            {genders.map((g) => (
-              <TouchableOpacity key={g} style={[styles.genderBtn, profile?.gender===g && styles.genderBtnActive]} onPress={() => setProfile({ ...(profile||{}), gender: g })}>
-                <Text style={styles.genderBtnText}>{g}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <Text style={styles.deckTitle}>Theme</Text>
-        <View style={styles.themeRow}>
-          {['light','gradient'].map((m) => (
-            <TouchableOpacity key={m} style={[styles.themeBtn, mode===m && styles.themeBtnActive]} onPress={() => setMode(m)}>
-              <Text style={[styles.controlText]}>{m[0].toUpperCase()+m.slice(1)}</Text>
-            </TouchableOpacity>
-          ))}
+              <Text style={styles.deckTitle}>Theme</Text>
+              <View style={styles.themeRow}>
+                {['light','gradient'].map((m) => (
+                  <TouchableOpacity key={m} style={[styles.themeBtn, mode===m && styles.themeBtnActive]} onPress={() => setMode(m)}>
+                    <Text style={[styles.controlText]}>{m[0].toUpperCase()+m.slice(1)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -515,11 +670,12 @@ function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, sta
 function BottomNav({ current, onNavigate, favoritesCount }) {
   const item = (key, label, emoji, count = 0) => (
     <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => onNavigate(key)}>
-      <Text style={styles.navEmoji}>{emoji}</Text>
+      <Text style={[styles.navEmoji, current===key && styles.navEmojiActive]}>{emoji}</Text>
       {key === 'favorites' && count > 0 && (
         <View style={styles.navBadge}><Text style={styles.navBadgeText}>{count}</Text></View>
       )}
-      <Text style={styles.navLabel}>{label}</Text>
+      <Text style={[styles.navLabel, current===key && styles.navLabelActive]}>{label}</Text>
+      {current===key && <View style={styles.navActiveDot} />}
     </TouchableOpacity>
   );
   return (
@@ -771,6 +927,7 @@ const styles = StyleSheet.create({
   },
   brandIcon: { fontSize: 36 },
   brandTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '700', marginTop: 6 },
+  brandTagline: { color: theme.colors.textMuted, fontSize: 14, marginTop: 4 },
   sectionTitle: {
     color: theme.colors.textMuted,
     fontSize: 16,
@@ -778,6 +935,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 16,
   },
+  panel: { backgroundColor: theme.colors.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, padding: 16, shadowColor: theme.colors.shadow, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
+  heroTitle: { color: theme.colors.text, fontSize: 30, fontWeight: '800', marginBottom: 10 },
   zoneCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
@@ -858,6 +1017,12 @@ const styles = StyleSheet.create({
   cardFavButton: { position: 'absolute', right: 12, top: 12, padding: 4 },
   cardFavStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 8 },
   cardFavStarActive: { color: theme.colors.primaryText, textShadowRadius: 12 },
+  tileRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, marginBottom: 12 },
+  statTile: { flex: 1, marginRight: 8, backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
+  statTileHeader: { flexDirection: 'row', alignItems: 'center' },
+  statTileIcon: { fontSize: 18, marginRight: 8 },
+  statTileLabel: { color: theme.colors.textMuted, fontSize: 13 },
+  statTileValue: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '800', marginTop: 6 },
   moodOverlay: {
     position: 'absolute',
     top: 0,
@@ -916,7 +1081,10 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center', paddingHorizontal: 6, position: 'relative' },
   navItemActive: { },
   navEmoji: { fontSize: 18 },
+  navEmojiActive: { },
   navLabel: { color: theme.colors.textMuted, fontSize: 12 },
+  navLabelActive: { color: theme.colors.primaryText, fontWeight: '700' },
+  navActiveDot: { position: 'absolute', bottom: -2, width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.primary },
   navBadge: { position: 'absolute', top: -2, right: 6, backgroundColor: theme.colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
   navBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   dailyCard: {
@@ -964,7 +1132,16 @@ const styles = StyleSheet.create({
   highlightsRow: { flexDirection: 'row', marginTop: 10 },
   chip: { backgroundColor: theme.colors.surfaceTint, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
   chipText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
+  chipFilterRow: { flexDirection: 'row', marginTop: 6, marginBottom: 12 },
+  chipSelected: { borderWidth: 1, borderColor: theme.colors.border },
+  chipTextSelected: { color: theme.colors.text },
+  chipUnderline: { height: 2, backgroundColor: theme.colors.primary, borderRadius: 2, marginTop: 4 },
   highlightText: { color: theme.colors.text, fontSize: 16, marginTop: 10 },
+  highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  highlightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  highlightIcon: { fontSize: 20 },
+  highlightTitle: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
+  highlightSubtitle: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
   formRow: { marginTop: 12 },
   formLabel: { color: theme.colors.textMuted, fontSize: 13, marginBottom: 6 },
   input: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
@@ -972,4 +1149,25 @@ const styles = StyleSheet.create({
   genderBtn: { marginRight: 8, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
   genderBtnActive: { borderWidth: 1, borderColor: theme.colors.border },
   genderBtnText: { color: theme.colors.text },
+  listCard: { backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  listIcon: { fontSize: 18, marginRight: 12 },
+  listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
+  listChevron: { color: theme.colors.textMuted, fontSize: 22 },
 });
+  const SWIPE_THRESHOLD = 80;
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 6,
+      onPanResponderMove: Animated.event([null, { dx: panX }], { useNativeDriver: false }),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx <= -SWIPE_THRESHOLD) {
+          goNext();
+        } else if (gesture.dx >= SWIPE_THRESHOLD) {
+          goPrev();
+        } else {
+          Animated.spring(panX, { toValue: 0, useNativeDriver: true, tension: 180, friction: 20 }).start();
+        }
+      },
+    })
+  ).current;
