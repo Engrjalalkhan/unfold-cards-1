@@ -473,6 +473,24 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   };
 
   const q = category.questions[order[index]];
+  const qNext = category.questions[order[(index + 1) % order.length]];
+
+  const SWIPE_THRESHOLD = 80;
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 6,
+      onPanResponderMove: Animated.event([null, { dx: panX }], { useNativeDriver: false }),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx <= -SWIPE_THRESHOLD) {
+          goNext();
+        } else if (gesture.dx >= SWIPE_THRESHOLD) {
+          goPrev();
+        } else {
+          Animated.spring(panX, { toValue: 0, useNativeDriver: true, tension: 180, friction: 20 }).start();
+        }
+      },
+    })
+  ).current;
 
   const favActive = isFavorite(category.id, q);
   const right = (
@@ -484,23 +502,49 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   return (
     <SafeAreaView style={styles.screen}>
       <Header title={category.name} onBack={onBack} right={right} />
-      <Animated.View
-        style={[
-          styles.card,
-          { borderColor: category.color },
-          { transform: [{ translateX: panX }, { rotate }], opacity: 1, shadowOpacity: 0.18 },
-          { transform: [{ translateX: panX }, { rotate }, { scale }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        <LinearGradient
-          style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: overlayOpacity }]}
-          colors={[hexToRgba(category.color, 0.08), 'rgba(255,255,255,0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <Text style={styles.cardPrompt}>{q}</Text>
-      </Animated.View>
+      <View style={styles.deckStack}>
+        {/* Peek card (next) */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.card,
+            { borderColor: category.color, position: 'absolute', left: 16, right: 16, top: 0 },
+            {
+              transform: [
+                { translateX: panX.interpolate({ inputRange: [-width, 0], outputRange: [0, 20], extrapolate: 'clamp' }) },
+                { scale: panX.interpolate({ inputRange: [-width, 0], outputRange: [1, 0.98], extrapolate: 'clamp' }) },
+              ],
+              opacity: panX.interpolate({ inputRange: [-120, 0], outputRange: [0.85, 0.35], extrapolate: 'clamp' }),
+            },
+          ]}
+        >
+          <LinearGradient
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: 0.12 }]}
+            colors={[hexToRgba(category.color, 0.12), 'rgba(255,255,255,0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Text style={styles.cardPrompt}>{qNext}</Text>
+        </Animated.View>
+
+        {/* Active card */}
+        <Animated.View
+          style={[
+            styles.card,
+            { borderColor: category.color, position: 'absolute', left: 16, right: 16, top: 0 },
+            { transform: [{ translateX: panX }, { rotate }, { scale }] },
+          ]}
+          {...panResponder.panHandlers}
+        >
+          <LinearGradient
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: overlayOpacity }]}
+            colors={[hexToRgba(category.color, 0.08), 'rgba(255,255,255,0)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <Text style={styles.cardPrompt}>{q}</Text>
+        </Animated.View>
+      </View>
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlBtn} onPress={goPrev}>
           <Text style={styles.controlText}>Previous</Text>
@@ -1010,6 +1054,7 @@ const styles = StyleSheet.create({
   controlText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
   primaryText: { color: '#FFFFFF', fontWeight: '700' },
   progress: { alignItems: 'center', marginTop: 8 },
+  deckStack: { minHeight: 260, position: 'relative', marginTop: 8 },
   progressText: { color: theme.colors.textMuted, fontSize: 13 },
   favButton: { paddingHorizontal: 10, paddingVertical: 6 },
   favStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
@@ -1155,19 +1200,3 @@ const styles = StyleSheet.create({
   listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   listChevron: { color: theme.colors.textMuted, fontSize: 22 },
 });
-  const SWIPE_THRESHOLD = 80;
-  const panResponder = React.useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 6,
-      onPanResponderMove: Animated.event([null, { dx: panX }], { useNativeDriver: false }),
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx <= -SWIPE_THRESHOLD) {
-          goNext();
-        } else if (gesture.dx >= SWIPE_THRESHOLD) {
-          goPrev();
-        } else {
-          Animated.spring(panX, { toValue: 0, useNativeDriver: true, tension: 180, friction: 20 }).start();
-        }
-      },
-    })
-  ).current;
