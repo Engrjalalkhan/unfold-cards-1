@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder, Alert, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -149,7 +150,6 @@ const Chip = React.memo(function Chip({ label, selected, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-      {selected && <View style={styles.chipUnderline} />}
     </TouchableOpacity>
   );
 });
@@ -171,17 +171,17 @@ const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableN
   return (
     <View style={styles.listCard}>
       <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
-        <Text style={styles.listIcon}>📘</Text>
+        <Ionicons name="book-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
         <Text style={styles.listItemText}>Edit Profile & Account</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.listItemRow} onPress={onEnableNotifications}>
-        <Text style={styles.listIcon}>🔔</Text>
+        <Ionicons name="notifications-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
         <Text style={styles.listItemText}>Notifications</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.listItemRow}>
-        <Text style={styles.listIcon}>🔒</Text>
+        <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
         <Text style={styles.listItemText}>Privacy & Support</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
@@ -592,7 +592,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   const favActive = isFavorite(category.id, q);
   const right = (
     <TouchableOpacity onPress={() => onToggleFavorite(category, q)} style={styles.favButton}>
-      <Text style={[styles.favStar, favActive && styles.favStarActive]}>⭐</Text>
+      <Ionicons name={favActive ? 'star' : 'star-outline'} size={22} color={favActive ? theme.colors.primaryText : theme.colors.text} />
     </TouchableOpacity>
   );
 
@@ -600,47 +600,47 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     <SafeAreaView style={styles.screen}>
       <Header title={category.name} onBack={onBack} right={right} />
       <View style={styles.deckStack}>
-        {/* Peek card (next) */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.card,
-            { borderColor: category.color, position: 'absolute', left: 16, right: 16, top: 0 },
-            {
-              transform: [
-                { translateX: panX.interpolate({ inputRange: [-width, 0], outputRange: [0, 20], extrapolate: 'clamp' }) },
-                { scale: panX.interpolate({ inputRange: [-width, 0], outputRange: [1, 0.98], extrapolate: 'clamp' }) },
-              ],
-              opacity: panX.interpolate({ inputRange: [-120, 0], outputRange: [0.85, 0.35], extrapolate: 'clamp' }),
-            },
-          ]}
-        >
-          <LinearGradient
-            style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: 0.12 }]}
-            colors={[hexToRgba(category.color, 0.12), 'rgba(255,255,255,0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <Text style={styles.cardPrompt}>{qNext}</Text>
-        </Animated.View>
+        <View style={styles.stackInner}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.card,
+              { borderColor: category.color, position: 'absolute', left: 0, right: 0, top: 0 },
+              {
+                transform: [
+                  { translateX: panX.interpolate({ inputRange: [-width, 0], outputRange: [0, 20], extrapolate: 'clamp' }) },
+                  { scale: panX.interpolate({ inputRange: [-width, 0], outputRange: [1, 0.98], extrapolate: 'clamp' }) },
+                ],
+                opacity: panX.interpolate({ inputRange: [-120, 0], outputRange: [0.85, 0.35], extrapolate: 'clamp' }),
+              },
+            ]}
+          >
+            <LinearGradient
+              style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: 0.12 }]}
+              colors={[hexToRgba(category.color, 0.12), 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <Text style={styles.cardPrompt}>{qNext}</Text>
+          </Animated.View>
 
-        {/* Active card */}
-        <Animated.View
-          style={[
-            styles.card,
-            { borderColor: category.color, position: 'absolute', left: 16, right: 16, top: 0 },
-            { transform: [{ translateX: panX }, { rotate }, { scale }] },
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <LinearGradient
-            style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: overlayOpacity }]}
-            colors={[hexToRgba(category.color, 0.08), 'rgba(255,255,255,0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <Text style={styles.cardPrompt}>{q}</Text>
-        </Animated.View>
+          <Animated.View
+            style={[
+              styles.card,
+              { borderColor: category.color, position: 'absolute', left: 0, right: 0, top: 0 },
+              { transform: [{ translateX: panX }, { rotate }, { scale }] },
+            ]}
+            {...panResponder.panHandlers}
+          >
+            <LinearGradient
+              style={[StyleSheet.absoluteFillObject, { borderRadius: 16, opacity: overlayOpacity }]}
+              colors={[hexToRgba(category.color, 0.08), 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <Text style={styles.cardPrompt}>{q}</Text>
+          </Animated.View>
+        </View>
       </View>
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlBtn} onPress={goPrev}>
@@ -751,9 +751,9 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
           <Text style={styles.heroTitle}>Hi, {profile?.name || 'Friend'}!</Text>
 
           <View style={styles.tileRow}>
-            <StatTile icon="📖" label="Questions Read" value={stats?.questionsRead ?? 0} />
-            <StatTile icon="💗" label="Favorites Saved" value={favoritesCount ?? 0} />
-            <StatTile icon="🔥" label="Connection Streak" value={stats?.streakDays ?? 1} suffix="Days" />
+            <StatTile icon={<Ionicons name="book-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Questions Read" value={stats?.questionsRead ?? 0} />
+            <StatTile icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Favorites Saved" value={favoritesCount ?? 0} />
+            <StatTile icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Connection Streak" value={stats?.streakDays ?? 1} suffix="Days" />
           </View>
 
           <View style={styles.chipFilterRow}>
@@ -798,9 +798,9 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
 }
 
 function BottomNav({ current, onNavigate, favoritesCount }) {
-  const item = (key, label, emoji, count = 0) => (
+  const item = (key, label, iconName, count = 0) => (
     <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => onNavigate(key)}>
-      <Text style={[styles.navEmoji, current===key && styles.navEmojiActive]}>{emoji}</Text>
+      <Ionicons name={iconName} size={20} color={current===key ? theme.colors.primaryText : theme.colors.textMuted} style={styles.navIcon} />
       {key === 'favorites' && count > 0 && (
         <View style={styles.navBadge}><Text style={styles.navBadgeText}>{count}</Text></View>
       )}
@@ -809,10 +809,10 @@ function BottomNav({ current, onNavigate, favoritesCount }) {
   );
   return (
     <View style={styles.bottomNav}>
-      {item('home','Home','🏠')}
-      {item('favorites','Favorites','⭐', favoritesCount)}
-      {item('shuffle','Shuffle','🎲')}
-      {item('profile','Profile','👤')}
+      {item('home','Home','home-outline')}
+      {item('favorites','Favorites','star-outline', favoritesCount)}
+      {item('shuffle','Shuffle','shuffle-outline')}
+      {item('profile','Profile','person-circle-outline')}
     </View>
   );
 }
@@ -1136,6 +1136,8 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 220,
     justifyContent: 'center',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   cardPrompt: { color: theme.colors.text, fontSize: 20, lineHeight: 28 },
   controls: {
@@ -1157,7 +1159,8 @@ const styles = StyleSheet.create({
   controlText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
   primaryText: { color: '#FFFFFF', fontWeight: '700' },
   progress: { alignItems: 'center', marginTop: 8 },
-  deckStack: { minHeight: 260, position: 'relative', marginTop: 8 },
+  deckStack: { minHeight: 280, position: 'relative', marginTop: 8, alignItems: 'center', justifyContent: 'center' },
+  stackInner: { width: '100%', maxWidth: 640, marginHorizontal: 16, alignSelf: 'center', position: 'relative', minHeight: 240 },
   progressText: { color: theme.colors.textMuted, fontSize: 13 },
   favButton: { paddingHorizontal: 10, paddingVertical: 6 },
   favStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
@@ -1228,11 +1231,9 @@ const styles = StyleSheet.create({
   },
   navItem: { alignItems: 'center', paddingHorizontal: 6, position: 'relative' },
   navItemActive: { },
-  navEmoji: { fontSize: 18 },
-  navEmojiActive: { },
+  navIcon: { fontSize: 18 },
   navLabel: { color: theme.colors.textMuted, fontSize: 12 },
   navLabelActive: { color: theme.colors.primaryText, fontWeight: '700' },
-  navActiveDot: { position: 'absolute', bottom: -2, width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.primary },
   navBadge: { position: 'absolute', top: -2, right: 6, backgroundColor: theme.colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
   navBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   dailyCard: {
@@ -1283,7 +1284,6 @@ const styles = StyleSheet.create({
   chipFilterRow: { flexDirection: 'row', marginTop: 6, marginBottom: 12 },
   chipSelected: { borderWidth: 1, borderColor: theme.colors.border },
   chipTextSelected: { color: theme.colors.text },
-  chipUnderline: { height: 2, backgroundColor: theme.colors.primary, borderRadius: 2, marginTop: 4 },
   highlightText: { color: theme.colors.text, fontSize: 16, marginTop: 10 },
   highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
   highlightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
@@ -1299,9 +1299,10 @@ const styles = StyleSheet.create({
   genderBtnText: { color: theme.colors.text },
   listCard: { backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
   listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  listIcon: { fontSize: 18, marginRight: 12 },
+  listIconI: { marginRight: 12 },
   listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   listChevron: { color: theme.colors.textMuted, fontSize: 22 },
   searchRow: { marginTop: 12 },
   searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
+  statTileIconI: { marginRight: 8 },
 });
