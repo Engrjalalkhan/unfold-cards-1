@@ -68,8 +68,8 @@ const scheduleReengageReminder = async () => {
         body: pickSuggestionBody(),
         data: { type: 'reengage' },
       },
-      // Fire in ~24 hours; we reschedule on every app activation
-      trigger: { seconds: 24 * 60 * 60 },
+      // Fire daily at 7:00 PM local time
+      trigger: { hour: 19, minute: 0, repeats: true },
     });
     await AsyncStorage.setItem(REENGAGE_ID_KEY, id);
   } catch (e) {
@@ -131,7 +131,7 @@ function BrandHeader() {
 }
 
 // Small reusable UI primitives to match design
-function StatTile({ icon, label, value, suffix }) {
+const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
   return (
     <View style={styles.statTile}>
       <View style={styles.statTileHeader}>
@@ -143,18 +143,18 @@ function StatTile({ icon, label, value, suffix }) {
       </Text>
     </View>
   );
-}
+});
 
-function Chip({ label, selected, onPress }) {
+const Chip = React.memo(function Chip({ label, selected, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
       {selected && <View style={styles.chipUnderline} />}
     </TouchableOpacity>
   );
-}
+});
 
-function HighlightCard({ icon, title, subtitle }) {
+const HighlightCard = React.memo(function HighlightCard({ icon, title, subtitle }) {
   return (
     <View style={styles.highlightCard}>
       <View style={styles.highlightIconWrap}><Text style={styles.highlightIcon}>{icon}</Text></View>
@@ -165,9 +165,9 @@ function HighlightCard({ icon, title, subtitle }) {
       <Text style={styles.chevron}>›</Text>
     </View>
   );
-}
+});
 
-function SettingsList({ onEditProfile, onEnableNotifications }) {
+const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableNotifications }) {
   return (
     <View style={styles.listCard}>
       <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
@@ -187,7 +187,7 @@ function SettingsList({ onEditProfile, onEnableNotifications }) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 function Particle({ seed }) {
   const { size, startX, startY, driftX, driftY, duration, color, baseOpacity } = seed;
@@ -404,15 +404,25 @@ function DailyQuestion({ onAnswer }) {
   );
 }
 
-function HomeScreen({ onSelectCategory, onAnswerDaily }) {
+function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
-  const [filter, setFilter] = React.useState('Trending');
+  const [todayKey, setTodayKey] = React.useState(getDateKey());
+  const [query, setQuery] = React.useState('');
 
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
+
+  React.useEffect(() => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 0);
+    const ms = next - now;
+    const t = setTimeout(() => setTodayKey(getDateKey()), ms);
+    return () => clearTimeout(t);
+  }, [todayKey]);
 
   const toggleZone = (id) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -421,21 +431,38 @@ function HomeScreen({ onSelectCategory, onAnswerDaily }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <BrandHeader />
+      <View style={styles.brandHeader}>
+        <Text style={styles.heroTitle}>Hi, {profile?.name || 'Friend'}!</Text>
+        <Text style={styles.streakLabel}>🔥 Connection Streak: {stats?.streakDays ?? 1} Days</Text>
+      </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}>
-        <View style={styles.chipFilterRow}>
-          <Chip label="Trending" selected={filter === 'Trending'} onPress={() => setFilter('Trending')} />
-          <Chip label="Deep Talks" selected={filter === 'Deep Talks'} onPress={() => setFilter('Deep Talks')} />
-          <Chip label="Light & Fun" selected={filter === 'Light & Fun'} onPress={() => setFilter('Light & Fun')} />
+        <View style={[styles.panel, { marginTop: 4 }]}>
+          <DailyQuestion key={todayKey} onAnswer={onAnswerDaily} />
         </View>
 
-        <View style={[styles.panel, { marginTop: 4 }]}>
-          <DailyQuestion onAnswer={onAnswerDaily} />
+        <View style={styles.searchRow}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search topics"
+            style={styles.searchInput}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Explore Zones</Text>
 
-        {zones.map((zone) => {
+        {(function() {
+          const q = query.trim().toLowerCase();
+          const displayed = zones.map((zone) => ({
+            ...zone,
+            categories: q
+              ? zone.categories.filter((c) =>
+                  (c.name || '').toLowerCase().includes(q) || (zone.name || '').toLowerCase().includes(q)
+                )
+              : zone.categories,
+          })).filter((z) => z.categories && z.categories.length > 0);
+          return displayed;
+        })().map((zone) => {
           const expanded = expandedZoneId === zone.id;
           return (
             <View key={zone.id} style={styles.zoneCard}>
@@ -713,11 +740,10 @@ function ShuffleScreen({ onOpen }) {
   );
 }
 
-function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications }) {
+function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
   const [filter, setFilter] = React.useState('All');
   const [showEdit, setShowEdit] = React.useState(false);
-  const highlightZone = zones[0];
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -735,9 +761,6 @@ function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, sta
               <Chip key={l} label={l} selected={filter===l} onPress={() => setFilter(l)} />
             ))}
           </View>
-
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>This Week’s Highlights</Text>
-          <HighlightCard icon="👥" title={highlightZone?.name || 'Friendship Zone'} subtitle={`Try a question from ${highlightZone?.name || 'this zone'} today`} />
 
           <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Profile Settings</Text>
           <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onEnableNotifications={onEnableNotifications} />
@@ -765,14 +788,7 @@ function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, sta
                 </View>
               </View>
 
-              <Text style={styles.deckTitle}>Theme</Text>
-              <View style={styles.themeRow}>
-                {['light','gradient'].map((m) => (
-                  <TouchableOpacity key={m} style={[styles.themeBtn, mode===m && styles.themeBtnActive]} onPress={() => setMode(m)}>
-                    <Text style={[styles.controlText]}>{m[0].toUpperCase()+m.slice(1)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              
             </View>
           )}
         </View>
@@ -807,7 +823,7 @@ export default function App() {
   const [mood, setMood] = React.useState(null);
   const [favorites, setFavorites] = React.useState([]);
   const [tab, setTab] = React.useState('home');
-  const [uiMode, setUiMode] = React.useState('light');
+  
   const [initialIndex, setInitialIndex] = React.useState(0);
   const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(true);
@@ -957,8 +973,6 @@ export default function App() {
     } else if (tab === 'profile') {
       Screen = (
         <ProfileScreen
-          mode={uiMode}
-          setMode={setUiMode}
           profile={profile}
           setProfile={setProfile}
           favoritesCount={favorites.length}
@@ -970,7 +984,7 @@ export default function App() {
       );
     } else {
       Screen = (
-        <HomeScreen onSelectCategory={(c) => setSelected(c)} onAnswerDaily={(cat, idx) => openCategoryAt(cat, idx)} />
+        <HomeScreen profile={profile} stats={stats} onSelectCategory={(c) => setSelected(c)} onAnswerDaily={(cat, idx) => openCategoryAt(cat, idx)} />
       );
     }
   }
@@ -1013,14 +1027,11 @@ export default function App() {
     </View>
   );
 
-  if (uiMode === 'gradient') {
-    return (
-      <LinearGradient colors={[theme.colors.surfaceTint, theme.colors.background]} style={{ flex: 1 }}>
-        {Root}
-      </LinearGradient>
-    );
-  }
-  return Root;
+  return (
+    <LinearGradient colors={[theme.colors.surfaceTint, theme.colors.background]} style={{ flex: 1 }}>
+      {Root}
+    </LinearGradient>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -1038,7 +1049,7 @@ const styles = StyleSheet.create({
   guestLink: { color: '#6B4C9A', fontSize: 14 },
   screen: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',
@@ -1071,7 +1082,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   panel: { backgroundColor: theme.colors.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, padding: 16, shadowColor: theme.colors.shadow, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
-  heroTitle: { color: theme.colors.text, fontSize: 30, fontWeight: '800', marginBottom: 10 },
+  heroTitle: { color: theme.colors.text, fontSize: 32, fontWeight: '800', marginBottom: 10 },
+  streakLabel: { color: theme.colors.textMuted, fontSize: 13 },
   zoneCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 18,
@@ -1158,7 +1170,7 @@ const styles = StyleSheet.create({
   statTileHeader: { flexDirection: 'row', alignItems: 'center' },
   statTileIcon: { fontSize: 18, marginRight: 8 },
   statTileLabel: { color: theme.colors.textMuted, fontSize: 13 },
-  statTileValue: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '800', marginTop: 6 },
+  statTileValue: { color: theme.colors.primaryText, fontSize: 24, fontWeight: '800', marginTop: 6 },
   moodOverlay: {
     position: 'absolute',
     top: 0,
@@ -1290,4 +1302,6 @@ const styles = StyleSheet.create({
   listIcon: { fontSize: 18, marginRight: 12 },
   listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   listChevron: { color: theme.colors.textMuted, fontSize: 22 },
+  searchRow: { marginTop: 12 },
+  searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
 });
