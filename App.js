@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder, Alert, AppState } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
 import { zones } from './data/decks';
 import { theme } from './theme';
 import { allCategories } from './data/decks';
@@ -11,6 +12,9 @@ const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
 const ONBOARDING_STORAGE_KEY = '@unflod_cards:onboarding_done:v1';
 const PROFILE_STORAGE_KEY = '@unflod_cards:profile:v1';
 const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
+const NOTIF_ENABLED_KEY = '@unflod_cards:notif_enabled:v1';
+const LAST_ACTIVE_TS_KEY = '@unflod_cards:last_active_ts:v1';
+const REENGAGE_ID_KEY = '@unflod_cards:reengage_id:v1';
 
 // Utilities
 const hexToRgba = (hex, alpha = 1) => {
@@ -32,6 +36,72 @@ const getDateKey = (d = new Date()) => {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
+};
+
+// Notifications handler: show alerts, no sound/badge by default
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+const pickSuggestionBody = () => {
+  try {
+    if (Array.isArray(allCategories) && allCategories.length > 0) {
+      const c = allCategories[Math.floor(Math.random() * allCategories.length)];
+      const name = c?.name || 'a category';
+      return `Take a moment today — try a card from ${name}.`;
+    }
+  } catch {}
+  return 'Take a mindful minute — open Unflod Cards today.';
+};
+
+const scheduleReengageReminder = async () => {
+  try {
+    // Cancel prior scheduled reminders to avoid stacking
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Keep the connection going',
+        body: pickSuggestionBody(),
+        data: { type: 'reengage' },
+      },
+      // Fire in ~24 hours; we reschedule on every app activation
+      trigger: { seconds: 24 * 60 * 60 },
+    });
+    await AsyncStorage.setItem(REENGAGE_ID_KEY, id);
+  } catch (e) {
+    // noop
+  }
+};
+
+const enableDailyReminders = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      Alert.alert('Notifications on Web', 'Notifications are not available in this web preview. Use a device build to receive reminders.');
+      return false;
+    }
+    const current = await Notifications.getPermissionsAsync();
+    let status = current?.status;
+    if (status !== 'granted') {
+      const req = await Notifications.requestPermissionsAsync();
+      status = req?.status;
+    }
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Enable notifications in system settings to receive reminders.');
+      await AsyncStorage.setItem(NOTIF_ENABLED_KEY, 'false');
+      return false;
+    }
+    await AsyncStorage.setItem(NOTIF_ENABLED_KEY, 'true');
+    await scheduleReengageReminder();
+    Alert.alert('Reminders enabled', 'We’ll nudge you if you’re away for a day.');
+    return true;
+  } catch (e) {
+    Alert.alert('Notifications error', 'Something went wrong enabling reminders.');
+    return false;
+  }
 };
 
 function Header({ title, onBack, right }) {
@@ -97,7 +167,7 @@ function HighlightCard({ icon, title, subtitle }) {
   );
 }
 
-function SettingsList({ onEditProfile }) {
+function SettingsList({ onEditProfile, onEnableNotifications }) {
   return (
     <View style={styles.listCard}>
       <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
@@ -105,7 +175,7 @@ function SettingsList({ onEditProfile }) {
         <Text style={styles.listItemText}>Edit Profile & Account</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.listItemRow}>
+      <TouchableOpacity style={styles.listItemRow} onPress={onEnableNotifications}>
         <Text style={styles.listIcon}>🔔</Text>
         <Text style={styles.listItemText}>Notifications</Text>
         <Text style={styles.listChevron}>›</Text>
@@ -643,7 +713,7 @@ function ShuffleScreen({ onOpen }) {
   );
 }
 
-function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites }) {
+function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
   const [filter, setFilter] = React.useState('All');
   const [showEdit, setShowEdit] = React.useState(false);
@@ -670,7 +740,7 @@ function ProfileScreen({ mode, setMode, profile, setProfile, favoritesCount, sta
           <HighlightCard icon="👥" title={highlightZone?.name || 'Friendship Zone'} subtitle={`Try a question from ${highlightZone?.name || 'this zone'} today`} />
 
           <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Profile Settings</Text>
-          <SettingsList onEditProfile={() => setShowEdit((v) => !v)} />
+          <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onEnableNotifications={onEnableNotifications} />
 
           {showEdit && (
             <View style={{ marginTop: 10 }}>
@@ -719,7 +789,6 @@ function BottomNav({ current, onNavigate, favoritesCount }) {
         <View style={styles.navBadge}><Text style={styles.navBadgeText}>{count}</Text></View>
       )}
       <Text style={[styles.navLabel, current===key && styles.navLabelActive]}>{label}</Text>
-      {current===key && <View style={styles.navActiveDot} />}
     </TouchableOpacity>
   );
   return (
@@ -896,6 +965,7 @@ export default function App() {
           stats={stats}
           favorites={favorites}
           onViewAllFavorites={() => setTab('favorites')}
+          onEnableNotifications={enableDailyReminders}
         />
       );
     } else {
@@ -910,6 +980,27 @@ export default function App() {
     setTab(key);
   };
 
+  // Reschedule reminder when app becomes active and mark last active timestamp
+  React.useEffect(() => {
+    const onActive = async () => {
+      try {
+        await AsyncStorage.setItem(LAST_ACTIVE_TS_KEY, String(Date.now()));
+        const enabled = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
+        if (enabled === 'true') {
+          await scheduleReengageReminder();
+        }
+      } catch {}
+    };
+    onActive();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') onActive();
+    });
+    return () => {
+      try { sub?.remove?.(); } catch {}
+    };
+  }, []);
+
+  // Show onboarding after hooks are declared to keep hook order stable
   if (showOnboarding) {
     return <OnboardingScreen onContinue={completeOnboarding} />;
   }
