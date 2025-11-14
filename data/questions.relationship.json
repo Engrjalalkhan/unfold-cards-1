@@ -41,7 +41,42 @@
             "What does being “in love” mean to you now compared to before us?"
           ]
         },
-        { "id": "for-soulmates", "name": "For Soulmates", "questions": [] },
+        {
+          "id": "for-soulmates",
+          "name": "For Soulmates",
+          "questions": [
+            "What makes you feel like we were meant to find each other?",
+            "What’s something about me that feels oddly familiar?",
+            "How would you describe our connection to someone who’s never felt it?",
+            "What makes our bond feel unbreakable?",
+            "Do you believe we’ve met in another lifetime?",
+            "What part of your life feels lighter because I’m in it?",
+            "What’s the purest moment we’ve shared so far?",
+            "How do you know you can be your truest self around me?",
+            "What emotion do I bring out in you the most?",
+            "What do you think our souls were meant to teach each other?",
+            "What moment made you realize you could trust me fully?",
+            "What’s something small that reminds you of me every day?",
+            "How do we balance each other out?",
+            "What kind of energy do we create together?",
+            "If love had a color, what shade would ours be?",
+            "What part of me feels like home to you?",
+            "What would your life look like if we never met?",
+            "What do you think keeps our souls connected even when apart?",
+            "How have I helped you grow emotionally or spiritually?",
+            "What’s a sign from the universe that reminds you of me?",
+            "What song feels like our souls talking?",
+            "What lesson has our love taught you?",
+            "What does “forever” mean when you think of us?",
+            "How do we help each other heal?",
+            "What does it feel like when we’re completely in sync?",
+            "When do you feel closest to my soul?",
+            "What’s a dream you believe we’re meant to chase together?",
+            "How would you describe our energy in one word?",
+            "What makes our connection different from any love you’ve known?",
+            "How do you know that you’ve truly found your soulmate?"
+          ]
+        },
         { "id": "couple-therapy", "name": "Couple Therapy", "questions": [] },
         { "id": "naughty-nights", "name": "Naughty Nights", "questions": [] },
         { "id": "the-future-us", "name": "The Future Us", "questions": [] }
