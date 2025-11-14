@@ -1,0 +1,51 @@
+{
+  "categories": [
+    {
+      "id": "relationship-zone",
+      "name": "Relationship Zone",
+      "color": "#FF6B6B",
+      "subcategories": [
+        {
+          "id": "couple-questions",
+          "name": "Couple Questions",
+          "questions": [
+            "What’s the one habit of mine that secretly melts your heart?",
+            "When did you first realize we had something special?",
+            "What’s your favorite way to make up after an argument?",
+            "If our story was a movie, what would the title be?",
+            "How do you usually show love when words aren’t enough?",
+            "What’s one thing I do that always makes you laugh?",
+            "Which moment of ours do you wish you could relive?",
+            "What song perfectly describes us?",
+            "What makes our relationship different from others?",
+            "If you could change one thing about how we communicate, what would it be?",
+            "What’s something you love about me but rarely say?",
+            "How do you know when I’m upset without me saying it?",
+            "What’s your favorite kind of date with me?",
+            "Which of our memories do you think I’ve forgotten but you still remember?",
+            "What small things do I do that mean the most to you?",
+            "If we switched roles for a day, what would surprise you most about my life?",
+            "What makes you feel closest to me?",
+            "What’s your favorite “us” tradition?",
+            "How has being together changed you as a person?",
+            "What’s one thing we should do more often as a couple?",
+            "Which of our inside jokes never gets old?",
+            "What’s something you learned about love because of me?",
+            "If you had to describe our relationship in three words, what would they be?",
+            "What’s one memory that makes you smile instantly?",
+            "When was the last time I made you feel really loved?",
+            "What’s your favorite time of day to spend with me?",
+            "What do you think keeps our spark alive?",
+            "What makes you most grateful for our relationship?",
+            "What’s something I don’t realize you appreciate about me?",
+            "What does being “in love” mean to you now compared to before us?"
+          ]
+        },
+        { "id": "for-soulmates", "name": "For Soulmates", "questions": [] },
+        { "id": "couple-therapy", "name": "Couple Therapy", "questions": [] },
+        { "id": "naughty-nights", "name": "Naughty Nights", "questions": [] },
+        { "id": "the-future-us", "name": "The Future Us", "questions": [] }
+      ]
+    }
+  ]
+}
