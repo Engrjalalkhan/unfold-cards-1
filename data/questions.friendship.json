@@ -113,7 +113,42 @@
             "What’s a feeling you miss the most from childhood?"
           ]
         },
-        { "id": "getting-to-know-you", "name": "Getting to Know You", "questions": [] },
+        {
+          "id": "getting-to-know-you",
+          "name": "Getting to Know You",
+          "questions": [
+            "What’s something people notice about you only after knowing you well?",
+            "What’s the hobby you love but rarely mention?",
+            "What’s your personality like when you’re completely relaxed?",
+            "What’s a belief you hold strongly?",
+            "What’s something you value more than most people do?",
+            "What’s the most “you” thing someone could gift you?",
+            "What’s a habit you picked up recently that improved your life?",
+            "What’s your comfort movie or show—and why?",
+            "What’s one thing you’re unexpectedly good at?",
+            "What’s something you wish people knew about you immediately?",
+            "What’s a place where you feel most like yourself?",
+            "What’s a small detail about you that says a lot?",
+            "What’s a personality trait you’re proud of?",
+            "What’s something that makes you feel instantly calm?",
+            "What’s an experience that changed your perspective?",
+            "What’s something you enjoy that surprises people?",
+            "What’s the most thoughtful thing someone has done for you?",
+            "What’s your hidden joy in daily life?",
+            "What’s a comfort routine you can’t live without?",
+            "What’s something you do that others find unusual?",
+            "What motivates you the most?",
+            "What’s a feeling you chase often?",
+            "What’s the best compliment someone could give you?",
+            "What’s something that instantly sparks your curiosity?",
+            "What’s the weirdest but most accurate description of your personality?",
+            "What’s a memory that perfectly describes who you are?",
+            "What’s something you overthink too much?",
+            "What’s one topic you can talk about for hours?",
+            "What’s something that instantly makes your day better?",
+            "What’s a question you wish people would ask you?"
+          ]
+        },
         { "id": "random-mix", "name": "Random Mix", "questions": [] }
       ]
     }
