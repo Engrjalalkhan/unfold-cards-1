@@ -1,0 +1,47 @@
+{
+  "categories": [
+    {
+      "id": "friendship-zone",
+      "name": "Friendship Zone",
+      "color": "#4D96FF",
+      "subcategories": [
+        {
+          "id": "for-best-friends",
+          "name": "For Best Friends",
+          "questions": [
+            "What’s a moment in our friendship you’ll never forget?",
+            "What’s one thing you can tell me but not anyone else?",
+            "What’s the biggest way our friendship has changed you?",
+            "What inside joke of ours still makes you laugh instantly?",
+            "When did you first know we’d be close friends?",
+            "What’s something you admire about me but never said?",
+            "What’s your favorite adventure we’ve had together?",
+            "What’s one thing we do that every friendship should try?",
+            "What’s a risk you took because I encouraged you?",
+            "What’s your favorite memory of us being chaotic?",
+            "What’s something only I understand about you?",
+            "Which of my habits reminds you of me even when I’m not around?",
+            "What song instantly feels like “our friendship”?",
+            "When did we laugh the hardest together?",
+            "What’s the most meaningful conversation we’ve had?",
+            "What’s something we’ve been through that made our bond stronger?",
+            "If we lived together, what would be the funniest part?",
+            "What’s something we should do together at least once in life?",
+            "What do you think is the best part of having me as a friend?",
+            "What personality trait of mine balances you out?",
+            "What moment made you trust me fully?",
+            "What’s something you wish we did more often?",
+            "What’s one compliment you think I need to hear more?",
+            "What’s a dream you want us to achieve together one day?",
+            "What’s the weirdest thing we bonded over?",
+            "What’s a memory of us that always makes you smile?",
+            "What’s one tradition we should start as best friends?",
+            "If we wrote a book together, what would it be about?",
+            "What’s one thing you think we’ll joke about even when we’re old?",
+            "What do you think makes our friendship so rare?"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,10 +1,27 @@
 // Zones-based structure with categories (like Netflix genres)
 import relJson from './questions.relationship.json';
+import friendJson from './questions.friendship.json';
 
 const relationshipCategories = (() => {
   try {
     const zone = (relJson.categories || []).find((x) => x.id === 'relationship-zone') || (relJson.categories || [])[0];
     const color = zone?.color || '#FF6B6B';
+    const subs = zone?.subcategories || [];
+    return subs.map((sub) => ({
+      id: sub.id,
+      name: sub.name,
+      color,
+      questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [],
+    }));
+  } catch (e) {
+    return [];
+  }
+})();
+
+const friendshipCategories = (() => {
+  try {
+    const zone = (friendJson.categories || []).find((x) => x.id === 'friendship-zone') || (friendJson.categories || [])[0];
+    const color = zone?.color || '#4D96FF';
     const subs = zone?.subcategories || [];
     return subs.map((sub) => ({
       id: sub.id,
@@ -64,7 +81,7 @@ export const zones = [
     id: 'friendship-zone',
     name: 'Friendship Zone',
     color: '#4D96FF',
-    categories: [
+    categories: friendshipCategories.length ? friendshipCategories : [
       { id: 'for-best-friends', name: 'For Best Friends', color: '#4D96FF', questions: [
         'What memory with me always makes you smile?',
         'What’s a tradition we should start?',
