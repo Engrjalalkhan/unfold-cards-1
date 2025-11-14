@@ -149,7 +149,42 @@
             "What’s a question you wish people would ask you?"
           ]
         },
-        { "id": "random-mix", "name": "Random Mix", "questions": [] }
+        {
+          "id": "random-mix",
+          "name": "Random Mix",
+          "questions": [
+            "What’s a decision you made impulsively that turned out great?",
+            "What’s a random fact about yourself most people don’t know?",
+            "What’s a goal you’re chasing this year?",
+            "What’s the most unexpected place life took you?",
+            "What’s something embarrassing that you now find hilarious?",
+            "What’s a small win you’re proud of recently?",
+            "What’s a moment you wish you could freeze forever?",
+            "What’s something you never get tired of talking about?",
+            "What’s a challenge you want to take on next?",
+            "What’s one thing you refuse to settle for?",
+            "What’s something you want to learn before the year ends?",
+            "What’s a guilty pleasure that’s not really guilty to you?",
+            "What’s a compliment you received that stuck with you?",
+            "What’s a moment that made you unexpectedly emotional?",
+            "What’s the best advice you rejected but later realized was true?",
+            "What’s something you know you overdo?",
+            "What’s a life lesson you learned from a stranger?",
+            "What’s a risk you’re glad you took?",
+            "What’s one thing you want to experience for the first time soon?",
+            "What’s your favorite type of chaos?",
+            "What’s a belief you recently challenged?",
+            "What’s something you want to change about your routine?",
+            "What’s a small thing that gives you a big serotonin boost?",
+            "What’s a feeling you wish lasted longer?",
+            "What’s something you outgrew in the best way?",
+            "What’s a memory you didn’t appreciate until later?",
+            "What’s something you’ve been postponing but shouldn’t?",
+            "What’s one thing you want to be remembered for?",
+            "What’s a moment where you surprised yourself?",
+            "What’s something you want to say “yes” to more often?"
+          ]
+        }
       ]
     }
   ]
