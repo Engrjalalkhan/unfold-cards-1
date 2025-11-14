@@ -41,7 +41,42 @@
             "What do you think makes our friendship so rare?"
           ]
         },
-        { "id": "spill-the-tea", "name": "Spill the Tea", "questions": [] },
+        {
+          "id": "spill-the-tea",
+          "name": "Spill the Tea",
+          "questions": [
+            "What’s something you discovered recently that shocked you?",
+            "Who’s someone you trust a little less now, and why?",
+            "What’s a truth you think people pretend not to know?",
+            "What rumor did you hear that was surprisingly true?",
+            "What’s the funniest drama you’ve ever witnessed?",
+            "What’s something you pretend to like but secretly don’t?",
+            "Who’s someone you used to admire but don’t anymore?",
+            "What’s the biggest red flag you ignored in someone?",
+            "What’s a lie people tell that annoys you instantly?",
+            "What’s a trend everyone loves but you absolutely don’t get?",
+            "Who’s the most unpredictable person you know?",
+            "What’s the pettiest thing you’ve ever done?",
+            "What’s a truth you learned the hard way?",
+            "Who gives the worst advice, but says it confidently?",
+            "What’s the funniest mistake someone’s made around you?",
+            "What’s one secret crush you had that you laugh about now?",
+            "What’s something people brag about that means nothing to you?",
+            "Who changed the most since you first met them?",
+            "What’s a “nice” person thing that actually gives you the ick?",
+            "What’s something you know but wish you didn’t?",
+            "Who’s the most drama-loving person in your circle?",
+            "What’s one moment you realized someone was fake?",
+            "What’s something petty you low-key loved watching unfold?",
+            "Who’s someone you underestimated completely?",
+            "What’s something messy you’re glad you walked away from?",
+            "What’s a truth people refuse to accept?",
+            "Who’s the funniest accidental villain you know?",
+            "What’s your most iconic “I told you so” moment?",
+            "What’s one tea you’ve been holding in for too long?",
+            "What’s the most chaotic thing someone has ever confessed to you?"
+          ]
+        },
         { "id": "confessions", "name": "Confessions", "questions": [] },
         { "id": "getting-to-know-you", "name": "Getting to Know You", "questions": [] },
         { "id": "random-mix", "name": "Random Mix", "questions": [] }
