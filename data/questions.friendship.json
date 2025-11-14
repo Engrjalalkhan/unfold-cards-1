@@ -40,7 +40,11 @@
             "What’s one thing you think we’ll joke about even when we’re old?",
             "What do you think makes our friendship so rare?"
           ]
-        }
+        },
+        { "id": "spill-the-tea", "name": "Spill the Tea", "questions": [] },
+        { "id": "confessions", "name": "Confessions", "questions": [] },
+        { "id": "getting-to-know-you", "name": "Getting to Know You", "questions": [] },
+        { "id": "random-mix", "name": "Random Mix", "questions": [] }
       ]
     }
   ]
