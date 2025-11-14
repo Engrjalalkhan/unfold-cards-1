@@ -77,7 +77,42 @@
             "What’s the most chaotic thing someone has ever confessed to you?"
           ]
         },
-        { "id": "confessions", "name": "Confessions", "questions": [] },
+        {
+          "id": "confessions",
+          "name": "Confessions",
+          "questions": [
+            "What’s something you’ve never admitted out loud before?",
+            "What’s a decision you still wonder about?",
+            "What’s an apology you wish you had given sooner?",
+            "What’s a dream you kept secret because it felt too big?",
+            "What’s a fear you wish people understood better?",
+            "What’s something you pretend doesn’t bother you—but does?",
+            "What’s a compliment you struggle to accept?",
+            "What memory still makes you blush?",
+            "What’s one thing you outgrew but secretly miss?",
+            "What’s something you wish someone had taught you earlier in life?",
+            "What’s a promise you broke but regret deeply?",
+            "What’s something you want to let go of this year?",
+            "What’s something you said that you wish you could take back?",
+            "What’s one thing you hide because you think people won’t get it?",
+            "What’s a moment you still replay in your head?",
+            "What’s something you forgave but never forgot?",
+            "What’s one rule you break more often than you admit?",
+            "What’s something you want to confess to your past self?",
+            "What’s a feeling you struggle to put into words?",
+            "What’s something you’ve been holding onto for too long?",
+            "What’s the real reason you ended a friendship or relationship?",
+            "What’s something you admire about others but don’t see in yourself?",
+            "What’s a truth you realized only after losing something?",
+            "What’s a lie you once believed about yourself?",
+            "What’s a mistake that turned out to be a blessing?",
+            "What’s something you wish people would ask you more often?",
+            "What’s one thing you’re afraid people will judge you for?",
+            "What’s the bravest thing you’ve done without telling anyone?",
+            "What’s something you’re proud of but rarely talk about?",
+            "What’s a feeling you miss the most from childhood?"
+          ]
+        },
         { "id": "getting-to-know-you", "name": "Getting to Know You", "questions": [] },
         { "id": "random-mix", "name": "Random Mix", "questions": [] }
       ]
