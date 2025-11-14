@@ -113,8 +113,78 @@
             "What would “our best version” as a couple look like to you?"
           ]
         },
-        { "id": "naughty-nights", "name": "Naughty Nights", "questions": [] },
-        { "id": "the-future-us", "name": "The Future Us", "questions": [] }
+        {
+          "id": "naughty-nights",
+          "name": "Naughty Nights",
+          "questions": [
+            "What’s your favorite way to flirt with me?",
+            "What’s the sexiest compliment you’ve ever received from me?",
+            "What makes you instantly attracted to me?",
+            "What’s one fantasy you’ve never told me about?",
+            "How do you define “chemistry”?",
+            "What’s something you find irresistible about me?",
+            "What’s your favorite way to tease or be teased?",
+            "What’s one thing you love doing when it’s just us?",
+            "What kind of touch makes you weak?",
+            "What’s the most spontaneous thing we’ve ever done together?",
+            "If we had a secret code word for “let’s escape,” what would it be?",
+            "What’s your favorite kind of kiss?",
+            "What’s your favorite way to surprise me romantically?",
+            "What’s the most romantic night you can imagine?",
+            "What’s a turn-on that has nothing to do with looks?",
+            "How do you show passion without words?",
+            "What outfit of mine do you secretly love?",
+            "What’s your favorite memory of us being close?",
+            "What’s something playful you’d love us to try?",
+            "What makes intimacy feel deeper for you?",
+            "How do you feel when I flirt unexpectedly?",
+            "What makes a night unforgettable for you?",
+            "What kind of affection makes you feel most connected?",
+            "If we were a love scene, how would you describe it?",
+            "What’s a “guilty pleasure” we share?",
+            "What’s one small gesture that instantly turns you on?",
+            "What song should always be on our playlist?",
+            "How do you feel when I look at you a certain way?",
+            "What’s your favorite way to end a long day together?",
+            "What makes our passion unique?"
+          ]
+        },
+        {
+          "id": "the-future-us",
+          "name": "The Future Us",
+          "questions": [
+            "What do you imagine our life together 5 years from now?",
+            "How do you see us growing individually and as a team?",
+            "What’s one dream you hope we chase together?",
+            "How do you picture our perfect home?",
+            "What kind of traditions do you want to create with me?",
+            "What’s one thing you hope we never stop doing?",
+            "What kind of parents or partners do you think we’d be?",
+            "What’s your biggest goal that you want me to be part of?",
+            "How can we support each other’s dreams better?",
+            "What does “building a life together” mean to you?",
+            "Where would you love for us to travel first as a milestone trip?",
+            "What scares you the most about the future — and how can we face it together?",
+            "What are three things you hope never change between us?",
+            "How do you imagine celebrating our biggest win together?",
+            "What kind of energy do you want our home to have?",
+            "How do you want to keep love alive long-term?",
+            "What do you think we’ll laugh about years from now?",
+            "How do you want us to handle challenges as we grow older?",
+            "What’s a long-term dream that feels “ours,” not just mine or yours?",
+            "What milestone are you most excited for us to reach?",
+            "What kind of legacy do you want our love to leave?",
+            "How do you see our relationship evolving in 10 years?",
+            "What’s one value we should always protect?",
+            "What’s one promise you want to keep forever?",
+            "What’s your ideal way to spend a Sunday 10 years from now?",
+            "What kind of memories do you want us to create every year?",
+            "How do you think we’ll handle life’s surprises?",
+            "What’s one thing you hope I’ll always remember about us?",
+            "What would our “happily ever after” look like to you?",
+            "What does growing old together mean to you?"
+          ]
+        }
       ]
     }
   ]
