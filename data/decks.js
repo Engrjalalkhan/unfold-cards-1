@@ -1,10 +1,28 @@
 // Zones-based structure with categories (like Netflix genres)
+import relJson from './questions.relationship.json';
+
+const relationshipCategories = (() => {
+  try {
+    const zone = (relJson.categories || []).find((x) => x.id === 'relationship-zone') || (relJson.categories || [])[0];
+    const color = zone?.color || '#FF6B6B';
+    const subs = zone?.subcategories || [];
+    return subs.map((sub) => ({
+      id: sub.id,
+      name: sub.name,
+      color,
+      questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [],
+    }));
+  } catch (e) {
+    return [];
+  }
+})();
+
 export const zones = [
   {
     id: 'relationship-zone',
     name: 'Relationship Zone',
     color: '#FF6B6B',
-    categories: [
+    categories: relationshipCategories.length ? relationshipCategories : [
       { id: 'couple-questions', name: 'Couple Questions', color: '#FF6B6B', questions: [
         'What first drew you to me?',
         'When did you feel most loved by me?',
