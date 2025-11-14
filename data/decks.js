@@ -1,6 +1,9 @@
 // Zones-based structure with categories (like Netflix genres)
 import relJson from './questions.relationship.json';
 import friendJson from './questions.friendship.json';
+import familyJson from './questions.family.json';
+import emotionalJson from './questions.emotional.json';
+import funJson from './questions.fun.json';
 
 const relationshipCategories = (() => {
   try {
@@ -29,6 +32,39 @@ const friendshipCategories = (() => {
       color,
       questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [],
     }));
+  } catch (e) {
+    return [];
+  }
+})();
+
+const familyCategories = (() => {
+  try {
+    const zone = (familyJson.categories || []).find((x) => x.id === 'family-zone') || (familyJson.categories || [])[0];
+    const color = zone?.color || '#00C897';
+    const subs = zone?.subcategories || [];
+    return subs.map((sub) => ({ id: sub.id, name: sub.name, color, questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [] }));
+  } catch (e) {
+    return [];
+  }
+})();
+
+const emotionalCategories = (() => {
+  try {
+    const zone = (emotionalJson.categories || []).find((x) => x.id === 'emotional-zone') || (emotionalJson.categories || [])[0];
+    const color = zone?.color || '#9D4EDD';
+    const subs = zone?.subcategories || [];
+    return subs.map((sub) => ({ id: sub.id, name: sub.name, color, questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [] }));
+  } catch (e) {
+    return [];
+  }
+})();
+
+const funCategories = (() => {
+  try {
+    const zone = (funJson.categories || []).find((x) => x.id === 'fun-zone') || (funJson.categories || [])[0];
+    const color = zone?.color || '#FFC300';
+    const subs = zone?.subcategories || [];
+    return subs.map((sub) => ({ id: sub.id, name: sub.name, color, questions: Array.isArray(sub.questions) ? sub.questions.filter((q) => typeof q === 'string' && q.trim().length > 0) : [] }));
   } catch (e) {
     return [];
   }
@@ -123,7 +159,7 @@ export const zones = [
     id: 'family-zone',
     name: 'Family Zone',
     color: '#00C897',
-    categories: [
+    categories: familyCategories.length ? familyCategories : [
       { id: 'for-siblings', name: 'For Siblings', color: '#00C897', questions: [
         'What childhood memory do you think I forgot?',
         'What made our bond stronger over time?',
@@ -151,7 +187,7 @@ export const zones = [
     id: 'emotional-zone',
     name: 'Emotional Zone',
     color: '#9D4EDD',
-    categories: [
+    categories: emotionalCategories.length ? emotionalCategories : [
       { id: 'dream-talks', name: 'Dream Talks', color: '#9D4EDD', questions: [
         'What dream keeps returning?',
         'What’s a bold goal you’re nurturing?',
@@ -186,7 +222,7 @@ export const zones = [
     id: 'fun-zone',
     name: 'Fun Zone',
     color: '#FFC300',
-    categories: [
+    categories: funCategories.length ? funCategories : [
       { id: 'would-you-rather', name: 'Would You Rather', color: '#FFC300', questions: [
         'Be fluent in all languages or talk to animals?',
         'Teleport anywhere or time-travel once?',

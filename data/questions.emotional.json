@@ -1,0 +1,15 @@
+{
+  "categories": [
+    {
+      "id": "emotional-zone",
+      "name": "Emotional Zone",
+      "color": "#9D4EDD",
+      "subcategories": [
+        { "id": "dream-talks", "name": "Dream Talks", "questions": [] },
+        { "id": "late-night-talks", "name": "Late Night Talks", "questions": [] },
+        { "id": "toxic-truths", "name": "Toxic Truths", "questions": [] },
+        { "id": "long-distance-vibes", "name": "Long Distance Vibes", "questions": [] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "categories": [
+    {
+      "id": "fun-zone",
+      "name": "Fun Zone",
+      "color": "#FFC300",
+      "subcategories": [
+        { "id": "would-you-rather", "name": "Would You Rather", "questions": [] },
+        { "id": "juicy-convos", "name": "Juicy Convos", "questions": [] },
+        { "id": "spicy-edition", "name": "Spicy Edition", "questions": [] }
+      ]
+    }
+  ]
+}

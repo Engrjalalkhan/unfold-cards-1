@@ -1,0 +1,49 @@
+{
+  "categories": [
+    {
+      "id": "family-zone",
+      "name": "Family Zone",
+      "color": "#00C897",
+      "subcategories": [
+        {
+          "id": "for-siblings",
+          "name": "For Siblings",
+          "questions": [
+            "What’s your earliest memory of us being partners in crime?",
+            "What’s one thing you admire about me but never said out loud?",
+            "What’s a childhood rumor or “fact” you believed way too long?",
+            "What’s the funniest fight we ever had growing up?",
+            "What’s one thing you think we learned from our parents differently?",
+            "What’s a moment where you actually felt proud of me?",
+            "If we swapped lives for a day, what would you fail at first?",
+            "What’s a habit of mine that secretly annoys you?",
+            "Which childhood tradition do you wish we could bring back?",
+            "What’s one thing I used to do that made you feel cared for—knowingly or unknowingly?",
+            "What’s a childhood memory you think shaped us both?",
+            "What’s something you think we need to do more often as siblings?",
+            "What was the moment you realized we were growing up?",
+            "What’s one thing you miss about how things used to be?",
+            "What’s an inside joke we should never let die?",
+            "Who was more dramatic growing up — be honest?",
+            "What’s one thing you think I should stop worrying about?",
+            "What’s something we used to fight about that feels hilarious now?",
+            "What’s a life lesson you think I still need to learn?",
+            "What’s something you think we’d crush as a team?",
+            "What’s one moment you realized I had your back no matter what?",
+            "What’s a silent battle you think I might be fighting right now?",
+            "If we wrote a “siblings rulebook,” what’s rule number one?",
+            "What’s something we should plan together this year?",
+            "What’s one thing from our childhood that shaped who you are today?",
+            "What’s something you wish we talked about more often?",
+            "What’s a memory of us that always makes you smile?",
+            "What’s one thing you want us to do differently moving forward?",
+            "What’s a trait you think we both inherited?",
+            "What’s something you love about us as siblings?"
+          ]
+        },
+        { "id": "deep-questions", "name": "Deep Questions", "questions": [] },
+        { "id": "the-past", "name": "The Past", "questions": [] }
+      ]
+    }
+  ]
+}
