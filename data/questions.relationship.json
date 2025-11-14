@@ -77,7 +77,42 @@
             "How do you know that you’ve truly found your soulmate?"
           ]
         },
-        { "id": "couple-therapy", "name": "Couple Therapy", "questions": [] },
+        {
+          "id": "couple-therapy",
+          "name": "Couple Therapy",
+          "questions": [
+            "What’s one thing you wish we argued less about?",
+            "How can we make each other feel more understood?",
+            "What’s your love language, and how can I speak it better?",
+            "What’s something I do that unintentionally hurts you?",
+            "How do you prefer to be comforted when upset?",
+            "What’s one boundary we should set to protect our peace?",
+            "What’s a recent misunderstanding we can learn from?",
+            "What’s your definition of a healthy relationship?",
+            "What’s one promise we should make to each other today?",
+            "How do you know I truly care, even during rough days?",
+            "What triggers tension between us most often?",
+            "How can we handle conflicts without shutting down?",
+            "What helps you feel emotionally safe with me?",
+            "What can I do to make you feel more seen or valued?",
+            "How do you usually show forgiveness?",
+            "What does trust mean to you now compared to before?",
+            "What should we start doing to reconnect better?",
+            "What’s one unhealthy pattern we’ve broken?",
+            "How do we make love feel easy again after arguments?",
+            "What do you need from me that you haven’t said out loud?",
+            "How can we handle stress as a team?",
+            "What’s one thing we could let go of to grow stronger?",
+            "How can I show up better for you emotionally?",
+            "What’s something you’re afraid to tell me but wish I’d understand?",
+            "How can we rebuild connection when life gets busy?",
+            "What’s one thing you’d like us to try differently this month?",
+            "What do you think keeps couples from lasting — and how can we avoid it?",
+            "What’s one way I can make communication easier for you?",
+            "How do you know when we’re truly okay again after a fight?",
+            "What would “our best version” as a couple look like to you?"
+          ]
+        },
         { "id": "naughty-nights", "name": "Naughty Nights", "questions": [] },
         { "id": "the-future-us", "name": "The Future Us", "questions": [] }
       ]
