@@ -77,7 +77,42 @@
             "What’s something you want to finally let go of?"
           ]
         },
-        { "id": "the-past", "name": "The Past", "questions": [] }
+        {
+          "id": "the-past",
+          "name": "The Past",
+          "questions": [
+            "What’s one childhood moment you remember more vividly than others?",
+            "What’s something you believed as a kid that turned out totally wrong?",
+            "What’s a moment from your past that changed you forever?",
+            "If you could relive one day from your childhood, which day would it be?",
+            "What’s one thing you wish you could tell your younger self?",
+            "What’s a mistake that ended up teaching you something important?",
+            "What song instantly takes you back to a memory?",
+            "What’s a place from your past that still feels like “home” somehow?",
+            "What memory from school still makes you laugh?",
+            "What’s something you regret not doing when you had the chance?",
+            "What’s one thing from the past you’re grateful didn’t work out?",
+            "What was your biggest fear growing up?",
+            "What’s a childhood dream you’re glad you outgrew?",
+            "What’s one moment you didn’t know was important until years later?",
+            "What’s a decision that still makes you wonder “what if”?",
+            "What’s a memory that shaped how you see love or relationships?",
+            "What’s one thing you wish you could apologize for?",
+            "What’s something you’ve healed from without realizing it?",
+            "What’s a lesson the past taught you that you keep coming back to?",
+            "What’s a moment where you felt truly carefree?",
+            "What’s something you wish you learned earlier in life?",
+            "Which year of your life felt the longest?",
+            "What’s one person you wish you stayed in touch with?",
+            "What memory always hits you with nostalgia?",
+            "What’s something from the past you didn’t appreciate until now?",
+            "What’s a moment you’d erase if you could?",
+            "What’s one thing you wish you could rewrite about your story?",
+            "What’s a memory that still feels unfinished?",
+            "What’s something from your childhood that still brings comfort?",
+            "What’s one chapter of your life you feel proud to have survived?"
+          ]
+        }
       ]
     }
   ]
