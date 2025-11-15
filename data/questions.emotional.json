@@ -41,7 +41,42 @@
             "What’s a dream you hope becomes part of your real story?"
           ]
         },
-        { "id": "late-night-talks", "name": "Late Night Talks", "questions": [] },
+        {
+          "id": "late-night-talks",
+          "name": "Late Night Talks",
+          "questions": [
+            "What thoughts hit you the hardest at night?",
+            "When was the last time you cried without a specific reason?",
+            "What’s something you overthink but can’t stop doing?",
+            "What’s a fear you don’t talk about because it sounds irrational?",
+            "Who was the last person who truly understood you?",
+            "What’s something that hurts, but you pretend it doesn’t?",
+            "What’s the heaviest thing you’re carrying right now?",
+            "What do you wish people asked you more often?",
+            "What’s one memory you replay late at night?",
+            "Who’s someone you miss but don’t reach out to anymore?",
+            "What’s something you’re scared to admit about yourself?",
+            "What keeps you awake even when you’re tired?",
+            "What’s one thing you wish you didn’t understand so well?",
+            "What’s a lie you tell yourself to feel better?",
+            "What’s a truth you try to ignore but can’t?",
+            "What’s something you wish you learned earlier?",
+            "What’s a thought you keep buried on purpose?",
+            "What’s the loneliest you’ve ever felt?",
+            "What’s something you’re afraid to lose?",
+            "What’s something that comforts you instantly?",
+            "What’s a mistake that still echoes in your mind?",
+            "What’s something you want to outgrow emotionally?",
+            "What’s a feeling you don’t know how to describe?",
+            "What’s one thing you wish you could unhear or unsee?",
+            "What’s something you want to forgive yourself for?",
+            "What’s a moment that made you realize life is short?",
+            "What’s something you pretend not to care about but do deeply?",
+            "What’s one thing you wish could change overnight?",
+            "What are you tired of hiding from people?",
+            "What’s something you want to let go of before the year ends?"
+          ]
+        },
         { "id": "toxic-truths", "name": "Toxic Truths", "questions": [] },
         { "id": "long-distance-vibes", "name": "Long Distance Vibes", "questions": [] }
       ]
