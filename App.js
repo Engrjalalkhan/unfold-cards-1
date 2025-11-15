@@ -150,19 +150,35 @@ const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
 // Visual circular progress arc without external dependencies
 function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = theme.colors.border, progressColor = theme.colors.primary, children }) {
   const clamped = Math.max(0, Math.min(1, progress || 0));
-  const totalDeg = clamped * 360;
-  const rightDeg = Math.min(180, totalDeg);
-  const leftDeg = Math.max(0, totalDeg - 180);
+  const anim = React.useRef(new Animated.Value(clamped)).current;
+
+  React.useEffect(() => {
+    Animated.timing(anim, {
+      toValue: clamped,
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [clamped]);
+
+  const rightRotate = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '180deg', '180deg'],
+  });
+  const leftRotate = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '0deg', '180deg'],
+  });
 
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: trackColor, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
       {/* Right half progress */}
       <View style={{ position: 'absolute', right: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
-        <View style={{ position: 'absolute', left: -size / 2, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: `${rightDeg}deg` }] }} />
+        <Animated.View style={{ position: 'absolute', left: -size / 2, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: '-90deg' }, { rotate: rightRotate }] }} />
       </View>
       {/* Left half progress */}
       <View style={{ position: 'absolute', left: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
-        <View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: `${leftDeg}deg` }] }} />
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: '-90deg' }, { rotate: leftRotate }] }} />
       </View>
 
       <View style={styles.progressRingContent}>{children}</View>
