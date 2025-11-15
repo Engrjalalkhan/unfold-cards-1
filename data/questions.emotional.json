@@ -77,7 +77,42 @@
             "What’s something you want to let go of before the year ends?"
           ]
         },
-        { "id": "toxic-truths", "name": "Toxic Truths", "questions": [] },
+        {
+          "id": "toxic-truths",
+          "name": "Toxic Truths",
+          "questions": [
+            "What’s a behavior you know is toxic but still struggle to stop?",
+            "What’s something you accepted for too long because you didn’t want conflict?",
+            "What’s a toxic trait you recognize in yourself?",
+            "What’s one pattern you fall into again and again?",
+            "Who introduced you to the idea of unhealthy love?",
+            "What’s something you’re finally learning to say “no” to?",
+            "What’s a truth you avoided because it hurt too much?",
+            "What’s one sign of toxicity you wish you noticed earlier?",
+            "What’s something you pretend is a joke but actually hurts?",
+            "What’s a toxic cycle you hope ends with you?",
+            "What’s something you’ve tolerated that you shouldn’t have?",
+            "What’s a trait you excuse too easily in people?",
+            "What’s a situation you stayed in long after it stopped serving you?",
+            "What’s one lie you believed for far too long?",
+            "What’s a painful truth that eventually set you free?",
+            "What’s a toxic habit you picked up from someone close?",
+            "What’s a boundary you wish you enforced sooner?",
+            "What’s a red flag you ignored even though you knew better?",
+            "What’s something you regret giving someone access to?",
+            "What’s one thing you refuse to tolerate anymore?",
+            "What’s a toxic pattern you fear falling back into?",
+            "What’s a truth that hit you harder than it should’ve?",
+            "What’s an apology you never got but deserved?",
+            "What’s a lesson you learned the hardest way possible?",
+            "What’s one thing you need to detox from emotionally?",
+            "What’s something you only realized was wrong after leaving it?",
+            "What boundary makes you feel safest?",
+            "What’s a toxic thought that still whispers sometimes?",
+            "What’s something you wished you walked away from sooner?",
+            "What’s the healthiest thing you’ve done for yourself recently?"
+          ]
+        },
         { "id": "long-distance-vibes", "name": "Long Distance Vibes", "questions": [] }
       ]
     }
