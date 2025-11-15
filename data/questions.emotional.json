@@ -113,7 +113,42 @@
             "What’s the healthiest thing you’ve done for yourself recently?"
           ]
         },
-        { "id": "long-distance-vibes", "name": "Long Distance Vibes", "questions": [] }
+        {
+          "id": "long-distance-vibes",
+          "name": "Long Distance Vibes",
+          "questions": [
+            "What’s the moment you miss most when we’re apart?",
+            "What’s one thing you wish I understood about your life from a distance?",
+            "What’s something small that reminds you of me?",
+            "What’s the hardest part of being far away?",
+            "What’s something you want us to create as our “long-distance tradition”?",
+            "What’s a message from me that lifted your mood instantly?",
+            "What’s something you want more reassurance about?",
+            "What’s one thing you love hearing from me?",
+            "What time of day do you miss me the most?",
+            "What’s something you wish we talked about more often?",
+            "What’s one thing distance has taught you about love?",
+            "What’s a moment where distance made you feel closer to me?",
+            "What do you think we’re handling better than most long-distance couples?",
+            "What’s one thing that gets easier with time?",
+            "What’s one fear you sometimes get from being apart?",
+            "What’s something you want us to improve communication-wise?",
+            "What’s a memory you replay when you miss me?",
+            "What’s something you want to experience together soon?",
+            "What’s one way distance has made you stronger?",
+            "What’s something I do that makes the distance feel lighter?",
+            "What’s a dream trip you want us to take when we reunite?",
+            "What’s one challenge you didn’t expect about long distance?",
+            "What’s one reason you believe we’ll make it work?",
+            "What’s something you secretly fear losing?",
+            "What’s a small gesture that makes you feel loved instantly?",
+            "What’s something long distance taught you about patience?",
+            "What’s one thing you want us to promise each other?",
+            "What’s a future moment you’re excited for?",
+            "What’s something you wish I said more often — even if it sounds obvious?",
+            "What’s something you hope never changes between us?"
+          ]
+        }
       ]
     }
   ]
