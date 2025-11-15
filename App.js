@@ -16,6 +16,7 @@ const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
 const NOTIF_ENABLED_KEY = '@unflod_cards:notif_enabled:v1';
 const LAST_ACTIVE_TS_KEY = '@unflod_cards:last_active_ts:v1';
 const REENGAGE_ID_KEY = '@unflod_cards:reengage_id:v1';
+const TOTAL_QUESTIONS = 600;
 
 // Utilities
 const hexToRgba = (hex, alpha = 1) => {
@@ -145,6 +146,29 @@ const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
     </View>
   );
 });
+
+// Visual circular progress arc without external dependencies
+function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = theme.colors.border, progressColor = theme.colors.primary, children }) {
+  const clamped = Math.max(0, Math.min(1, progress || 0));
+  const totalDeg = clamped * 360;
+  const rightDeg = Math.min(180, totalDeg);
+  const leftDeg = Math.max(0, totalDeg - 180);
+
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: trackColor, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {/* Right half progress */}
+      <View style={{ position: 'absolute', right: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', left: -size / 2, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: `${rightDeg}deg` }] }} />
+      </View>
+      {/* Left half progress */}
+      <View style={{ position: 'absolute', left: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
+        <View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: `${leftDeg}deg` }] }} />
+      </View>
+
+      <View style={styles.progressRingContent}>{children}</View>
+    </View>
+  );
+}
 
 const Chip = React.memo(function Chip({ label, selected, onPress }) {
   return (
@@ -744,14 +768,32 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <View style={styles.panel}>
-          <Text style={styles.heroTitle}>Hi, {profile?.name || 'Friend'}!</Text>
+        <Header title="Profile" />
 
-          <View style={styles.tileRow}>
-            <StatTile icon={<Ionicons name="book-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Questions Read" value={stats?.questionsRead ?? 0} />
-            <StatTile icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Favorites Saved" value={favoritesCount ?? 0} />
-            <StatTile icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Connection Streak" value={stats?.streakDays ?? 1} suffix="Days" />
+        {/* Top hero section to match mock */}
+        <View style={styles.profileHero}>
+          <View style={styles.emojiCircle}>
+            <Text style={styles.emojiIcon}>😊</Text>
           </View>
+          <Text style={styles.profileTitle}>Hi, {profile?.name || 'Friend'}!</Text>
+          <Text style={styles.profileTagline}>Connecting through meaningful questions</Text>
+        </View>
+
+        {/* Progress section */}
+        <View style={styles.progressSection}>
+          <Text style={styles.progressHeader}>Your Progress</Text>
+          <ProgressRing size={200} thickness={14} progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} trackColor={theme.colors.border} progressColor={theme.colors.primary}>
+            <Text style={styles.progressRingValue}>{stats?.questionsRead ?? 0}</Text>
+            <Text style={styles.progressRingSub}>of {TOTAL_QUESTIONS} goal</Text>
+          </ProgressRing>
+          <Text style={styles.progressLabel}>Questions Read</Text>
+        </View>
+
+        <View style={styles.tileRow}>
+          <StatTile icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Saved" value={favoritesCount ?? 0} />
+          <StatTile icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Shared" value={stats?.timesShared ?? 0} />
+          <StatTile icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Streak" value={stats?.streakDays ?? 1} />
+        </View>
 
           <View style={styles.chipFilterRow}>
             {['All','Personal','Social'].map((l) => (
@@ -788,7 +830,6 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
               
             </View>
           )}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1075,6 +1116,18 @@ const styles = StyleSheet.create({
   brandIcon: { fontSize: 36 },
   brandTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '700', marginTop: 6 },
   brandTagline: { color: theme.colors.textMuted, fontSize: 14, marginTop: 4 },
+  profileHero: { alignItems: 'center', paddingVertical: 12 },
+  profileTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '800', marginTop: 12 },
+  profileTagline: { color: theme.colors.textMuted, fontSize: 14, marginTop: 6 },
+  emojiCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center', shadowColor: theme.colors.shadow, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
+  emojiIcon: { fontSize: 40 },
+  progressSection: { alignItems: 'center', paddingTop: 12, paddingBottom: 12 },
+  progressHeader: { color: theme.colors.text, fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  progressRing: { width: 200, height: 200, borderRadius: 100, borderWidth: 14, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
+  progressRingContent: { alignItems: 'center', justifyContent: 'center' },
+  progressRingValue: { color: theme.colors.text, fontSize: 24, fontWeight: '800' },
+  progressRingSub: { color: theme.colors.textMuted, fontSize: 13, marginTop: 4 },
+  progressLabel: { color: theme.colors.textMuted, fontSize: 16, marginTop: 12 },
   sectionTitle: {
     color: theme.colors.textMuted,
     fontSize: 16,
