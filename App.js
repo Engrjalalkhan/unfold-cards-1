@@ -1299,7 +1299,7 @@ const styles = StyleSheet.create({
   listIconI: { marginRight: 12 },
   listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   listChevron: { color: theme.colors.textMuted, fontSize: 22 },
-  searchRow: { marginTop: 12 },
+  searchRow: { marginTop: 12, marginBottom: 16 },
   searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   statTileIconI: { marginRight: 8 },
 });
