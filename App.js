@@ -380,26 +380,23 @@ function ZoneSection({ zone, onSelectCategory }) {
 }
 
 function DailyQuestion({ onAnswer }) {
-  // Deterministic pick based on date
-  const seed = new Date().toDateString().length;
-  const idx = seed % allCategories.length;
-  const category = allCategories[idx];
-  const qIndex = seed % category.questions.length;
-  const question = category.questions[qIndex];
+  // Deterministic daily pick across mixed categories using date key
+  const key = getDateKey(); // YYYY-MM-DD
+  const numericSeed = key
+    .replace(/-/g, '')
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+
+  const categoryIndex = numericSeed % allCategories.length;
+  const category = allCategories[categoryIndex];
+  const questionIndex = numericSeed % category.questions.length;
+  const question = category.questions[questionIndex];
+
   return (
     <View style={styles.dailyCard}>
       <Text style={styles.dailyTitle}>Question of the Day 💭</Text>
       <Text style={styles.dailyPrompt}>{question}</Text>
-      <TouchableOpacity onPress={() => onAnswer(category, qIndex)} style={styles.ctaButton}>
-        <LinearGradient
-          style={styles.ctaGradient}
-          colors={[category.color, '#B388FF']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={styles.ctaText}>Answer Now</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      {/* Removed CTA per request; daily question updates automatically each day */}
     </View>
   );
 }
