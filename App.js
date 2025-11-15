@@ -820,6 +820,7 @@ export default function App() {
   const [mood, setMood] = React.useState(null);
   const [favorites, setFavorites] = React.useState([]);
   const [tab, setTab] = React.useState('home');
+  const [shuffleKey, setShuffleKey] = React.useState(0);
   
   const [initialIndex, setInitialIndex] = React.useState(0);
   const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
@@ -965,7 +966,7 @@ export default function App() {
       );
     } else if (tab === 'shuffle') {
       Screen = (
-        <ShuffleScreen onOpen={openCategoryAt} />
+        <ShuffleScreen onOpen={openCategoryAt} key={shuffleKey} />
       );
     } else if (tab === 'profile') {
       Screen = (
@@ -988,6 +989,9 @@ export default function App() {
 
   const navigate = (key) => {
     setSelected(null);
+    if (key === 'shuffle') {
+      setShuffleKey((prev) => prev + 1);
+    }
     setTab(key);
   };
 
