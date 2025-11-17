@@ -148,37 +148,50 @@ const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
 });
 
 // Visual circular progress arc without external dependencies
-function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = theme.colors.border, progressColor = theme.colors.primary, children }) {
+function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = theme.colors.border, progressColor = theme.colors.primary, children, animatedProgress }) {
   const clamped = Math.max(0, Math.min(1, progress || 0));
-  const anim = React.useRef(new Animated.Value(clamped)).current;
+  const internalAnim = React.useRef(new Animated.Value(clamped)).current;
+  const anim = animatedProgress || internalAnim;
 
   React.useEffect(() => {
-    Animated.timing(anim, {
-      toValue: clamped,
-      duration: 600,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [clamped]);
+    if (!animatedProgress) {
+      Animated.timing(internalAnim, {
+        toValue: clamped,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [clamped, animatedProgress]);
 
   const rightRotate = anim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['0deg', '180deg', '180deg'],
+    inputRange: [0, 0.5],
+    outputRange: ['0deg', '180deg'],
+    extrapolate: 'clamp',
   });
   const leftRotate = anim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['0deg', '0deg', '180deg'],
+    inputRange: [0.5, 1],
+    outputRange: ['0deg', '180deg'],
+    extrapolate: 'clamp',
+  });
+  const leftOpacity = anim.interpolate({
+    inputRange: [0, 0.5, 0.5001, 1],
+    outputRange: [0, 0, 1, 1],
   });
 
+  const half = size / 2;
+
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: trackColor, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      {/* Track ring behind */}
+      <View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: trackColor }} />
       {/* Right half progress */}
-      <View style={{ position: 'absolute', right: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
-        <Animated.View style={{ position: 'absolute', left: -size / 2, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: '-90deg' }, { rotate: rightRotate }] }} />
+      <View style={{ position: 'absolute', left: half, top: 0, width: half, height: size, overflow: 'hidden' }}>
+        <Animated.View style={{ position: 'absolute', left: -half, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: '-90deg' }, { rotate: rightRotate }] }} />
       </View>
       {/* Left half progress */}
-      <View style={{ position: 'absolute', left: 0, top: 0, width: size / 2, height: size, overflow: 'hidden' }}>
-        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, transform: [{ rotate: '-90deg' }, { rotate: leftRotate }] }} />
+      <View style={{ position: 'absolute', left: 0, top: 0, width: half, height: size, overflow: 'hidden' }}>
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, borderWidth: thickness, borderColor: progressColor, opacity: leftOpacity, transform: [{ rotate: '-90deg' }, { rotate: leftRotate }] }} />
       </View>
 
       <View style={styles.progressRingContent}>{children}</View>
@@ -535,6 +548,7 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
 function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0, onViewedCard, onShareQuestion }) {
   const [index, setIndex] = React.useState(0);
   const [order, setOrder] = React.useState([...category.questions.map((_, i) => i)]);
+  const attemptAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     setIndex(initialIndex);
@@ -544,6 +558,14 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     if (typeof onViewedCard === 'function') {
       onViewedCard();
     }
+    // Start linear attempt progress for the newly visible card
+    attemptAnim.setValue(1);
+    Animated.timing(attemptAnim, {
+      toValue: 0,
+      duration: 5000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
   }, [index]);
 
   const width = Dimensions.get('window').width;
@@ -697,8 +719,11 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
           </LinearGradient>
         </TouchableOpacity>
       </View>
-      <View style={styles.progress}>
-        <Text style={styles.progressText}>Card {index + 1} / {order.length}</Text>
+      <View style={[styles.progress, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+        <ProgressRing size={44} thickness={6} trackColor={theme.colors.border} progressColor={theme.colors.primary} animatedProgress={attemptAnim}>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 11 }}>Reading</Text>
+        </ProgressRing>
+        <Text style={[styles.progressText, { marginLeft: 10 }]}>Card {index + 1} / {order.length}</Text>
       </View>
     </SafeAreaView>
   );
