@@ -584,7 +584,6 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
 function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0, onViewedCard, onShareQuestion }) {
   const [index, setIndex] = React.useState(0);
   const [order, setOrder] = React.useState([...category.questions.map((_, i) => i)]);
-  const attemptAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     setIndex(initialIndex);
@@ -594,14 +593,6 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
     if (typeof onViewedCard === 'function') {
       onViewedCard();
     }
-    // Start linear attempt progress for the newly visible card
-    attemptAnim.setValue(1);
-    Animated.timing(attemptAnim, {
-      toValue: 0,
-      duration: 5000,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start();
   }, [index]);
 
   const width = Dimensions.get('window').width;
@@ -755,11 +746,8 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
           </LinearGradient>
         </TouchableOpacity>
       </View>
-      <View style={[styles.progress, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
-        <ProgressRing size={44} thickness={6} trackColor={theme.colors.border} progressColor={theme.colors.primary} animatedProgress={attemptAnim}>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 11 }}>Reading</Text>
-        </ProgressRing>
-        <Text style={[styles.progressText, { marginLeft: 10 }]}>Card {index + 1} / {order.length}</Text>
+      <View style={styles.progress}>
+        <Text style={styles.progressText}>Card {index + 1} / {order.length}</Text>
       </View>
     </SafeAreaView>
   );
