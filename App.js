@@ -125,7 +125,10 @@ function Header({ title, onBack, right }) {
 function BrandHeader() {
   return (
     <View style={styles.brandHeader}>
-      <Text style={styles.brandIcon}>💜</Text>
+      <View style={styles.brandLogoWrap}>
+        <HeartbeatGlow size={60} />
+        <Text style={[styles.brandIcon, { position: 'relative' }]}>💜</Text>
+      </View>
       <Text style={styles.brandTitle}>Unfold Cards</Text>
       <Text style={styles.brandTagline}>Build meaningful connections</Text>
     </View>
@@ -195,6 +198,39 @@ function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = t
       </View>
 
       <View style={styles.progressRingContent}>{children}</View>
+    </View>
+  );
+}
+
+// Soft heartbeat-style glow behind logo using layered circles
+function HeartbeatGlow({ size = 60, duration = 2000 }) {
+  const progress = React.useRef(new Animated.Value(0)).current;
+  const base = size; // square container
+  const spread = 40; // total diameter increase to simulate 20px around radius
+  const scaleTo = (base + spread) / base;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: false,
+      })
+    ).start();
+  }, [duration]);
+
+  const layer = (color, baseOpacity, extraScale = 0) => ({
+    backgroundColor: color,
+    opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [baseOpacity, 0] }),
+    transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1 + extraScale, scaleTo + extraScale] }) }],
+  });
+
+  return (
+    <View style={{ position: 'absolute', left: 0, top: 0, width: base, height: base }} pointerEvents="none">
+      <Animated.View style={[styles.glowCircle, { width: base, height: base, borderRadius: base / 2 }, layer('#8A4DFF', 1.0, 0)]} />
+      <Animated.View style={[styles.glowCircle, { width: base, height: base, borderRadius: base / 2 }, layer('#A26BFF', 0.6, 0.05)]} />
+      <Animated.View style={[styles.glowCircle, { width: base, height: base, borderRadius: base / 2 }, layer('#C295FF', 0.3, 0.10)]} />
     </View>
   );
 }
@@ -729,7 +765,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   );
 }
 
-function FavoritesScreen({ items, onOpen, onRemove }) {
+function FavoritesScreen({ items, onOpen, onRemove, onBack }) {
   const grouped = React.useMemo(() => {
     const map = {};
     for (const f of items) {
@@ -741,7 +777,7 @@ function FavoritesScreen({ items, onOpen, onRemove }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Favorites" />
+      <Header title="Favorites" onBack={onBack} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {grouped.length === 0 ? (
           <Text style={styles.footerText}>No favorites yet. Add from any card.</Text>
@@ -776,7 +812,7 @@ function FavoritesScreen({ items, onOpen, onRemove }) {
   );
 }
 
-function ShuffleScreen({ onOpen }) {
+function ShuffleScreen({ onOpen, onBack }) {
   const [pick, setPick] = React.useState(() => randomPick());
   function randomPick() {
     const c = allCategories[Math.floor(Math.random() * allCategories.length)];
@@ -786,7 +822,7 @@ function ShuffleScreen({ onOpen }) {
   const reroll = () => setPick(randomPick());
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Shuffle" />
+      <Header title="Shuffle" onBack={onBack} />
       <View style={styles.card}>
         <Text style={styles.cardPrompt}>{pick.question}</Text>
       </View>
@@ -802,14 +838,14 @@ function ShuffleScreen({ onOpen }) {
   );
 }
 
-function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications }) {
+function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onBack }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
   const [filter, setFilter] = React.useState('All');
   const [showEdit, setShowEdit] = React.useState(false);
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <Header title="Profile" />
+        <Header title="Profile" onBack={onBack} />
 
         {/* Top hero section to match mock */}
         <View style={styles.profileHero}>
@@ -1037,6 +1073,7 @@ export default function App() {
     if (tab === 'favorites') {
       Screen = (
         <FavoritesScreen
+          onBack={() => setTab('home')}
           items={favorites}
           onOpen={(f) => {
             const cat = allCategories.find(c => c.id === f.categoryId);
@@ -1048,11 +1085,12 @@ export default function App() {
       );
     } else if (tab === 'shuffle') {
       Screen = (
-        <ShuffleScreen onOpen={openCategoryAt} key={shuffleKey} />
+        <ShuffleScreen onBack={() => setTab('home')} onOpen={openCategoryAt} key={shuffleKey} />
       );
     } else if (tab === 'profile') {
       Screen = (
         <ProfileScreen
+          onBack={() => setTab('home')}
           profile={profile}
           setProfile={setProfile}
           favoritesCount={favorites.length}
@@ -1141,6 +1179,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
+  brandLogoWrap: { position: 'relative', width: 60, height: 60, alignItems: 'center', justifyContent: 'center' },
+  glowCircle: { position: 'absolute', left: 0, top: 0 },
   backButton: {
     paddingVertical: 6,
     paddingHorizontal: 8,
