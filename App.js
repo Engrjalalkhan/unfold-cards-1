@@ -40,6 +40,48 @@ const getDateKey = (d = new Date()) => {
   return `${y}-${m}-${dd}`;
 };
 
+// Cross-platform sharing helper
+const shareQuestionText = async (text) => {
+  try {
+    if (Platform.OS === 'web') {
+      // Prefer native Web Share API when available
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ text, title: 'Unfold Cards' });
+        return true;
+      }
+      // Fallback: copy to clipboard
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert('Copied to clipboard. Share it anywhere!');
+        } else {
+          Alert.alert('Copied to clipboard', 'Question text copied. Share it anywhere!');
+        }
+        return true;
+      }
+      Alert.alert('Sharing unavailable', 'Please copy the text manually to share.');
+      return false;
+    }
+    const result = await Share.share({ message: text });
+    return result?.action === Share.sharedAction;
+  } catch (e) {
+    // Last fallback for web: attempt clipboard copy
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert('Copied to clipboard.');
+        } else {
+          Alert.alert('Copied to clipboard', 'Question text copied.');
+        }
+        return true;
+      } catch {}
+    }
+    Alert.alert('Share error', 'Unable to share right now.');
+    return false;
+  }
+};
+
 // Notifications handler: show alerts, no sound/badge by default
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -735,7 +777,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
         <TouchableOpacity style={styles.controlBtn} onPress={shuffle}>
           <Text style={styles.controlText}>Shuffle</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.controlBtn} onPress={() => onShareQuestion && onShareQuestion(q)}>
+        <TouchableOpacity style={styles.controlBtn} onPress={() => onShareQuestion && onShareQuestion(`${category.name}: ${q}`)}>
           <Text style={styles.controlText}>Share</Text>
         </TouchableOpacity>
       </View>
@@ -753,7 +795,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   );
 }
 
-function FavoritesScreen({ items, onOpen, onRemove, onBack }) {
+function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion }) {
   const grouped = React.useMemo(() => {
     const map = {};
     for (const f of items) {
@@ -785,6 +827,9 @@ function FavoritesScreen({ items, onOpen, onRemove, onBack }) {
                       <TouchableOpacity style={[styles.favoriteOpenBtn, { backgroundColor: g.color }]} onPress={() => onOpen({ categoryId: g.categoryId, question: q, color: g.color })}>
                         <Text style={styles.answerText}>Open</Text>
                       </TouchableOpacity>
+                      <TouchableOpacity style={styles.shareBtn} onPress={() => onShareQuestion && onShareQuestion(`${g.categoryName}: ${q}`)}>
+                        <Text style={styles.shareText}>Share</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove({ categoryId: g.categoryId, question: q })}>
                         <Text style={styles.removeText}>Remove</Text>
                       </TouchableOpacity>
@@ -800,7 +845,7 @@ function FavoritesScreen({ items, onOpen, onRemove, onBack }) {
   );
 }
 
-function ShuffleScreen({ onOpen, onBack }) {
+function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   const [pick, setPick] = React.useState(() => randomPick());
   function randomPick() {
     const c = allCategories[Math.floor(Math.random() * allCategories.length)];
@@ -817,6 +862,9 @@ function ShuffleScreen({ onOpen, onBack }) {
       <View style={styles.controls}>
         <TouchableOpacity style={styles.controlBtn} onPress={reroll}>
           <Text style={styles.controlText}>Another</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlBtn} onPress={() => onShareQuestion && onShareQuestion(`${pick.category.name}: ${pick.question}`)}>
+          <Text style={styles.controlText}>Share</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn, { backgroundColor: pick.category.color }]} onPress={() => onOpen(pick.category, pick.index)}>
           <Text style={[styles.controlText, styles.primaryText]}>Open Category</Text>
@@ -1039,9 +1087,11 @@ export default function App() {
   };
 
   const onShareQuestion = async (text) => {
-    try { await Share.share({ message: text }); } catch {}
-    setStats((s) => ({ ...s, timesShared: (s.timesShared || 0) + 1 }));
-    updateStreakOnActivity();
+    const ok = await shareQuestionText(text);
+    if (ok) {
+      setStats((s) => ({ ...s, timesShared: (s.timesShared || 0) + 1 }));
+      updateStreakOnActivity();
+    }
   };
 
   let Screen;
@@ -1068,12 +1118,13 @@ export default function App() {
             const idx = cat.questions.findIndex(q => q === f.question);
             openCategoryAt(cat, Math.max(idx, 0));
           }}
+          onShareQuestion={onShareQuestion}
           onRemove={(f) => setFavorites(prev => prev.filter(x => !(x.categoryId===f.categoryId && x.question===f.question)))}
         />
       );
     } else if (tab === 'shuffle') {
       Screen = (
-        <ShuffleScreen onBack={() => setTab('home')} onOpen={openCategoryAt} key={shuffleKey} />
+        <ShuffleScreen onBack={() => setTab('home')} onOpen={openCategoryAt} onShareQuestion={onShareQuestion} key={shuffleKey} />
       );
     } else if (tab === 'profile') {
       Screen = (
@@ -1384,6 +1435,8 @@ const styles = StyleSheet.create({
   favoriteQuestion: { color: theme.colors.text, fontSize: 16, flex: 1, marginRight: 12 },
   favoriteActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   favoriteOpenBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
+  shareBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
+  shareText: { color: theme.colors.text },
   removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
   removeText: { color: theme.colors.text },
   themeRow: { flexDirection: 'row', marginTop: 10 },
