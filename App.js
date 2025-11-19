@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder, Alert, AppState } from 'react-native';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ScrollView, LayoutAnimation, Platform, UIManager, Animated, Easing, Dimensions, TextInput, Share, PanResponder, Alert, AppState, Switch } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { zones } from './data/decks';
@@ -16,6 +16,12 @@ const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
 const NOTIF_ENABLED_KEY = '@unflod_cards:notif_enabled:v1';
 const LAST_ACTIVE_TS_KEY = '@unflod_cards:last_active_ts:v1';
 const REENGAGE_ID_KEY = '@unflod_cards:reengage_id:v1';
+const WEEKLY_ENABLED_KEY = '@unflod_cards:notif_weekly:v1';
+const TIPS_ENABLED_KEY = '@unflod_cards:notif_tips:v1';
+const CATEGORY_ENABLED_KEY = '@unflod_cards:notif_category:v1';
+const WEEKLY_ID_KEY = '@unflod_cards:notif_id_weekly:v1';
+const TIPS_ID_KEY = '@unflod_cards:notif_id_tips:v1';
+const CATEGORY_ID_KEY = '@unflod_cards:notif_id_category:v1';
 const TOTAL_QUESTIONS = 600;
 
 // Utilities
@@ -104,21 +110,20 @@ const pickSuggestionBody = () => {
 
 const scheduleReengageReminder = async () => {
   try {
-    // Cancel prior scheduled reminders to avoid stacking
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (Platform.OS === 'web') return null;
+    await cancelScheduledByKey(REENGAGE_ID_KEY);
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Keep the connection going',
         body: pickSuggestionBody(),
         data: { type: 'reengage' },
       },
-      // Fire daily at 7:00 PM local time
       trigger: { hour: 19, minute: 0, repeats: true },
     });
     await AsyncStorage.setItem(REENGAGE_ID_KEY, id);
-  } catch (e) {
-    // noop
-  }
+    return id;
+  } catch {}
+  return null;
 };
 
 const enableDailyReminders = async () => {
@@ -146,6 +151,87 @@ const enableDailyReminders = async () => {
     Alert.alert('Notifications error', 'Something went wrong enabling reminders.');
     return false;
   }
+};
+
+const requestNotifPermissions = async () => {
+  if (Platform.OS === 'web') {
+    Alert.alert('Notifications on Web', 'Notifications are not available in this web preview. Use a device build to receive reminders.');
+    return false;
+  }
+  const current = await Notifications.getPermissionsAsync();
+  let status = current?.status;
+  if (status !== 'granted') {
+    const req = await Notifications.requestPermissionsAsync();
+    status = req?.status;
+  }
+  return status === 'granted';
+};
+
+const scheduleWeeklyHighlights = async () => {
+  try {
+    if (Platform.OS === 'web') return null;
+    const granted = await requestNotifPermissions();
+    if (!granted) return null;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Weekly Highlights',
+        body: 'Explore this week’s top cards and themes.',
+        data: { type: 'weekly' },
+      },
+      trigger: { weekday: 1, hour: 9, minute: 0, repeats: true },
+    });
+    await AsyncStorage.setItem(WEEKLY_ID_KEY, id);
+    return id;
+  } catch {}
+  return null;
+};
+
+const scheduleFriendshipTips = async () => {
+  try {
+    if (Platform.OS === 'web') return null;
+    const granted = await requestNotifPermissions();
+    if (!granted) return null;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Relationship & Friendship Tips',
+        body: 'A thoughtful tip to deepen your connections.',
+        data: { type: 'tips' },
+      },
+      trigger: { weekday: 3, hour: 9, minute: 0, repeats: true },
+    });
+    await AsyncStorage.setItem(TIPS_ID_KEY, id);
+    return id;
+  } catch {}
+  return null;
+};
+
+const scheduleNewCategoryAlerts = async () => {
+  try {
+    if (Platform.OS === 'web') return null;
+    const granted = await requestNotifPermissions();
+    if (!granted) return null;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'New Category Alerts',
+        body: 'Fresh categories are available — take a look!',
+        data: { type: 'category' },
+      },
+      trigger: { weekday: 5, hour: 9, minute: 0, repeats: true },
+    });
+    await AsyncStorage.setItem(CATEGORY_ID_KEY, id);
+    return id;
+  } catch {}
+  return null;
+};
+
+const cancelScheduledByKey = async (idKey) => {
+  try {
+    const id = await AsyncStorage.getItem(idKey);
+    if (id) {
+      await Notifications.cancelScheduledNotificationAsync(id);
+      await AsyncStorage.removeItem(idKey);
+    }
+  } catch {}
 };
 
 function Header({ title, onBack, right }) {
@@ -277,13 +363,7 @@ function HeartbeatGlow({ size = 60, duration = 2000 }) {
   );
 }
 
-const Chip = React.memo(function Chip({ label, selected, onPress }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-    </TouchableOpacity>
-  );
-});
+ 
 
 const HighlightCard = React.memo(function HighlightCard({ icon, title, subtitle }) {
   return (
@@ -298,7 +378,7 @@ const HighlightCard = React.memo(function HighlightCard({ icon, title, subtitle 
   );
 });
 
-const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableNotifications }) {
+const SettingsList = React.memo(function SettingsList({ onEditProfile, onSignOut }) {
   return (
     <View style={styles.listCard}>
       <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
@@ -306,16 +386,19 @@ const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableN
         <Text style={styles.listItemText}>Edit Profile & Account</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.listItemRow} onPress={onEnableNotifications}>
-        <Ionicons name="notifications-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
-        <Text style={styles.listItemText}>Notifications</Text>
-        <Text style={styles.listChevron}>›</Text>
-      </TouchableOpacity>
+      
       <TouchableOpacity style={styles.listItemRow}>
         <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
         <Text style={styles.listItemText}>Privacy & Support</Text>
         <Text style={styles.listChevron}>›</Text>
       </TouchableOpacity>
+      {onSignOut && (
+        <TouchableOpacity style={styles.listItemRow} onPress={onSignOut}>
+          <Ionicons name="log-out-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
+          <Text style={[styles.listItemText, { color: theme.colors.primaryText }]}>Sign Out</Text>
+          <Text style={styles.listChevron}>›</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -438,6 +521,101 @@ function OnboardingScreen({ onContinue }) {
     </LinearGradient>
   );
 }
+
+function NotificationsSettingsPanel() {
+  const [daily, setDaily] = React.useState(false);
+  const [weekly, setWeekly] = React.useState(false);
+  const [tips, setTips] = React.useState(false);
+  const [category, setCategory] = React.useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const d = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
+        const w = await AsyncStorage.getItem(WEEKLY_ENABLED_KEY);
+        const t = await AsyncStorage.getItem(TIPS_ENABLED_KEY);
+        const c = await AsyncStorage.getItem(CATEGORY_ENABLED_KEY);
+        setDaily(d === 'true');
+        setWeekly(w === 'true');
+        setTips(t === 'true');
+        setCategory(c === 'true');
+      } catch {}
+    })();
+  }, []);
+
+  const toggleDaily = async (value) => {
+    setDaily(value);
+    await AsyncStorage.setItem(NOTIF_ENABLED_KEY, value ? 'true' : 'false');
+    if (value) {
+      await enableDailyReminders();
+    } else {
+      await cancelScheduledByKey(REENGAGE_ID_KEY);
+      Alert.alert('Daily Reminder', 'Daily question reminder disabled.');
+    }
+  };
+
+  const toggleWeekly = async (value) => {
+    setWeekly(value);
+    await AsyncStorage.setItem(WEEKLY_ENABLED_KEY, value ? 'true' : 'false');
+    if (value) {
+      const id = await scheduleWeeklyHighlights();
+      if (Platform.OS === 'web') Alert.alert('Weekly Highlights', 'Enabled (web preview cannot deliver notifications).');
+      else if (id) Alert.alert('Weekly Highlights', 'Enabled.');
+    } else {
+      await cancelScheduledByKey(WEEKLY_ID_KEY);
+      Alert.alert('Weekly Highlights', 'Disabled.');
+    }
+  };
+
+  const toggleTips = async (value) => {
+    setTips(value);
+    await AsyncStorage.setItem(TIPS_ENABLED_KEY, value ? 'true' : 'false');
+    if (value) {
+      const id = await scheduleFriendshipTips();
+      if (Platform.OS === 'web') Alert.alert('Tips', 'Enabled (web preview cannot deliver notifications).');
+      else if (id) Alert.alert('Tips', 'Enabled.');
+    } else {
+      await cancelScheduledByKey(TIPS_ID_KEY);
+      Alert.alert('Tips', 'Disabled.');
+    }
+  };
+
+  const toggleCategory = async (value) => {
+    setCategory(value);
+    await AsyncStorage.setItem(CATEGORY_ENABLED_KEY, value ? 'true' : 'false');
+    if (value) {
+      const id = await scheduleNewCategoryAlerts();
+      if (Platform.OS === 'web') Alert.alert('New Category Alerts', 'Enabled (web preview cannot deliver notifications).');
+      else if (id) Alert.alert('New Category Alerts', 'Enabled.');
+    } else {
+      await cancelScheduledByKey(CATEGORY_ID_KEY);
+      Alert.alert('New Category Alerts', 'Disabled.');
+    }
+  };
+
+  const Row = ({ label, value, onValueChange }) => (
+    <View style={styles.settingRow}>
+      <Text style={styles.settingLabel}>{label}</Text>
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: '#A26BFF', false: theme.colors.border }} thumbColor={'#FFFFFF'} />
+    </View>
+  );
+
+  return (
+    <View>
+      <Row label="Daily Question Reminder" value={daily} onValueChange={toggleDaily} />
+      <View style={styles.settingDivider} />
+      <Row label="Weekly Highlights" value={weekly} onValueChange={toggleWeekly} />
+      <View style={styles.settingDivider} />
+      <Row label="Relationship/Friendship Tips" value={tips} onValueChange={toggleTips} />
+      <View style={styles.settingDivider} />
+      <Row label="New Category Alerts" value={category} onValueChange={toggleCategory} />
+    </View>
+  );
+}
+
+ 
+
+ 
 
 function MoodMeter({ onSelect }) {
   const options = [
@@ -874,9 +1052,8 @@ function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   );
 }
 
-function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onBack }) {
+function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
-  const [filter, setFilter] = React.useState('All');
   const [showEdit, setShowEdit] = React.useState(false);
   return (
     <SafeAreaView style={styles.screen}>
@@ -908,14 +1085,15 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
           <StatTile icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Streak" value={stats?.streakDays ?? 1} />
         </View>
 
-          <View style={styles.chipFilterRow}>
-            {['All','Personal','Social'].map((l) => (
-              <Chip key={l} label={l} selected={filter===l} onPress={() => setFilter(l)} />
-            ))}
-          </View>
+          
 
           <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Profile Settings</Text>
-          <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onEnableNotifications={onEnableNotifications} />
+  <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onSignOut={onSignOut} />
+
+          <View style={styles.panel}>
+            <Text style={styles.sectionTitle}>Notifications</Text>
+            <NotificationsSettingsPanel />
+          </View>
 
           {showEdit && (
             <View style={{ marginTop: 10 }}>
@@ -978,9 +1156,11 @@ export default function App() {
   
   const [initialIndex, setInitialIndex] = React.useState(0);
   const [hasHydratedFavorites, setHasHydratedFavorites] = React.useState(false);
-  const [showOnboarding, setShowOnboarding] = React.useState(true);
+  
   const [profile, setProfile] = React.useState({ name: 'Friend', gender: 'Prefer not to say' });
   const [stats, setStats] = React.useState({ questionsRead: 0, timesShared: 0, streakDays: 1, lastActiveDate: getDateKey() });
+
+  
 
   React.useEffect(() => {
     (async () => {
@@ -992,10 +1172,7 @@ export default function App() {
             setFavorites(parsed);
           }
         }
-        const onboard = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
-        if (onboard === 'done') {
-          setShowOnboarding(false);
-        }
+        
         const profRaw = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
         if (profRaw) {
           const p = JSON.parse(profRaw);
@@ -1013,6 +1190,8 @@ export default function App() {
       }
     })();
   }, []);
+
+  
 
   React.useEffect(() => {
     if (!hasHydratedFavorites) return;
@@ -1052,12 +1231,9 @@ export default function App() {
     });
   };
 
-  const completeOnboarding = async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'done');
-    } catch {}
-    setShowOnboarding(false);
-  };
+  
+
+  
 
   const handleSelectMood = (m) => {
     setMood(m);
@@ -1159,9 +1335,25 @@ export default function App() {
     const onActive = async () => {
       try {
         await AsyncStorage.setItem(LAST_ACTIVE_TS_KEY, String(Date.now()));
-        const enabled = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
-        if (enabled === 'true') {
-          await scheduleReengageReminder();
+        const enabledDaily = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
+        if (enabledDaily === 'true') {
+          const existingDailyId = await AsyncStorage.getItem(REENGAGE_ID_KEY);
+          if (!existingDailyId) await scheduleReengageReminder();
+        }
+        const enabledWeekly = await AsyncStorage.getItem(WEEKLY_ENABLED_KEY);
+        if (enabledWeekly === 'true') {
+          const existingWeeklyId = await AsyncStorage.getItem(WEEKLY_ID_KEY);
+          if (!existingWeeklyId) await scheduleWeeklyHighlights();
+        }
+        const enabledTips = await AsyncStorage.getItem(TIPS_ENABLED_KEY);
+        if (enabledTips === 'true') {
+          const existingTipsId = await AsyncStorage.getItem(TIPS_ID_KEY);
+          if (!existingTipsId) await scheduleFriendshipTips();
+        }
+        const enabledCategory = await AsyncStorage.getItem(CATEGORY_ENABLED_KEY);
+        if (enabledCategory === 'true') {
+          const existingCatId = await AsyncStorage.getItem(CATEGORY_ID_KEY);
+          if (!existingCatId) await scheduleNewCategoryAlerts();
         }
       } catch {}
     };
@@ -1174,16 +1366,15 @@ export default function App() {
     };
   }, []);
 
-  // Show onboarding after hooks are declared to keep hook order stable
-  if (showOnboarding) {
-    return <OnboardingScreen onContinue={completeOnboarding} />;
-  }
+  
+
+  
 
   const Root = (
     <View style={{ flex: 1 }}>
       {Screen}
       <BottomNav current={tab} onNavigate={navigate} favoritesCount={favorites.length} />
-      {showMood && !showOnboarding && <MoodMeter onSelect={handleSelectMood} />}
+      {showMood && <MoodMeter onSelect={handleSelectMood} />}
     </View>
   );
 
@@ -1202,6 +1393,13 @@ const styles = StyleSheet.create({
   onboardingTitle: { color: '#3B245A', fontSize: 32, fontWeight: '800', marginTop: 8 },
   onboardingTagline: { color: '#6B4C9A', fontSize: 16, marginTop: 6 },
   floatingIcon: { position: 'absolute', fontSize: 24, opacity: 0.7 },
+
+  // Auth landing and forms
+  
+
+  // Auth form inputs
+  
+
   ctaButton: { marginTop: 28, borderRadius: 18, overflow: 'hidden' },
   ctaGradient: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 18 },
   ctaText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
@@ -1455,11 +1653,6 @@ const styles = StyleSheet.create({
   favoriteDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginRight: 10 },
   favoritePreviewText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   highlightsRow: { flexDirection: 'row', marginTop: 10 },
-  chip: { backgroundColor: theme.colors.surfaceTint, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
-  chipText: { color: theme.colors.textMuted, fontSize: 13, fontWeight: '700' },
-  chipFilterRow: { flexDirection: 'row', marginTop: 6, marginBottom: 12 },
-  chipSelected: { borderWidth: 1, borderColor: theme.colors.border },
-  chipTextSelected: { color: theme.colors.text },
   highlightText: { color: theme.colors.text, fontSize: 16, marginTop: 10 },
   highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
   highlightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
@@ -1478,6 +1671,9 @@ const styles = StyleSheet.create({
   listIconI: { marginRight: 12 },
   listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
   listChevron: { color: theme.colors.textMuted, fontSize: 22 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 12 },
+  settingLabel: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+  settingDivider: { height: 1, backgroundColor: theme.colors.border },
   searchRow: { marginTop: 12, marginBottom: 16 },
   searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   statTileIconI: { marginRight: 8 },
