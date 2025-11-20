@@ -6,22 +6,20 @@ import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, Scrol
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { zones } from './data/decks';
-import { theme } from './theme';
+import { lightTheme, darkTheme } from './theme';
 import { allCategories } from './data/decks';
 
 const FAVORITES_STORAGE_KEY = '@unflod_cards:favorites:v1';
-const ONBOARDING_STORAGE_KEY = '@unflod_cards:onboarding_done:v1';
 const PROFILE_STORAGE_KEY = '@unflod_cards:profile:v1';
 const STATS_STORAGE_KEY = '@unflod_cards:stats:v1';
 const NOTIF_ENABLED_KEY = '@unflod_cards:notif_enabled:v1';
 const LAST_ACTIVE_TS_KEY = '@unflod_cards:last_active_ts:v1';
 const REENGAGE_ID_KEY = '@unflod_cards:reengage_id:v1';
-const WEEKLY_ENABLED_KEY = '@unflod_cards:notif_weekly:v1';
-const TIPS_ENABLED_KEY = '@unflod_cards:notif_tips:v1';
-const CATEGORY_ENABLED_KEY = '@unflod_cards:notif_category:v1';
-const WEEKLY_ID_KEY = '@unflod_cards:notif_id_weekly:v1';
-const TIPS_ID_KEY = '@unflod_cards:notif_id_tips:v1';
-const CATEGORY_ID_KEY = '@unflod_cards:notif_id_category:v1';
+const DAILY_REMINDER_KEY = '@unflod_cards:daily_reminder_enabled:v1';
+const WEEKLY_HIGHLIGHTS_KEY = '@unflod_cards:weekly_highlights_enabled:v1';
+const NEW_CATEGORY_ALERT_KEY = '@unflod_cards:new_category_alert_enabled:v1';
+const DARK_MODE_KEY = '@unflod_cards:dark_mode_enabled:v1';
+
 const TOTAL_QUESTIONS = 600;
 
 // Utilities
@@ -89,13 +87,15 @@ const shareQuestionText = async (text) => {
 };
 
 // Notifications handler: show alerts, no sound/badge by default
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 const pickSuggestionBody = () => {
   try {
@@ -111,7 +111,11 @@ const pickSuggestionBody = () => {
 const scheduleReengageReminder = async () => {
   try {
     if (Platform.OS === 'web') return null;
-    await cancelScheduledByKey(REENGAGE_ID_KEY);
+    // Cancel any existing re-engage reminder
+    const existingId = await AsyncStorage.getItem(REENGAGE_ID_KEY);
+    if (existingId) {
+      await Notifications.cancelScheduledNotificationAsync(existingId);
+    }
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Keep the connection going',
@@ -153,104 +157,74 @@ const enableDailyReminders = async () => {
   }
 };
 
-const requestNotifPermissions = async () => {
-  if (Platform.OS === 'web') {
-    Alert.alert('Notifications on Web', 'Notifications are not available in this web preview. Use a device build to receive reminders.');
-    return false;
-  }
-  const current = await Notifications.getPermissionsAsync();
-  let status = current?.status;
-  if (status !== 'granted') {
-    const req = await Notifications.requestPermissionsAsync();
-    status = req?.status;
-  }
-  return status === 'granted';
-};
-
 const scheduleWeeklyHighlights = async () => {
   try {
     if (Platform.OS === 'web') return null;
-    const granted = await requestNotifPermissions();
-    if (!granted) return null;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Weekly Highlights',
-        body: 'Explore this week’s top cards and themes.',
-        data: { type: 'weekly' },
+        body: 'Catch up on your favorite moments from this week. Tap to explore!',
+        data: { type: 'weekly_highlights' },
       },
-      trigger: { weekday: 1, hour: 9, minute: 0, repeats: true },
+      trigger: { weekday: 1, hour: 10, minute: 0, repeats: true }, // Monday at 10 AM
     });
-    await AsyncStorage.setItem(WEEKLY_ID_KEY, id);
     return id;
   } catch {}
   return null;
 };
 
-const scheduleFriendshipTips = async () => {
+const scheduleNewCategoryAlert = async () => {
   try {
     if (Platform.OS === 'web') return null;
-    const granted = await requestNotifPermissions();
-    if (!granted) return null;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Relationship & Friendship Tips',
-        body: 'A thoughtful tip to deepen your connections.',
-        data: { type: 'tips' },
+        title: 'New Category Available!',
+        body: 'A fresh card category has been added. Discover new ways to connect!',
+        data: { type: 'new_category' },
       },
-      trigger: { weekday: 3, hour: 9, minute: 0, repeats: true },
+      trigger: { hour: 12, minute: 0, repeats: false }, // One-time notification at noon
     });
-    await AsyncStorage.setItem(TIPS_ID_KEY, id);
     return id;
   } catch {}
   return null;
 };
 
-const scheduleNewCategoryAlerts = async () => {
+const scheduleDailyQuestionReminder = async () => {
   try {
     if (Platform.OS === 'web') return null;
-    const granted = await requestNotifPermissions();
-    if (!granted) return null;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'New Category Alerts',
-        body: 'Fresh categories are available — take a look!',
-        data: { type: 'category' },
+        title: 'Daily Question',
+        body: 'Your daily question is ready! Take a moment to reflect and connect.',
+        data: { type: 'daily_question' },
       },
-      trigger: { weekday: 5, hour: 9, minute: 0, repeats: true },
+      trigger: { hour: 9, minute: 0, repeats: true }, // Daily at 9 AM
     });
-    await AsyncStorage.setItem(CATEGORY_ID_KEY, id);
     return id;
   } catch {}
   return null;
 };
 
-const cancelScheduledByKey = async (idKey) => {
-  try {
-    const id = await AsyncStorage.getItem(idKey);
-    if (id) {
-      await Notifications.cancelScheduledNotificationAsync(id);
-      await AsyncStorage.removeItem(idKey);
-    }
-  } catch {}
-};
 
-function Header({ title, onBack, right }) {
+
+function Header({ title, onBack, right, theme }) {
+  const dynamicStyles = getDynamicStyles(theme);
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, dynamicStyles.bgSurface]}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Back</Text>
+        <TouchableOpacity onPress={onBack} style={[styles.backButton, dynamicStyles.bgSurfaceTint]}>
+          <Text style={[styles.backText, dynamicStyles.textPrimary]}>‹ Back</Text>
         </TouchableOpacity>
       ) : (
         <View style={{ width: 64 }} />
       )}
-      <Text style={styles.headerTitle}>{title}</Text>
+      <Text style={[styles.headerTitle, dynamicStyles.textPrimary]}>{title}</Text>
       {right ? right : <View style={{ width: 64 }} />}
     </View>
   );
 }
 
-function BrandHeader() {
+function BrandHeader({ theme }) {
   return (
     <View style={styles.brandHeader}>
       <View style={styles.brandLogoWrap}>
@@ -264,14 +238,15 @@ function BrandHeader() {
 }
 
 // Small reusable UI primitives to match design
-const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
+const StatTile = React.memo(function StatTile({ icon, label, value, suffix, theme }) {
+  const dynamicStyles = getDynamicStyles(theme);
   return (
     <View style={styles.statTile}>
       <View style={styles.statTileHeader}>
         <Text style={styles.statTileIcon}>{icon}</Text>
-        <Text style={styles.statTileLabel}>{label}</Text>
+        <Text style={[styles.statTileLabel, dynamicStyles.textPrimary]}>{label}</Text>
       </View>
-      <Text style={styles.statTileValue}>
+      <Text style={[styles.statTileValue, dynamicStyles.textPrimary]}>
         {value}{suffix ? ` ${suffix}` : ''}
       </Text>
     </View>
@@ -279,7 +254,7 @@ const StatTile = React.memo(function StatTile({ icon, label, value, suffix }) {
 });
 
 // Visual circular progress arc without external dependencies
-function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor = theme.colors.border, progressColor = theme.colors.primary, children, animatedProgress }) {
+function ProgressRing({ size = 200, thickness = 14, progress = 0, trackColor, progressColor, children, animatedProgress, theme }) {
   const clamped = Math.max(0, Math.min(1, progress || 0));
   const internalAnim = React.useRef(new Animated.Value(clamped)).current;
   const anim = animatedProgress || internalAnim;
@@ -378,25 +353,30 @@ const HighlightCard = React.memo(function HighlightCard({ icon, title, subtitle 
   );
 });
 
-const SettingsList = React.memo(function SettingsList({ onEditProfile, onSignOut }) {
+const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableNotifications, onSignOut, theme }) {
+  const dynamicStyles = getDynamicStyles(theme);
   return (
-    <View style={styles.listCard}>
-      <TouchableOpacity style={styles.listItemRow} onPress={onEditProfile}>
+    <View style={[styles.listCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
+      <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onEditProfile}>
         <Ionicons name="book-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
-        <Text style={styles.listItemText}>Edit Profile & Account</Text>
-        <Text style={styles.listChevron}>›</Text>
+        <Text style={[styles.listItemText, dynamicStyles.textPrimary]}>Edit Profile & Account</Text>
+        <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.listItemRow}>
+      <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onEnableNotifications}>
+        <Ionicons name="notifications-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
+        <Text style={[styles.listItemText, dynamicStyles.textPrimary]}>Notifications</Text>
+        <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]}>
         <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
-        <Text style={styles.listItemText}>Privacy & Support</Text>
-        <Text style={styles.listChevron}>›</Text>
+        <Text style={[styles.listItemText, dynamicStyles.textPrimary]}>Privacy & Support</Text>
+        <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
       </TouchableOpacity>
       {onSignOut && (
-        <TouchableOpacity style={styles.listItemRow} onPress={onSignOut}>
+        <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onSignOut}>
           <Ionicons name="log-out-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
-          <Text style={[styles.listItemText, { color: theme.colors.primaryText }]}>Sign Out</Text>
-          <Text style={styles.listChevron}>›</Text>
+          <Text style={[styles.listItemText, dynamicStyles.textPrimaryText]}>Sign Out</Text>
+          <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -450,9 +430,11 @@ function Particle({ seed }) {
   );
 }
 
-function SoftParticles() {
+function SoftParticles({ theme }) {
   const { width, height } = Dimensions.get('window');
-  const palette = ['rgba(157,78,221,0.18)', 'rgba(201,179,255,0.20)', 'rgba(233,215,255,0.16)'];
+  const palette = theme?.name === 'dark'
+    ? ['rgba(157,78,221,0.12)', 'rgba(201,179,255,0.10)', 'rgba(233,215,255,0.08)']
+    : ['rgba(157,78,221,0.15)', 'rgba(201,179,255,0.12)', 'rgba(233,215,255,0.10)'];
   const seeds = React.useMemo(() => {
     const n = 14;
     return Array.from({ length: n }).map(() => {
@@ -477,7 +459,7 @@ function SoftParticles() {
   );
 }
 
-function OnboardingScreen({ onContinue }) {
+function OnboardingScreen({ onContinue, theme }) {
   const pulse = React.useRef(new Animated.Value(1)).current;
   React.useEffect(() => {
     Animated.loop(
@@ -495,8 +477,8 @@ function OnboardingScreen({ onContinue }) {
   ];
 
   return (
-    <LinearGradient colors={["#E9D7FF", "#FFFFFF"]} style={styles.onboardingContainer}>
-      <SoftParticles />
+    <LinearGradient colors={theme.gradients.onboarding} style={styles.onboardingContainer}>
+      <SoftParticles theme={theme} />
       <View style={styles.onboardingContent}>
         <Text style={styles.onboardingIcon}>💬</Text>
         <Text style={styles.onboardingTitle}>Unfold Cards</Text>
@@ -508,7 +490,7 @@ function OnboardingScreen({ onContinue }) {
 
         <Animated.View style={{ transform: [{ scale: pulse }] }}>
           <TouchableOpacity onPress={onContinue} activeOpacity={0.9} style={styles.ctaButton}>
-            <LinearGradient colors={["#9D4EDD", "#7B2CBF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaGradient}>
+            <LinearGradient colors={theme.gradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaGradient}>
               <Text style={styles.ctaText}>Get Started</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -522,102 +504,13 @@ function OnboardingScreen({ onContinue }) {
   );
 }
 
-function NotificationsSettingsPanel() {
-  const [daily, setDaily] = React.useState(false);
-  const [weekly, setWeekly] = React.useState(false);
-  const [tips, setTips] = React.useState(false);
-  const [category, setCategory] = React.useState(false);
-
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const d = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
-        const w = await AsyncStorage.getItem(WEEKLY_ENABLED_KEY);
-        const t = await AsyncStorage.getItem(TIPS_ENABLED_KEY);
-        const c = await AsyncStorage.getItem(CATEGORY_ENABLED_KEY);
-        setDaily(d === 'true');
-        setWeekly(w === 'true');
-        setTips(t === 'true');
-        setCategory(c === 'true');
-      } catch {}
-    })();
-  }, []);
-
-  const toggleDaily = async (value) => {
-    setDaily(value);
-    await AsyncStorage.setItem(NOTIF_ENABLED_KEY, value ? 'true' : 'false');
-    if (value) {
-      await enableDailyReminders();
-    } else {
-      await cancelScheduledByKey(REENGAGE_ID_KEY);
-      Alert.alert('Daily Reminder', 'Daily question reminder disabled.');
-    }
-  };
-
-  const toggleWeekly = async (value) => {
-    setWeekly(value);
-    await AsyncStorage.setItem(WEEKLY_ENABLED_KEY, value ? 'true' : 'false');
-    if (value) {
-      const id = await scheduleWeeklyHighlights();
-      if (Platform.OS === 'web') Alert.alert('Weekly Highlights', 'Enabled (web preview cannot deliver notifications).');
-      else if (id) Alert.alert('Weekly Highlights', 'Enabled.');
-    } else {
-      await cancelScheduledByKey(WEEKLY_ID_KEY);
-      Alert.alert('Weekly Highlights', 'Disabled.');
-    }
-  };
-
-  const toggleTips = async (value) => {
-    setTips(value);
-    await AsyncStorage.setItem(TIPS_ENABLED_KEY, value ? 'true' : 'false');
-    if (value) {
-      const id = await scheduleFriendshipTips();
-      if (Platform.OS === 'web') Alert.alert('Tips', 'Enabled (web preview cannot deliver notifications).');
-      else if (id) Alert.alert('Tips', 'Enabled.');
-    } else {
-      await cancelScheduledByKey(TIPS_ID_KEY);
-      Alert.alert('Tips', 'Disabled.');
-    }
-  };
-
-  const toggleCategory = async (value) => {
-    setCategory(value);
-    await AsyncStorage.setItem(CATEGORY_ENABLED_KEY, value ? 'true' : 'false');
-    if (value) {
-      const id = await scheduleNewCategoryAlerts();
-      if (Platform.OS === 'web') Alert.alert('New Category Alerts', 'Enabled (web preview cannot deliver notifications).');
-      else if (id) Alert.alert('New Category Alerts', 'Enabled.');
-    } else {
-      await cancelScheduledByKey(CATEGORY_ID_KEY);
-      Alert.alert('New Category Alerts', 'Disabled.');
-    }
-  };
-
-  const Row = ({ label, value, onValueChange }) => (
-    <View style={styles.settingRow}>
-      <Text style={styles.listItemText}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: '#A26BFF', false: theme.colors.border }} thumbColor={'#FFFFFF'} />
-    </View>
-  );
-
-  return (
-    <View>
-      <Row label="Daily Question Reminder" value={daily} onValueChange={toggleDaily} />
-      <View style={styles.settingDivider} />
-      <Row label="Weekly Highlights" value={weekly} onValueChange={toggleWeekly} />
-      <View style={styles.settingDivider} />
-      <Row label="Relationship/Friendship Tips" value={tips} onValueChange={toggleTips} />
-      <View style={styles.settingDivider} />
-      <Row label="New Category Alerts" value={category} onValueChange={toggleCategory} />
-    </View>
-  );
-}
+ 
 
  
 
  
 
-function MoodMeter({ onSelect }) {
+function MoodMeter({ onSelect, theme }) {
   const options = [
     { id: 'excited', emoji: '🤩', label: 'Excited' },
     { id: 'happy', emoji: '😀', label: 'Happy' },
@@ -648,7 +541,7 @@ function MoodMeter({ onSelect }) {
   );
 }
 
-function CategoryCard({ category, onPress }) {
+function CategoryCard({ category, onPress, theme }) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
@@ -664,7 +557,7 @@ function CategoryCard({ category, onPress }) {
       >
         <LinearGradient
           style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
-          colors={[tint, theme.colors.surface]}
+          colors={[tint, '#FFFFFF']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
@@ -679,7 +572,7 @@ function CategoryCard({ category, onPress }) {
   );
 }
 
-function ZoneSection({ zone, onSelectCategory }) {
+function ZoneSection({ zone, onSelectCategory, theme }) {
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={[styles.sectionTitle, { color: zone.color }]}>{zone.name}</Text>
@@ -688,7 +581,7 @@ function ZoneSection({ zone, onSelectCategory }) {
   );
 }
 
-function DailyQuestion({ onAnswer }) {
+function DailyQuestion({ onAnswer, theme }) {
   // Deterministic daily pick across mixed categories using date key
   const key = getDateKey(); // YYYY-MM-DD
   const numericSeed = key
@@ -710,7 +603,7 @@ function DailyQuestion({ onAnswer }) {
   );
 }
 
-function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
+function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats, theme }) {
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
   const [todayKey, setTodayKey] = React.useState(getDateKey());
   const [query, setQuery] = React.useState('');
@@ -735,15 +628,16 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
     setExpandedZoneId((prev) => (prev === id ? null : id));
   };
 
+  const dynamicStyles = getDynamicStyles(theme);
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.brandHeader}>
-        <Text style={styles.heroTitle}>Hi, {profile?.name || 'Friend'}!</Text>
-        <Text style={styles.streakLabel}>🔥 Connection Streak: {stats?.streakDays ?? 1} Days</Text>
+    <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
+      <View style={[styles.brandHeader, dynamicStyles.bgBackground]}>
+        <Text style={[styles.heroTitle, dynamicStyles.textPrimary]}>Hi, {profile?.name || 'Friend'}!</Text>
+        <Text style={[styles.streakLabel, dynamicStyles.textMuted]}>🔥 Connection Streak: {stats?.streakDays ?? 1} Days</Text>
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}>
         <View style={[styles.panel, { marginTop: 4 }]}>
-          <DailyQuestion key={todayKey} onAnswer={onAnswerDaily} />
+          <DailyQuestion key={todayKey} onAnswer={onAnswerDaily} theme={theme} />
         </View>
 
         <View style={styles.searchRow}>
@@ -751,11 +645,12 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
             value={query}
             onChangeText={setQuery}
             placeholder="Search topics"
-            style={styles.searchInput}
+            placeholderTextColor={theme.colors.textMuted}
+            style={[styles.searchInput, dynamicStyles.bgSurfaceTint, dynamicStyles.borderColor, { color: theme.colors.text }]}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Explore Zones</Text>
+        <Text style={[styles.sectionTitle, dynamicStyles.textMuted]}>Explore Zones</Text>
 
         {(function() {
           const q = query.trim().toLowerCase();
@@ -771,22 +666,22 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
         })().map((zone) => {
           const expanded = expandedZoneId === zone.id;
           return (
-            <View key={zone.id} style={styles.zoneCard}>
+            <View key={zone.id} style={[styles.zoneCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
               <LinearGradient
                 style={[StyleSheet.absoluteFillObject, { borderRadius: 18 }]}
-                colors={theme.gradients.zone}
+                colors={[theme.colors.surface, theme.colors.surfaceTint]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               />
               <TouchableOpacity activeOpacity={0.85} style={styles.zoneHeaderRow} onPress={() => toggleZone(zone.id)}>
                 <View style={[styles.zoneBadge, { backgroundColor: zone.color }]} />
-                <Text style={styles.zoneHeaderTitle}>{zone.name}</Text>
-                <Text style={[styles.zoneChevron, expanded && styles.zoneChevronOpen]}>›</Text>
+                <Text style={[styles.zoneHeaderTitle, dynamicStyles.textPrimary]}>{zone.name}</Text>
+                <Text style={[styles.zoneChevron, dynamicStyles.textMuted, expanded && styles.zoneChevronOpen]}>›</Text>
               </TouchableOpacity>
               {expanded && (
                 <View style={styles.subcategoriesList}>
                   {zone.categories.map((item) => (
-                    <CategoryCard key={item.id} category={item} onPress={() => onSelectCategory(item)} />
+                    <CategoryCard key={item.id} category={item} onPress={() => onSelectCategory(item)} theme={theme} />
                   ))}
                 </View>
               )}
@@ -795,13 +690,13 @@ function HomeScreen({ onSelectCategory, onAnswerDaily, profile, stats }) {
         })}
       </ScrollView>
       <View style={styles.footerNote}>
-        <Text style={styles.footerText}>Deepen connection through questions — for couples, friends, family, or anyone.</Text>
+        <Text style={[styles.footerText, dynamicStyles.textMuted]}>Deepen connection through questions — for couples, friends, family, or anyone.</Text>
       </View>
     </SafeAreaView>
   );
 }
 
-function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0, onViewedCard, onShareQuestion }) {
+function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialIndex = 0, onViewedCard, onShareQuestion, theme }) {
   const [index, setIndex] = React.useState(0);
   const [order, setOrder] = React.useState([...category.questions.map((_, i) => i)]);
 
@@ -904,7 +799,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title={category.name} onBack={onBack} right={right} />
+      <Header title={category.name} onBack={onBack} right={right} theme={theme} />
       <View style={styles.deckStack}>
         <View style={styles.stackInner}>
           <Animated.View
@@ -961,7 +856,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
       </View>
       <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
         <TouchableOpacity style={styles.ctaButton} onPress={goNext}>
-          <LinearGradient style={styles.ctaGradient} colors={[category.color, '#B388FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <LinearGradient style={styles.ctaGradient} colors={[category.color || theme.colors.primary, theme.gradients.cta[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <Text style={styles.ctaText}>Next Card</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -973,7 +868,7 @@ function CardScreen({ category, onBack, onToggleFavorite, isFavorite, initialInd
   );
 }
 
-function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion }) {
+function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion, theme }) {
   const grouped = React.useMemo(() => {
     const map = {};
     for (const f of items) {
@@ -985,7 +880,7 @@ function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Favorites" onBack={onBack} />
+      <Header title="Favorites" onBack={onBack} theme={theme} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {grouped.length === 0 ? (
           <Text style={styles.footerText}>No favorites yet. Add from any card.</Text>
@@ -1023,7 +918,7 @@ function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion }) {
   );
 }
 
-function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
+function ShuffleScreen({ onOpen, onBack, onShareQuestion, theme }) {
   const [pick, setPick] = React.useState(() => randomPick());
   function randomPick() {
     const c = allCategories[Math.floor(Math.random() * allCategories.length)];
@@ -1033,7 +928,7 @@ function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   const reroll = () => setPick(randomPick());
   return (
     <SafeAreaView style={styles.screen}>
-      <Header title="Shuffle" onBack={onBack} />
+      <Header title="Shuffle" onBack={onBack} theme={theme} />
       <View style={styles.card}>
         <Text style={styles.cardPrompt}>{pick.question}</Text>
       </View>
@@ -1052,67 +947,198 @@ function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   );
 }
 
-function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack }) {
+function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack, isDarkMode, onToggleDarkMode, theme }) {
   const genders = ['Male','Female','Non-binary','Prefer not to say'];
   const [showEdit, setShowEdit] = React.useState(false);
+  const [showNotifications, setShowNotifications] = React.useState(false);
+  const [dailyReminderEnabled, setDailyReminderEnabled] = React.useState(false);
+  const [weeklyHighlightsEnabled, setWeeklyHighlightsEnabled] = React.useState(false);
+  const [newCategoryAlertEnabled, setNewCategoryAlertEnabled] = React.useState(false);
+
+  React.useEffect(() => {
+    const loadNotificationSettings = async () => {
+      try {
+        const daily = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+        const weekly = await AsyncStorage.getItem(WEEKLY_HIGHLIGHTS_KEY);
+        const category = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+        
+        console.log('Loading notification settings:', { daily, weekly, category });
+        
+        setDailyReminderEnabled(daily === 'true');
+        setWeeklyHighlightsEnabled(weekly === 'true');
+        setNewCategoryAlertEnabled(category === 'true');
+      } catch (error) {
+        console.error('Error loading notification settings:', error);
+      }
+    };
+    loadNotificationSettings();
+  }, []);
+
+  const handleToggleNotification = async (type, newValue, setEnabled, storageKey, scheduleFunc) => {
+    try {
+      console.log(`Toggling ${type} to ${newValue}`);
+      
+      if (Platform.OS === 'web') {
+        // For web, just update the state and storage without scheduling
+        setEnabled(newValue);
+        await AsyncStorage.setItem(storageKey, String(newValue));
+        Alert.alert('Settings Updated', `${type} ${newValue ? 'enabled' : 'disabled'} (notifications not available on web)`);
+        return;
+      }
+      
+      // Only check permissions when enabling
+      if (newValue === true) {
+        const current = await Notifications.getPermissionsAsync();
+        let status = current?.status;
+        if (status !== 'granted') {
+          const req = await Notifications.requestPermissionsAsync();
+          status = req?.status;
+        }
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Enable notifications in system settings to receive reminders.');
+          return;
+        }
+      }
+
+      // Update state immediately
+      setEnabled(newValue);
+      
+      // Then update storage
+      await AsyncStorage.setItem(storageKey, String(newValue));
+      console.log(`Saved ${type} setting: ${newValue}`);
+      
+      if (newValue === true && scheduleFunc) {
+        const result = await scheduleFunc();
+        console.log(`Scheduled ${type} notification:`, result);
+        Alert.alert('Notification enabled', `You'll receive ${type} notifications.`);
+      } else if (newValue === false) {
+        Alert.alert('Notification disabled', `${type} notifications have been turned off.`);
+      }
+    } catch (e) {
+      console.error(`Error toggling ${type}:`, e);
+      Alert.alert('Error', 'Something went wrong updating notification settings.');
+      // Revert state on error
+      setEnabled(!newValue);
+    }
+  };
+  const dynamicStyles = getDynamicStyles(theme);
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <Header title="Profile" onBack={onBack} />
+        <Header title="Profile" onBack={onBack} theme={theme} />
 
         {/* Top hero section to match mock */}
-        <View style={styles.profileHero}>
-          <View style={styles.emojiCircle}>
+        <View style={[styles.profileHero, dynamicStyles.bgBackground]}>
+          <View style={[styles.emojiCircle, dynamicStyles.bgSurface, dynamicStyles.borderColor]}>
             <Text style={styles.emojiIcon}>😊</Text>
           </View>
-          <Text style={styles.profileTitle}>Hi, {profile?.name || 'Friend'}!</Text>
-          <Text style={styles.profileTagline}>Connecting through meaningful questions</Text>
+          <Text style={[styles.profileTitle, dynamicStyles.textPrimary]}>Hi, {profile?.name || 'Friend'}!</Text>
+          <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Connecting through meaningful questions</Text>
         </View>
 
         {/* Progress section */}
-        <View style={styles.progressSection}>
-          <Text style={styles.progressHeader}>Your Progress</Text>
-          <ProgressRing size={200} thickness={14} progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} trackColor={theme.colors.border} progressColor={theme.colors.primary}>
-            <Text style={styles.progressRingValue}>{stats?.questionsRead ?? 0}</Text>
-            <Text style={styles.progressRingSub}>of {TOTAL_QUESTIONS} goal</Text>
+        <View style={[styles.progressSection, dynamicStyles.bgBackground]}>
+          <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Your Progress</Text>
+          <ProgressRing size={200} thickness={14} progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} trackColor={theme.colors.border} progressColor={theme.colors.primary} theme={theme}>
+            <Text style={[styles.progressRingValue, dynamicStyles.textPrimary]}>{stats?.questionsRead ?? 0}</Text>
+            <Text style={[styles.progressRingSub, dynamicStyles.textMuted]}>of {TOTAL_QUESTIONS} goal</Text>
           </ProgressRing>
-          <Text style={styles.progressLabel}>Questions Read</Text>
+          <Text style={[styles.progressLabel, dynamicStyles.textMuted]}>Questions Read</Text>
         </View>
 
         <View style={styles.tileRow}>
-          <StatTile icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Saved" value={favoritesCount ?? 0} />
-          <StatTile icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Shared" value={stats?.timesShared ?? 0} />
-          <StatTile icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Streak" value={stats?.streakDays ?? 1} />
+          <StatTile theme={theme} icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Saved" value={favoritesCount ?? 0} />
+          <StatTile theme={theme} icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Shared" value={stats?.timesShared ?? 0} />
+          <StatTile theme={theme} icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} style={styles.statTileIconI} />} label="Streak" value={stats?.streakDays ?? 1} />
         </View>
 
           
 
-          <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Profile Settings</Text>
-  <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onSignOut={onSignOut} />
+          <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }, dynamicStyles.textMuted]}>Profile Settings</Text>
+          {showNotifications ? (
+            <View style={[styles.notificationsPanel, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
+              <View style={[styles.notificationHeader, dynamicStyles.borderColor]}>
+                <Text style={[styles.notificationTitle, dynamicStyles.textPrimary]}>Notification Settings</Text>
+                <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                  <Text style={[styles.closeButton, dynamicStyles.textMuted]}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={[styles.notificationItem, dynamicStyles.borderColor]}>
+                <View style={styles.notificationTextContainer}>
+                  <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Daily Question Reminder</Text>
+                  <Text style={[styles.notificationDescription, dynamicStyles.textMuted]}>Get reminded of your daily question at 9 AM</Text>
+                </View>
+                <Switch
+                  value={dailyReminderEnabled}
+                  onValueChange={(value) => handleToggleNotification('Daily Question', value, setDailyReminderEnabled, DAILY_REMINDER_KEY, scheduleDailyQuestionReminder)}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={dailyReminderEnabled ? theme.colors.surface : theme.colors.surfaceTint}
+                />
+              </View>
 
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Notifications</Text>
-            <NotificationsSettingsPanel />
-          </View>
+              <View style={[styles.notificationItem, dynamicStyles.borderColor]}>
+                <View style={styles.notificationTextContainer}>
+                  <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Weekly Highlights</Text>
+                  <Text style={[styles.notificationDescription, dynamicStyles.textMuted]}>Weekly summary every Monday at 10 AM</Text>
+                </View>
+                <Switch
+                  value={weeklyHighlightsEnabled}
+                  onValueChange={(value) => handleToggleNotification('Weekly Highlights', value, setWeeklyHighlightsEnabled, WEEKLY_HIGHLIGHTS_KEY, scheduleWeeklyHighlights)}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={weeklyHighlightsEnabled ? theme.colors.surface : theme.colors.surfaceTint}
+                />
+              </View>
+
+              <View style={[styles.notificationItem, dynamicStyles.borderColor]}>
+                <View style={styles.notificationTextContainer}>
+                  <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>New Category Alert</Text>
+                  <Text style={[styles.notificationDescription, dynamicStyles.textMuted]}>Get notified when new categories are added</Text>
+                </View>
+                <Switch
+                  value={newCategoryAlertEnabled}
+                  onValueChange={(value) => handleToggleNotification('New Category Alert', value, setNewCategoryAlertEnabled, NEW_CATEGORY_ALERT_KEY, scheduleNewCategoryAlert)}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={newCategoryAlertEnabled ? theme.colors.surface : theme.colors.surfaceTint}
+                />
+              </View>
+
+              <View style={[styles.notificationItem, { borderBottomWidth: 0, marginTop: 8, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border }]}>
+                <View style={styles.notificationTextContainer}>
+                  <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Dark Mode</Text>
+                  <Text style={[styles.notificationDescription, dynamicStyles.textMuted]}>Switch to dark theme for better night viewing</Text>
+                </View>
+                <Switch
+                  value={isDarkMode}
+                  onValueChange={onToggleDarkMode}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={isDarkMode ? theme.colors.surface : theme.colors.surfaceTint}
+                />
+              </View>
+            </View>
+          ) : (
+            <SettingsList onEditProfile={() => setShowEdit((v) => !v)} onEnableNotifications={() => setShowNotifications(true)} onSignOut={onSignOut} theme={theme} />
+          )}
 
           {showEdit && (
             <View style={{ marginTop: 10 }}>
               <View style={styles.formRow}>
-                <Text style={styles.formLabel}>Display Name</Text>
+                <Text style={[styles.formLabel, dynamicStyles.textMuted]}>Display Name</Text>
                 <TextInput
                   value={profile?.name ?? ''}
                   onChangeText={(t) => setProfile({ ...(profile||{}), name: t })}
                   placeholder="Your name"
-                  style={styles.input}
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={[styles.input, dynamicStyles.bgSurfaceTint, dynamicStyles.borderColor, { color: theme.colors.text }]}
                 />
               </View>
 
               <View style={styles.formRow}>
-                <Text style={styles.formLabel}>Gender</Text>
+                <Text style={[styles.formLabel, dynamicStyles.textMuted]}>Gender</Text>
                 <View style={styles.genderRow}>
                   {genders.map((g) => (
-                    <TouchableOpacity key={g} style={[styles.genderBtn, profile?.gender===g && styles.genderBtnActive]} onPress={() => setProfile({ ...(profile||{}), gender: g })}>
-                      <Text style={styles.genderBtnText}>{g}</Text>
+                    <TouchableOpacity key={g} style={[styles.genderBtn, dynamicStyles.bgSurfaceTint, profile?.gender===g && [styles.genderBtnActive, dynamicStyles.borderColor]]} onPress={() => setProfile({ ...(profile||{}), gender: g })}>
+                      <Text style={[styles.genderBtnText, dynamicStyles.textPrimary]}>{g}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1126,7 +1152,7 @@ function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites =
   );
 }
 
-function BottomNav({ current, onNavigate, favoritesCount }) {
+function BottomNav({ current, onNavigate, favoritesCount, theme }) {
   const item = (key, label, iconName, count = 0) => (
     <TouchableOpacity style={[styles.navItem, current===key && styles.navItemActive]} onPress={() => onNavigate(key)}>
       <Ionicons name={iconName} size={20} color={current===key ? theme.colors.primaryText : theme.colors.textMuted} style={styles.navIcon} />
@@ -1159,6 +1185,23 @@ export default function App() {
   
   const [profile, setProfile] = React.useState({ name: 'Friend', gender: 'Prefer not to say' });
   const [stats, setStats] = React.useState({ questionsRead: 0, timesShared: 0, streakDays: 1, lastActiveDate: getDateKey() });
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [currentTheme, setCurrentTheme] = React.useState(lightTheme);
+
+  const handleToggleDarkMode = async (value) => {
+    try {
+      setIsDarkMode(value);
+      const newTheme = value ? darkTheme : lightTheme;
+      setCurrentTheme(newTheme);
+      await AsyncStorage.setItem(DARK_MODE_KEY, String(value));
+      console.log(`Dark mode ${value ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('Error toggling dark mode:', error);
+      // Revert on error
+      setIsDarkMode(!value);
+      setCurrentTheme(!value ? darkTheme : lightTheme);
+    }
+  };
 
   
 
@@ -1183,6 +1226,12 @@ export default function App() {
           const s = JSON.parse(statsRaw);
           if (s && typeof s === 'object') setStats((prev) => ({ ...prev, ...s }));
         }
+        
+        // Load dark mode setting
+        const darkModeRaw = await AsyncStorage.getItem(DARK_MODE_KEY);
+        const isDark = darkModeRaw === 'true';
+        setIsDarkMode(isDark);
+        setCurrentTheme(isDark ? darkTheme : lightTheme);
       } catch (e) {
         // noop: fail silently
       } finally {
@@ -1281,6 +1330,7 @@ export default function App() {
         isFavorite={isFavorite}
         onViewedCard={onViewedCard}
         onShareQuestion={onShareQuestion}
+        theme={currentTheme}
       />
     );
   } else {
@@ -1296,11 +1346,12 @@ export default function App() {
           }}
           onShareQuestion={onShareQuestion}
           onRemove={(f) => setFavorites(prev => prev.filter(x => !(x.categoryId===f.categoryId && x.question===f.question)))}
+          theme={currentTheme}
         />
       );
     } else if (tab === 'shuffle') {
       Screen = (
-        <ShuffleScreen onBack={() => setTab('home')} onOpen={openCategoryAt} onShareQuestion={onShareQuestion} key={shuffleKey} />
+        <ShuffleScreen onBack={() => setTab('home')} onOpen={openCategoryAt} onShareQuestion={onShareQuestion} key={shuffleKey} theme={currentTheme} />
       );
     } else if (tab === 'profile') {
       Screen = (
@@ -1313,11 +1364,14 @@ export default function App() {
           favorites={favorites}
           onViewAllFavorites={() => setTab('favorites')}
           onEnableNotifications={enableDailyReminders}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+          theme={currentTheme}
         />
       );
     } else {
       Screen = (
-        <HomeScreen profile={profile} stats={stats} onSelectCategory={(c) => setSelected(c)} onAnswerDaily={(cat, idx) => openCategoryAt(cat, idx)} />
+        <HomeScreen profile={profile} stats={stats} onSelectCategory={(c) => setSelected(c)} onAnswerDaily={(cat, idx) => openCategoryAt(cat, idx)} theme={currentTheme} />
       );
     }
   }
@@ -1335,25 +1389,24 @@ export default function App() {
     const onActive = async () => {
       try {
         await AsyncStorage.setItem(LAST_ACTIVE_TS_KEY, String(Date.now()));
-        const enabledDaily = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
-        if (enabledDaily === 'true') {
-          const existingDailyId = await AsyncStorage.getItem(REENGAGE_ID_KEY);
-          if (!existingDailyId) await scheduleReengageReminder();
+        const enabled = await AsyncStorage.getItem(NOTIF_ENABLED_KEY);
+        if (enabled === 'true') {
+          await scheduleReengageReminder();
         }
-        const enabledWeekly = await AsyncStorage.getItem(WEEKLY_ENABLED_KEY);
-        if (enabledWeekly === 'true') {
-          const existingWeeklyId = await AsyncStorage.getItem(WEEKLY_ID_KEY);
-          if (!existingWeeklyId) await scheduleWeeklyHighlights();
+        
+        // Reschedule individual notification types if enabled
+        const dailyEnabled = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+        const weeklyEnabled = await AsyncStorage.getItem(WEEKLY_HIGHLIGHTS_KEY);
+        const categoryEnabled = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+        
+        if (dailyEnabled === 'true') {
+          await scheduleDailyQuestionReminder();
         }
-        const enabledTips = await AsyncStorage.getItem(TIPS_ENABLED_KEY);
-        if (enabledTips === 'true') {
-          const existingTipsId = await AsyncStorage.getItem(TIPS_ID_KEY);
-          if (!existingTipsId) await scheduleFriendshipTips();
+        if (weeklyEnabled === 'true') {
+          await scheduleWeeklyHighlights();
         }
-        const enabledCategory = await AsyncStorage.getItem(CATEGORY_ENABLED_KEY);
-        if (enabledCategory === 'true') {
-          const existingCatId = await AsyncStorage.getItem(CATEGORY_ID_KEY);
-          if (!existingCatId) await scheduleNewCategoryAlerts();
+        if (categoryEnabled === 'true') {
+          await scheduleNewCategoryAlert();
         }
       } catch {}
     };
@@ -1373,17 +1426,36 @@ export default function App() {
   const Root = (
     <View style={{ flex: 1 }}>
       {Screen}
-      <BottomNav current={tab} onNavigate={navigate} favoritesCount={favorites.length} />
-      {showMood && <MoodMeter onSelect={handleSelectMood} />}
+      <BottomNav current={tab} onNavigate={navigate} favoritesCount={favorites.length} theme={currentTheme} />
+      {showMood && <MoodMeter onSelect={handleSelectMood} theme={currentTheme} />}
     </View>
   );
 
   return (
-    <LinearGradient colors={[theme.colors.surfaceTint, theme.colors.background]} style={{ flex: 1 }}>
+    <LinearGradient colors={[currentTheme.colors.surfaceTint, currentTheme.colors.background]} style={{ flex: 1 }}>
       {Root}
     </LinearGradient>
   );
 }
+
+// Dynamic style functions that use theme
+const getDynamicStyles = (theme) => ({
+  // Text colors
+  textPrimary: { color: theme.colors.text },
+  textMuted: { color: theme.colors.textMuted },
+  textPrimaryText: { color: theme.colors.primaryText },
+  
+  // Background colors
+  bgSurface: { backgroundColor: theme.colors.surface },
+  bgSurfaceTint: { backgroundColor: theme.colors.surfaceTint },
+  bgBackground: { backgroundColor: theme.colors.background },
+  
+  // Border colors
+  borderColor: { borderColor: theme.colors.border },
+  
+  // Shadow colors
+  shadowColor: { shadowColor: theme.colors.shadow },
+});
 
 const styles = StyleSheet.create({
   onboardingContainer: { flex: 1, justifyContent: 'center' },
@@ -1422,47 +1494,47 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: theme.colors.surfaceTint,
+    backgroundColor: '#F5F0FF',
   },
-  backText: { color: theme.colors.textMuted, fontSize: 16 },
-  headerTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '600' },
+  backText: { color: '#6B4C9A', fontSize: 16 },
+  headerTitle: { color: '#3B245A', fontSize: 20, fontWeight: '600' },
   brandHeader: {
     alignItems: 'center',
     paddingTop: 24,
     paddingBottom: 8,
   },
   brandIcon: { fontSize: 36 },
-  brandTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '700', marginTop: 6 },
-  brandTagline: { color: theme.colors.textMuted, fontSize: 14, marginTop: 4 },
+  brandTitle: { color: '#3B245A', fontSize: 28, fontWeight: '700', marginTop: 6 },
+  brandTagline: { color: '#6B4C9A', fontSize: 14, marginTop: 4 },
   profileHero: { alignItems: 'center', paddingVertical: 12 },
-  profileTitle: { color: theme.colors.primaryText, fontSize: 28, fontWeight: '800', marginTop: 12 },
-  profileTagline: { color: theme.colors.textMuted, fontSize: 14, marginTop: 6 },
-  emojiCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center', shadowColor: theme.colors.shadow, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
+  profileTitle: { color: '#3B245A', fontSize: 28, fontWeight: '800', marginTop: 12 },
+  profileTagline: { color: '#7A6FA3', fontSize: 14, marginTop: 6 },
+  emojiCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6D6FF', alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
   emojiIcon: { fontSize: 40 },
   progressSection: { alignItems: 'center', paddingTop: 12, paddingBottom: 12 },
-  progressHeader: { color: theme.colors.text, fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  progressRing: { width: 200, height: 200, borderRadius: 100, borderWidth: 14, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
+  progressHeader: { color: '#2F2752', fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  progressRing: { width: 200, height: 200, borderRadius: 100, borderWidth: 14, borderColor: '#E6D6FF', alignItems: 'center', justifyContent: 'center' },
   progressRingContent: { alignItems: 'center', justifyContent: 'center' },
-  progressRingValue: { color: theme.colors.text, fontSize: 24, fontWeight: '800' },
-  progressRingSub: { color: theme.colors.textMuted, fontSize: 13, marginTop: 4 },
-  progressLabel: { color: theme.colors.textMuted, fontSize: 16, marginTop: 12 },
+  progressRingValue: { color: '#2F2752', fontSize: 24, fontWeight: '800' },
+  progressRingSub: { color: '#7A6FA3', fontSize: 13, marginTop: 4 },
+  progressLabel: { color: '#7A6FA3', fontSize: 16, marginTop: 12 },
   sectionTitle: {
-    color: theme.colors.textMuted,
+    color: '#7A6FA3',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
     paddingHorizontal: 16,
   },
-  panel: { backgroundColor: theme.colors.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, padding: 16, shadowColor: theme.colors.shadow, shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
-  heroTitle: { color: theme.colors.text, fontSize: 32, fontWeight: '800', marginBottom: 10 },
-  streakLabel: { color: theme.colors.textMuted, fontSize: 13 },
+  panel: { backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: '#E6D6FF', padding: 16, shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
+  heroTitle: { color: '#2F2752', fontSize: 32, fontWeight: '800', marginBottom: 10 },
+  streakLabel: { color: '#7A6FA3', fontSize: 13 },
   zoneCard: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E6D6FF',
     marginBottom: 12,
-    shadowColor: theme.colors.shadow,
+    shadowColor: 'rgba(124,77,255,0.18)',
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
@@ -1474,8 +1546,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   zoneBadge: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-  zoneHeaderTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '700', flex: 1 },
-  zoneChevron: { color: theme.colors.textMuted, fontSize: 22, transform: [{ rotate: '0deg' }] },
+  zoneHeaderTitle: { color: '#2F2752', fontSize: 18, fontWeight: '700', flex: 1 },
+  zoneChevron: { color: '#7A6FA3', fontSize: 22 },
   zoneChevronOpen: { transform: [{ rotate: '90deg' }] },
   subcategoriesList: { paddingHorizontal: 14, paddingBottom: 12 },
   categoryCard: {
@@ -1483,26 +1555,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 16,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E6D6FF',
     minWidth: 260,
-    shadowColor: theme.colors.shadow,
+    shadowColor: 'rgba(124,77,255,0.18)',
     shadowOpacity: 0.35,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
     marginBottom: 10,
   },
   deckBadge: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  deckTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '700' },
-  deckSubtitle: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
-  chevron: { color: theme.colors.textMuted, fontSize: 24, marginLeft: 12 },
+  deckTitle: { color: '#2F2752', fontSize: 18, fontWeight: '700' },
+  deckSubtitle: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
+  chevron: { color: '#7A6FA3', fontSize: 24, marginLeft: 12 },
   footerNote: { paddingHorizontal: 16, paddingTop: 8 },
-  footerText: { color: theme.colors.textMuted, fontSize: 13 },
+  footerText: { color: '#7A6FA3', fontSize: 13 },
   card: {
     marginHorizontal: 16,
     marginTop: 8,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
     padding: 20,
@@ -1511,7 +1583,7 @@ const styles = StyleSheet.create({
     maxWidth: 640,
     alignSelf: 'center',
   },
-  cardPrompt: { color: theme.colors.text, fontSize: 20, lineHeight: 28 },
+  cardPrompt: { color: '#2F2752', fontSize: 20, lineHeight: 28 },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1524,35 +1596,35 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: theme.colors.surfaceTint,
+    backgroundColor: '#F5EEFF',
     alignItems: 'center',
   },
   primaryBtn: {},
-  controlText: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
+  controlText: { color: '#2F2752', fontSize: 16, fontWeight: '600' },
   primaryText: { color: '#FFFFFF', fontWeight: '700' },
   progress: { alignItems: 'center', marginTop: 8 },
   deckStack: { minHeight: 280, position: 'relative', marginTop: 8, alignItems: 'center', justifyContent: 'center' },
   stackInner: { width: '100%', maxWidth: 640, marginHorizontal: 16, alignSelf: 'center', position: 'relative', minHeight: 240 },
-  progressText: { color: theme.colors.textMuted, fontSize: 13 },
+  progressText: { color: '#7A6FA3', fontSize: 13 },
   favButton: { paddingHorizontal: 10, paddingVertical: 6 },
   favStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
-  favStarActive: { color: theme.colors.primaryText, textShadowRadius: 14 },
+  favStarActive: { color: '#3B245A', textShadowRadius: 14 },
   cardFavButton: { position: 'absolute', right: 12, top: 12, padding: 4 },
   cardFavStar: { fontSize: 22, textShadowColor: '#B388FF', textShadowRadius: 8 },
-  cardFavStarActive: { color: theme.colors.primaryText, textShadowRadius: 12 },
+  cardFavStarActive: { color: '#3B245A', textShadowRadius: 12 },
   tileRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, marginBottom: 12 },
-  statTile: { flex: 1, marginRight: 8, backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
+  statTile: { flex: 1, marginRight: 8, backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', paddingVertical: 12, paddingHorizontal: 12, shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
   statTileHeader: { flexDirection: 'row', alignItems: 'center' },
   statTileIcon: { fontSize: 18, marginRight: 8 },
-  statTileLabel: { color: theme.colors.textMuted, fontSize: 13 },
-  statTileValue: { color: theme.colors.primaryText, fontSize: 24, fontWeight: '800', marginTop: 6 },
+  statTileLabel: { color: '#7A6FA3', fontSize: 13 },
+  statTileValue: { color: '#3B245A', fontSize: 24, fontWeight: '800', marginTop: 6 },
   moodOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.colors.overlay,
+    backgroundColor: 'rgba(47,39,82,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
@@ -1560,15 +1632,15 @@ const styles = StyleSheet.create({
   moodCard: {
     width: '92%',
     maxWidth: 560,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E6D6FF',
     paddingVertical: 20,
     paddingHorizontal: 16,
   },
-  moodTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  moodSubtitle: { color: theme.colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 6 },
+  moodTitle: { color: '#2F2752', fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  moodSubtitle: { color: '#7A6FA3', fontSize: 14, textAlign: 'center', marginTop: 6 },
   moodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1580,22 +1652,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: theme.colors.surfaceTint,
+    backgroundColor: '#F5EEFF',
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E6D6FF',
     alignItems: 'center',
   },
   moodEmoji: { fontSize: 28 },
-  moodLabel: { color: theme.colors.text, fontSize: 14, marginTop: 6 },
-  moodHint: { color: theme.colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
+  moodLabel: { color: '#2F2752', fontSize: 14, marginTop: 6 },
+  moodHint: { color: '#7A6FA3', fontSize: 12, textAlign: 'center', marginTop: 8 },
   bottomNav: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: '#E6D6FF',
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 8,
@@ -1604,77 +1676,86 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center', paddingHorizontal: 6, position: 'relative' },
   navItemActive: { },
   navIcon: { fontSize: 18 },
-  navLabel: { color: theme.colors.textMuted, fontSize: 12 },
-  navLabelActive: { color: theme.colors.primaryText, fontWeight: '700' },
-  navBadge: { position: 'absolute', top: -2, right: 6, backgroundColor: theme.colors.primary, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  navLabel: { color: '#7A6FA3', fontSize: 12 },
+  navLabelActive: { color: '#3B245A', fontWeight: '700' },
+  navBadge: { position: 'absolute', top: -2, right: 6, backgroundColor: '#9D4EDD', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
   navBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   dailyCard: {
     marginTop: 12,
     padding: 16,
     borderRadius: 18,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: theme.colors.shadow,
+    borderColor: '#E6D6FF',
+    shadowColor: 'rgba(124,77,255,0.18)',
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
   },
-  dailyTitle: { color: theme.colors.primaryText, fontSize: 16, fontWeight: '700' },
-  dailyPrompt: { color: theme.colors.text, fontSize: 16, marginTop: 6 },
+  dailyTitle: { color: '#3B245A', fontSize: 16, fontWeight: '700' },
+  dailyPrompt: { color: '#2F2752', fontSize: 16, marginTop: 6 },
   answerBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', marginTop: 12 },
   answerText: { color: '#fff', fontWeight: '700' },
-  favoriteCategoryCard: { padding: 14, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 12 },
+  favoriteCategoryCard: { padding: 14, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6D6FF', marginBottom: 12 },
   favoriteHeaderRow: { flexDirection: 'row', alignItems: 'center' },
-  favoriteCountBadge: { marginLeft: 8, backgroundColor: theme.colors.surfaceTint, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  favoriteCountText: { color: theme.colors.textMuted, fontSize: 12, fontWeight: '700' },
+  favoriteCountBadge: { marginLeft: 8, backgroundColor: '#F5EEFF', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  favoriteCountText: { color: '#7A6FA3', fontSize: 12, fontWeight: '700' },
   favoriteQuestionsList: { marginTop: 10 },
   favoriteItemRow: { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  favoriteQuestion: { color: theme.colors.text, fontSize: 16, flex: 1, marginRight: 12 },
+  favoriteQuestion: { color: '#2F2752', fontSize: 16, flex: 1, marginRight: 12 },
   favoriteActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   favoriteOpenBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
-  shareBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
-  shareText: { color: theme.colors.text },
-  removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
-  removeText: { color: theme.colors.text },
+  shareBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
+  shareText: { color: '#2F2752' },
+  removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
+  removeText: { color: '#2F2752' },
   themeRow: { flexDirection: 'row', marginTop: 10 },
-  themeBtn: { marginRight: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.surfaceTint },
-  themeBtnActive: { borderWidth: 1, borderColor: theme.colors.border },
+  themeBtn: { marginRight: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: '#F5EEFF' },
+  themeBtnActive: { borderWidth: 1, borderColor: '#E6D6FF' },
   profileHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  avatarCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center' },
-  profileGreeting: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '700' },
+  avatarCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F5EEFF', alignItems: 'center', justifyContent: 'center' },
+  profileGreeting: { color: '#3B245A', fontSize: 22, fontWeight: '700' },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 },
-  statCard: { flex: 1, marginRight: 8, padding: 14, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
-  statLabel: { color: theme.colors.textMuted, fontSize: 13 },
-  statValue: { color: theme.colors.primaryText, fontSize: 22, fontWeight: '800', marginTop: 6 },
+  statCard: { flex: 1, marginRight: 8, padding: 14, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6D6FF' },
+  statLabel: { color: '#7A6FA3', fontSize: 13 },
+  statValue: { color: '#3B245A', fontSize: 22, fontWeight: '800', marginTop: 6 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 8, marginBottom: 6 },
-  viewAllLink: { color: theme.colors.textMuted, fontSize: 13 },
-  favoritePreviewRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, marginHorizontal: 16, marginBottom: 8 },
-  favoriteDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginRight: 10 },
-  favoritePreviewText: { color: theme.colors.text, fontSize: 16, flex: 1 },
+  viewAllLink: { color: '#7A6FA3', fontSize: 13 },
+  favoritePreviewRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6D6FF', marginHorizontal: 16, marginBottom: 8 },
+  favoriteDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#9D4EDD', marginRight: 10 },
+  favoritePreviewText: { color: '#2F2752', fontSize: 16, flex: 1 },
   highlightsRow: { flexDirection: 'row', marginTop: 10 },
-  highlightText: { color: theme.colors.text, fontSize: 16, marginTop: 10 },
-  highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, paddingHorizontal: 12, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
-  highlightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.surfaceTint, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  highlightText: { color: '#2F2752', fontSize: 16, marginTop: 10 },
+  highlightCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', paddingVertical: 12, paddingHorizontal: 12, shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  highlightIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5EEFF', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   highlightIcon: { fontSize: 20 },
-  highlightTitle: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
-  highlightSubtitle: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
+  highlightTitle: { color: '#2F2752', fontSize: 16, fontWeight: '700' },
+  highlightSubtitle: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
   formRow: { marginTop: 12 },
-  formLabel: { color: theme.colors.textMuted, fontSize: 13, marginBottom: 6 },
-  input: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
+  formLabel: { color: '#7A6FA3', fontSize: 13, marginBottom: 6 },
+  input: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#F5EEFF', borderWidth: 1, borderColor: '#E6D6FF', color: '#2F2752' },
   genderRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  genderBtn: { marginRight: 8, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint },
-  genderBtnActive: { borderWidth: 1, borderColor: theme.colors.border },
-  genderBtnText: { color: theme.colors.text },
-  listCard: { backgroundColor: theme.colors.surface, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, shadowColor: theme.colors.shadow, shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
-  listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  genderBtn: { marginRight: 8, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#F5EEFF' },
+  genderBtnActive: { borderWidth: 1, borderColor: '#E6D6FF' },
+  genderBtnText: { color: '#2F2752' },
+  listCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
   listIconI: { marginRight: 12 },
-  listItemText: { color: theme.colors.text, fontSize: 16, flex: 1 },
-  listChevron: { color: theme.colors.textMuted, fontSize: 22 },
+  listItemText: { color: '#2F2752', fontSize: 16, flex: 1 },
+  listChevron: { color: '#7A6FA3', fontSize: 22 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 12 },
-  settingLabel: { color: theme.colors.text, fontSize: 16, fontWeight: '600' },
-  settingDivider: { height: 1, backgroundColor: theme.colors.border },
+  settingLabel: { color: '#2F2752', fontSize: 16, fontWeight: '600' },
+  settingDivider: { height: 1, backgroundColor: '#E6D6FF' },
   searchRow: { marginTop: 12, marginBottom: 16 },
-  searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.colors.surfaceTint, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
+  searchInput: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#F5EEFF', borderWidth: 1, borderColor: '#E6D6FF', color: '#2F2752' },
   statTileIconI: { marginRight: 8 },
+  // Notification Panel Styles
+  notificationsPanel: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, padding: 16 },
+  notificationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
+  notificationTitle: { color: '#2F2752', fontSize: 18, fontWeight: '700' },
+  closeButton: { color: '#7A6FA3', fontSize: 20, fontWeight: '600' },
+  notificationItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
+  notificationTextContainer: { flex: 1, marginRight: 12 },
+  notificationLabel: { color: '#2F2752', fontSize: 16, fontWeight: '600' },
+  notificationDescription: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
 });
