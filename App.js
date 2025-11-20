@@ -595,7 +595,7 @@ function NotificationsSettingsPanel() {
 
   const Row = ({ label, value, onValueChange }) => (
     <View style={styles.settingRow}>
-      <Text style={styles.settingLabel}>{label}</Text>
+      <Text style={styles.listItemText}>{label}</Text>
       <Switch value={value} onValueChange={onValueChange} trackColor={{ true: '#A26BFF', false: theme.colors.border }} thumbColor={'#FFFFFF'} />
     </View>
   );
