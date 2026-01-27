@@ -1,29 +1,61 @@
 {
   "expo": {
-    "name": "unflod-cards",
-    "slug": "unflod-cards",
+    "name": "Unfold Cards",
+    "slug": "unfold-cards",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#E8D5F7",
+      "backgroundImage": "./assets/logo.png",
+      "backgroundImageResizeMode": "cover",
+      "backgroundImageBlurRadius": 30,
+      "imageStyle": {
+        "width": 150,
+        "height": 150,
+        "borderRadius": 75,
+        "overflow": "hidden"
+      },
+      "animation": {
+        "wave": {
+          "type": "wave",
+          "duration": 2000,
+          "easing": "easeInOut",
+          "loop": true,
+          "waveCount": 3,
+          "waveAmplitude": 15,
+          "wavePhase": 0.3
+        }
+      }
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "splash": {
+        "image": "./assets/logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#E8D5F7",
+        "imageStyle": {
+          "width": 150,
+          "height": 150,
+          "borderRadius": 75,
+          "overflow": "hidden"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#E8D5F7"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.rafeeque2.unfoldcards"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo.png"
     }
   }
 }
