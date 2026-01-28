@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones } from '../../data/decks';
@@ -204,9 +205,18 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
     return (
       <View style={[styles.slide, { width }]} >
         <View style={styles.cardContainer}>
-          <View style={[styles.cardGradient, { backgroundColor: item.color + '15' }]} />
+          <LinearGradient
+            colors={[item.color + '15', item.color + '05']}
+            style={styles.cardGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
           
           <View style={styles.cardContent}>
+            <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
+              <Ionicons name="help-circle-outline" size={48} color={item.color} />
+            </View>
+            
             <View style={styles.categoryTag}>
               <Text style={styles.categoryText}>{item.category}</Text>
             </View>
@@ -281,8 +291,11 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
+        pagingEnabled
+        snapToInterval={width}
+        decelerationRate="fast"
+        snapToAlignment="center"
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
@@ -384,13 +397,17 @@ const styles = StyleSheet.create({
     width: width,
   },
   cardContainer: {
-    width: width - 80,
-    height: 400,
-    marginHorizontal: 10,
-    borderRadius: 20,
+    width: width - 40,
+    height: 500,
+    borderRadius: 24,
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#b89bf4ff',
   },
   cardGradient: {
     position: 'absolute',
@@ -398,12 +415,21 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    borderRadius: 24,
   },
   cardContent: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   categoryTag: {
     paddingHorizontal: 16,

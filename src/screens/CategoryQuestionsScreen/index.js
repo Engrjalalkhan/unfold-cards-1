@@ -1,11 +1,16 @@
-import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, ScrollView, Share } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, Share, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 
+const { width } = Dimensions.get('window');
+
 export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion }) {
   const { theme } = useTheme();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const flatListRef = useRef(null);
   
   const handleShareQuestion = async (question, categoryName) => {
     try {
@@ -61,42 +66,57 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
     const isFav = isFavorite(category.id, item);
     
     return (
-      <View style={[styles.questionItem, { backgroundColor: theme.colors.surface }]}>
-        {/* Question Number */}
-        <View style={[styles.questionNumberContainer, { backgroundColor: categoryColor }]}>
-          <Text style={styles.questionNumber}>{index + 1}</Text>
-        </View>
-        
-        {/* Question Text */}
-        <View style={styles.questionContent}>
-          <Text style={[styles.questionText, { color: theme.colors.text }]}>
-            {item}
-          </Text>
-        </View>
-        
-        {/* Action Buttons */}
-        <View style={styles.questionActions}>
-          <TouchableOpacity 
-            onPress={() => onToggleFavorite && onToggleFavorite(category, item)}
-            style={styles.actionButton}
-          >
-            <Ionicons 
-              name={isFav ? 'star' : 'star-outline'} 
-              size={20} 
-              color={isFav ? categoryColor : theme.colors.textMuted} 
-            />
-          </TouchableOpacity>
+      <View style={[styles.slide, { width }]}>
+        <View style={styles.cardContainer}>
+          <LinearGradient
+            colors={[categoryColor + '15', categoryColor + '05']}
+            style={styles.cardGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
           
-          <TouchableOpacity 
-            onPress={() => handleShareQuestion(item, category.name)}
-            style={styles.actionButton}
-          >
-            <Ionicons 
-              name="share-social-outline" 
-              size={20} 
-              color={theme.colors.textMuted} 
-            />
-          </TouchableOpacity>
+          <View style={styles.cardContent}>
+            <View style={[styles.iconContainer, { backgroundColor: categoryColor + '20' }]}>
+              <Ionicons name="help-circle-outline" size={48} color={categoryColor} />
+            </View>
+            
+            <View style={styles.categoryTag}>
+              <Text style={styles.categoryText}>{category.name}</Text>
+            </View>
+            
+            <Text style={styles.questionText}>{item}</Text>
+            
+            <View style={styles.questionNumber}>
+              <Text style={styles.numberText}>Question {index + 1} of {category.questions.length}</Text>
+            </View>
+            
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              {/* Favorite Button */}
+              <TouchableOpacity 
+                onPress={() => onToggleFavorite && onToggleFavorite(category, item)}
+                style={styles.favoriteButton}
+              >
+                <Ionicons 
+                  name={isFav ? 'heart' : 'heart-outline'} 
+                  size={24} 
+                  color={isFav ? '#FF1493' : categoryColor} 
+                />
+              </TouchableOpacity>
+              
+              {/* Share Button */}
+              <TouchableOpacity 
+                onPress={() => handleShareQuestion(item, category.name)}
+                style={styles.shareButton}
+              >
+                <Ionicons 
+                  name="share-outline" 
+                  size={24} 
+                  color={categoryColor} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -117,14 +137,19 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
         </Text>
       </View>
 
-      {/* Questions List */}
+      {/* Questions Carousel */}
       <FlatList
+        ref={flatListRef}
         data={category.questions}
         renderItem={renderQuestionItem}
         keyExtractor={(item, index) => `${category.id}-${index}`}
-        contentContainerStyle={styles.questionsList}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        pagingEnabled
+        snapToInterval={width}
+        decelerationRate="fast"
+        snapToAlignment="center"
+        contentContainerStyle={styles.carousel}
       />
     </SafeAreaView>
   );
@@ -171,55 +196,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  questionsList: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+  carousel: {
+    flex: 1,
   },
-  questionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  questionNumberContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  slide: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    width: width,
   },
-  questionNumber: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+  cardContainer: {
+    width: width - 40,
+    height: 500,
+    borderRadius: 24,
+    marginHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    overflow: 'hidden',
   },
-  questionContent: {
+  cardGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 24,
+  },
+  cardContent: {
     flex: 1,
-    marginRight: 12,
-  },
-  questionText: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '500',
-  },
-  questionActions: {
-    flexDirection: 'row',
+    padding: 24,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  actionButton: {
-    padding: 8,
-    marginLeft: 4,
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  separator: {
-    height: 8,
+  categoryTag: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginBottom: 24,
+    backgroundColor: '#8343b1ff',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  categoryText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  questionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2F2752',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  questionNumber: {
+    alignItems: 'center',
+  },
+  numberText: {
+    fontSize: 14,
+    color: '#8A4FFF',
+    fontWeight: '500',
+  },
+  actionButtons: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favoriteButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
 });
