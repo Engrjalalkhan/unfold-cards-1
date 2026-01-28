@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, View, StyleSheet } from 'react-native';
+import { StatusBar, View, StyleSheet, Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { ShuffleScreen } from './src/screens/ShuffleScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SubcategoryQuestionsScreen } from './src/screens/SubcategoryQuestionsScreen';
+import DiscoverScreen from './src/screens/DiscoverScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -33,6 +34,14 @@ const AppContent = () => {
   const navigationRef = React.useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [favorites, setFavorites] = useState([]);
+  const [unreadFavoritesCount, setUnreadFavoritesCount] = useState(0);
+
+  const handleNavigateToDiscover = () => {
+    // Navigate to Discover screen
+    if (navigationRef.current) {
+      navigationRef.current.navigate('Discover');
+    }
+  };
 
   const handleViewAllQuestions = () => {
     // Navigate to AllQuestions screen
@@ -117,13 +126,20 @@ const AppContent = () => {
         const favArray = Object.values(favData);
         console.log('Parsed favorites array:', favArray);
         setFavorites(favArray);
+        
+        // Calculate unread favorites count for badge
+        const unreadCount = favArray.filter(fav => !fav.read).length;
+        setUnreadFavoritesCount(unreadCount);
+        console.log('Unread favorites count:', unreadCount);
       } else {
         console.log('No favorites found in storage');
         setFavorites([]);
+        setUnreadFavoritesCount(0);
       }
     } catch (error) {
       console.error('Error loading favorites:', error);
       setFavorites([]);
+      setUnreadFavoritesCount(0);
     }
   };
 
@@ -163,7 +179,7 @@ const AppContent = () => {
       onAnswerDaily={() => console.log('Daily question answered')}
       onNavigateToNotifications={() => console.log('Navigate to notifications')}
       onViewAllQuestions={handleViewAllQuestions}
-      onNavigateToDiscover={() => console.log('Navigate to discover')}
+      onNavigateToDiscover={handleNavigateToDiscover}
     />,
     CategoryQuestions: () => {
       console.log('CategoryQuestions screen rendering, selectedCategory:', selectedCategory?.name);
@@ -192,6 +208,7 @@ const AppContent = () => {
           route={route}
           onToggleFavorite={(category, question) => console.log('Toggle favorite:', category.name, question)}
           isFavorite={(categoryId, question) => false}
+          onShareQuestion={(question) => console.log('Share question:', question)}
         />
       );
     },
@@ -240,10 +257,11 @@ const AppContent = () => {
               const key = `${item.categoryId}-${item.question}`;
               
               if (detailed[key]) {
+                // Just update the read status, don't remove from favorites
                 detailed[key].read = item.read;
                 await AsyncStorage.setItem('detailedFavorites', JSON.stringify(detailed));
                 
-                // Update state to refresh the UI
+                // Update state to refresh the UI and badge count
                 loadFavorites();
               }
             } catch (error) {
@@ -269,6 +287,9 @@ const AppContent = () => {
       onSignOut={() => console.log('Sign out')}
       onBack={handleBackToHome}
     />,
+    Discover: ({ navigation, route }) => {
+      return <DiscoverScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
+    },
   };
 
   return (
@@ -283,10 +304,23 @@ const AppContent = () => {
                 iconName = focused ? 'home' : 'home-outline';
               } else if (route.name === 'Favorites') {
                 iconName = focused ? 'heart' : 'heart-outline';
+                // Add badge for favorites count
+                return (
+                  <View style={styles.iconContainer}>
+                    <Ionicons name={iconName} size={size} color={color} />
+                    {unreadFavoritesCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{unreadFavoritesCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
               } else if (route.name === 'Shuffle') {
                 iconName = 'shuffle';
               } else if (route.name === 'Profile') {
                 iconName = focused ? 'person' : 'person-outline';
+              } else if (route.name === 'Discover') {
+                iconName = focused ? 'compass' : 'compass-outline';
               }
               return <Ionicons name={iconName} size={size} color={color} />;
             },
@@ -305,8 +339,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? { display: 'none' } : undefined
               }}
             />
           ))}
@@ -334,6 +368,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  iconContainer: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 

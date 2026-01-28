@@ -1,11 +1,32 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, ScrollView, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion }) {
   const { theme } = useTheme();
+  
+  const handleShareQuestion = async (question, categoryName) => {
+    try {
+      const shareContent = `Question from ${categoryName}:\n\n${question}\n\n- Unfold Cards App`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Question from Unfold Cards',
+        url: 'https://unfold-cards.app'
+      });
+      
+      console.log('Shared category question:', question);
+      
+      // Also call the original onShareQuestion if provided
+      if (onShareQuestion) {
+        onShareQuestion(question);
+      }
+    } catch (error) {
+      console.error('Error sharing category question:', error);
+    }
+  };
 
   console.log('CategoryQuestionsScreen rendered with:', category?.name, 'questions:', category?.questions?.length);
 
@@ -67,7 +88,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
           </TouchableOpacity>
           
           <TouchableOpacity 
-            onPress={() => onShareQuestion && onShareQuestion(`${category.name}: ${item}`)}
+            onPress={() => handleShareQuestion(item, category.name)}
             style={styles.actionButton}
           >
             <Ionicons 

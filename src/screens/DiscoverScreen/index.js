@@ -8,6 +8,8 @@ import {
   Animated, 
   FlatList,
   Dimensions,
+  Share,
+  Alert,
   StatusBar,
   useWindowDimensions,
   Platform,
@@ -15,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Responsive scaling function
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -41,6 +44,23 @@ const DiscoverScreen = ({ route, onBack }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [cardWidth, setCardWidth] = useState(Math.min(windowWidth - scale(40), 500));
   const [cardHeight, setCardHeight] = useState(windowHeight * 0.6);
+  
+  const handleShareAnswer = async (question, answer, mood) => {
+    try {
+      const shareContent = `Question: ${question}\n\nAnswer: ${answer}\n\nMood: ${mood}\n\n- Unfold Cards App`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Question & Answer from Unfold Cards',
+        url: 'https://unfold-cards.app'
+      });
+      
+      console.log('Shared answer:', question, answer, mood);
+    } catch (error) {
+      console.error('Error sharing answer:', error);
+      Alert.alert('Error', 'Could not share the answer. Please try again.');
+    }
+  };
   
   // Handle back button press with proper navigation
   const handleBack = React.useCallback(() => {
@@ -73,27 +93,50 @@ const DiscoverScreen = ({ route, onBack }) => {
     return () => backHandler.remove();
   }, [handleBack]);
   
-  // This would typically come from your data store or API
-  const submittedQuestions = React.useMemo(() => [
-    { 
-      id: '1', 
-      question: 'What was the highlight of your day today?',
-      answer: 'The highlight of my day was having lunch with an old friend.'
-    },
-    { 
-      id: '2', 
-      question: 'What are you most grateful for right now?',
-      answer: 'I\'m grateful for my family and good health.'
-    },
-    { 
-      id: '3', 
-      question: 'What challenge are you currently facing?',
-      answer: 'I\'m working on improving my time management skills.'
-    },
-  ].map(item => ({
-    ...item,
-    key: item.id // Add key for better list performance
-  })), []);
+  // Load submitted questions from storage
+  const [submittedQuestions, setSubmittedQuestions] = useState([]);
+  
+  useEffect(() => {
+    loadSubmittedQuestions();
+  }, []);
+  
+  const loadSubmittedQuestions = async () => {
+    try {
+      const storedSubmissions = await AsyncStorage.getItem('discoverSubmissions');
+      const submissions = storedSubmissions ? JSON.parse(storedSubmissions) : [];
+      
+      // Combine with default questions if no submissions
+      const defaultQuestions = [
+        { 
+          id: '1', 
+          question: 'What was the highlight of your day today?',
+          answer: 'The highlight of my day was having lunch with an old friend.',
+          type: 'default'
+        },
+        { 
+          id: '2', 
+          question: 'What are you most grateful for right now?',
+          answer: 'I\'m grateful for my family and good health.',
+          type: 'default'
+        },
+        { 
+          id: '3', 
+          question: 'What challenge are you currently facing?',
+          answer: 'I\'m working on improving my time management skills.',
+          type: 'default'
+        },
+      ];
+      
+      const allQuestions = submissions.length > 0 ? submissions : defaultQuestions;
+      
+      setSubmittedQuestions(allQuestions.map(item => ({
+        ...item,
+        key: item.id
+      })));
+    } catch (error) {
+      console.error('Error loading submitted questions:', error);
+    }
+  };
 
   // Update dimensions on orientation change
   useEffect(() => {
@@ -114,9 +157,19 @@ const DiscoverScreen = ({ route, onBack }) => {
   }, []);
 
   const renderItem = React.useCallback(({ item, index }) => {
+    const isMoodSubmission = item.type === 'mood';
+    
     return (
       <View style={[styles.slide, { width: cardWidth }]}>
         <View style={[styles.card, { minHeight: cardHeight }]}>
+          {/* Mood indicator for mood submissions */}
+          {isMoodSubmission && (
+            <View style={styles.moodIndicator}>
+              <Text style={styles.moodEmoji}>{item.moodEmoji}</Text>
+              <Text style={styles.moodLabel}>{item.mood}</Text>
+            </View>
+          )}
+          
           <Text 
             style={styles.questionText} 
             numberOfLines={3} 
@@ -125,6 +178,7 @@ const DiscoverScreen = ({ route, onBack }) => {
           >
             {item.question}
           </Text>
+          
           <View style={styles.answerContainer}>
             <Text style={styles.answerLabel}>Your Answer:</Text>
             <Text 
@@ -136,6 +190,20 @@ const DiscoverScreen = ({ route, onBack }) => {
               {item.answer}
             </Text>
           </View>
+          
+          {/* Share Button */}
+          <TouchableOpacity 
+            style={styles.shareButton}
+            onPress={() => handleShareAnswer(item.question, item.answer, item.mood || 'No mood')}
+          >
+            <Ionicons 
+              name="share-outline" 
+              size={20} 
+              color="#8343b1ff" 
+            />
+            <Text style={styles.shareButtonText}>Share</Text>
+          </TouchableOpacity>
+          
           <View style={styles.pagination}>
             {submittedQuestions.map((_, i) => (
               <View 
@@ -373,6 +441,25 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     width: '100%',
   },
+  moodIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0E6FF',
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    borderRadius: scale(12),
+    marginBottom: verticalScale(15),
+    alignSelf: 'flex-start',
+  },
+  moodEmoji: {
+    fontSize: scale(16),
+    marginRight: scale(6),
+  },
+  moodLabel: {
+    fontSize: responsiveFontSize(12),
+    color: '#8A4FFF',
+    fontWeight: '500',
+  },
   questionText: {
     fontWeight: '600',
     color: '#4B0082',
@@ -397,6 +484,23 @@ const styles = StyleSheet.create({
     color: '#4B0082',
     lineHeight: scale(24),
     fontSize: responsiveFontSize(16),
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(131, 67, 177, 0.1)',
+    borderRadius: scale(20),
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(16),
+    marginTop: verticalScale(15),
+    alignSelf: 'center',
+  },
+  shareButtonText: {
+    color: '#8343b1ff',
+    fontSize: responsiveFontSize(14),
+    fontWeight: '500',
+    marginLeft: scale(6),
   },
   pagination: {
     flexDirection: 'row',

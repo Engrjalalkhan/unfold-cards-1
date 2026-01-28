@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,6 +40,22 @@ export function SubcategoryQuestionsScreen({ route, navigation }) {
       await AsyncStorage.setItem('favorites', JSON.stringify(Array.from(newFavorites)));
     } catch (error) {
       console.error('Error saving favorites:', error);
+    }
+  };
+  
+  const handleShareQuestion = async (question, category) => {
+    try {
+      const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Question from Unfold Cards',
+        url: 'https://unfold-cards.app'
+      });
+      
+      console.log('Shared subcategory question:', question);
+    } catch (error) {
+      console.error('Error sharing subcategory question:', error);
     }
   };
   
@@ -188,17 +204,32 @@ export function SubcategoryQuestionsScreen({ route, navigation }) {
               <Text style={styles.numberText}>Question {index + 1} of {questions.length}</Text>
             </View>
             
-            {/* Favorite Button */}
-            <TouchableOpacity 
-              onPress={() => handleToggleFavorite({ id: item.category, name: item.category, color: item.color }, item.question)}
-              style={styles.favoriteButton}
-            >
-              <Ionicons 
-                name={isFav ? 'heart' : 'heart-outline'} 
-                size={24} 
-                color={isFav ? '#FF1493' : '#8343b1ff'} 
-              />
-            </TouchableOpacity>
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              {/* Favorite Button */}
+              <TouchableOpacity 
+                onPress={() => handleToggleFavorite({ id: item.category, name: item.category, color: item.color }, item.question)}
+                style={styles.favoriteButton}
+              >
+                <Ionicons 
+                  name={isFav ? 'heart' : 'heart-outline'} 
+                  size={24} 
+                  color={isFav ? '#FF1493' : '#8343b1ff'} 
+                />
+              </TouchableOpacity>
+              
+              {/* Share Button */}
+              <TouchableOpacity 
+                onPress={() => handleShareQuestion(item.question, item.category)}
+                style={styles.shareButton}
+              >
+                <Ionicons 
+                  name="share-outline" 
+                  size={24} 
+                  color="#8343b1ff" 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View >
       </View >
@@ -465,9 +496,23 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   favoriteButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  actionButtons: {
     position: 'absolute',
     top: 20,
     right: 20,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',

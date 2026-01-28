@@ -1,10 +1,32 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion, onToggleRead }) {
   const { theme } = useTheme();
+  
+  const handleShareQuestion = async (question, category) => {
+    try {
+      const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Question from Unfold Cards',
+        url: 'https://unfold-cards.app'
+      });
+      
+      console.log('Shared favorite question:', question);
+      
+      // Also call the original onShareQuestion if provided
+      if (onShareQuestion) {
+        onShareQuestion(`${category}: ${question}`);
+      }
+    } catch (error) {
+      console.error('Error sharing favorite question:', error);
+    }
+  };
   const grouped = React.useMemo(() => {
     if (!Array.isArray(items)) return [];
     const map = {};
@@ -44,7 +66,7 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
                       >
                         <Text style={[styles.answerText, { color: q.read ? '#FFFFFF' : '#8343b1ff' }]}>{q.read ? 'Read' : 'Unread'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.colors.surfaceTint }]} onPress={() => onShareQuestion && onShareQuestion(`${g.categoryName}: ${q.text}`)}>
+                      <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.colors.surfaceTint }]} onPress={() => handleShareQuestion(q.text, g.categoryName)}>
                         <Text style={[styles.shareText, { color: theme.colors.text }]}>Share</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.removeBtn, { backgroundColor: theme.colors.surfaceTint }]} onPress={() => onRemove({ categoryId: g.categoryId, question: q.text })}>

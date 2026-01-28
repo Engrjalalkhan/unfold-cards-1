@@ -1,14 +1,33 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones } from '../../data/decks';
 
 const { width } = Dimensions.get('window');
 
-function AllQuestionsScreen({ navigation }) {
+function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQuestion }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [favorites, setFavorites] = useState(new Set());
   const flatListRef = useRef(null);
+  
+  // Load favorites from AsyncStorage on mount
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+  
+  const loadFavorites = async () => {
+    try {
+      const storedFavorites = await AsyncStorage.getItem('favorites');
+      if (storedFavorites) {
+        const favArray = JSON.parse(storedFavorites);
+        setFavorites(new Set(favArray));
+      }
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+    }
+  };
   
   // Pagination settings
   const ITEMS_PER_PAGE = 1;
@@ -56,6 +75,89 @@ function AllQuestionsScreen({ navigation }) {
     }
   };
 
+  const handleToggleFavorite = async (item, question) => {
+    const key = `${item.category || 'unknown'}-${question}`;
+    const newFavorites = new Set(favorites);
+    
+    console.log('Toggle favorite called for:', key);
+    
+    if (newFavorites.has(key)) {
+      newFavorites.delete(key);
+      console.log('Removing from favorites:', key);
+    } else {
+      newFavorites.add(key);
+      console.log('Adding to favorites:', key);
+    }
+    
+    setFavorites(newFavorites);
+    
+    // Save to AsyncStorage
+    try {
+      await AsyncStorage.setItem('favorites', JSON.stringify([...newFavorites]));
+      console.log('Saved simple favorites to storage');
+      
+      // Also save detailed favorite info for FavoritesScreen
+      await saveDetailedFavorite(item, question, newFavorites.has(key));
+      console.log('Saved detailed favorite to storage');
+    } catch (error) {
+      console.error('Error saving favorite:', error);
+    }
+    
+    // Call the original onToggleFavorite if provided
+    if (onToggleFavorite) {
+      onToggleFavorite(item, question);
+    }
+  };
+  
+  const saveDetailedFavorite = async (item, question, isFavorited) => {
+    try {
+      const detailedFavorites = await AsyncStorage.getItem('detailedFavorites');
+      const detailed = detailedFavorites ? JSON.parse(detailedFavorites) : {};
+      const key = `${item.category || 'unknown'}-${question}`;
+      
+      if (isFavorited) {
+        // Add detailed favorite info
+        detailed[key] = {
+          categoryId: item.category || 'unknown',
+          categoryName: item.category || 'Unknown',
+          question: question,
+          zone: item.zone || 'Unknown',
+          color: item.color || '#8B5CF6',
+          timestamp: new Date().toISOString(),
+          read: false
+        };
+      } else {
+        // Remove from detailed favorites
+        delete detailed[key];
+      }
+      
+      await AsyncStorage.setItem('detailedFavorites', JSON.stringify(detailed));
+    } catch (error) {
+      console.error('Error saving detailed favorite:', error);
+    }
+  };
+  
+  const handleShareQuestion = async (question, category) => {
+    try {
+      const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
+      
+      await Share.share({
+        message: shareContent,
+        title: 'Question from Unfold Cards',
+        url: 'https://unfold-cards.app' // Optional: add your app URL
+      });
+      
+      console.log('Shared question:', question);
+    } catch (error) {
+      console.error('Error sharing question:', error);
+    }
+  };
+
+  const checkIsFavorite = (categoryId, question) => {
+    const key = `${categoryId || 'unknown'}-${question}`;
+    return favorites.has(key);
+  };
+
   const loadPageIfNeeded = (index) => {
     const pageIndex = Math.floor(index / ITEMS_PER_PAGE);
     if (!loadedPages.has(pageIndex)) {
@@ -96,25 +198,56 @@ function AllQuestionsScreen({ navigation }) {
     minimumViewTime: 100,
   };
 
-  const renderQuestion = ({ item, index }) => (
-    <View style={[styles.slide, { width }]} >
-      <View style={styles.cardContainer}>
-        <View style={[styles.cardGradient, { backgroundColor: item.color + '15' }]} />
-        
-        <View style={styles.cardContent}>
-          <View style={styles.categoryTag}>
-            <Text style={styles.categoryText}>{item.category}</Text>
-          </View>
+  const renderQuestion = ({ item, index }) => {
+    const isFav = checkIsFavorite(item.category, item.question);
+    
+    return (
+      <View style={[styles.slide, { width }]} >
+        <View style={styles.cardContainer}>
+          <View style={[styles.cardGradient, { backgroundColor: item.color + '15' }]} />
           
-          <Text style={styles.questionText}>{item.question}</Text>
-          
-          <View style={styles.questionNumber}>
-            <Text style={styles.numberText}>Question {index + 1} of {allQuestions.length}</Text>
+          <View style={styles.cardContent}>
+            <View style={styles.categoryTag}>
+              <Text style={styles.categoryText}>{item.category}</Text>
+            </View>
+            
+            <Text style={styles.questionText}>{item.question}</Text>
+            
+            <View style={styles.questionNumber}>
+              <Text style={styles.numberText}>Question {index + 1} of {allQuestions.length}</Text>
+            </View>
+            
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              {/* Favorite Icon */}
+              <TouchableOpacity 
+                style={styles.favoriteButton}
+                onPress={() => handleToggleFavorite(item, item.question)}
+              >
+                <Ionicons 
+                  name={isFav ? 'heart' : 'heart-outline'} 
+                  size={24} 
+                  color={isFav ? '#FF6B6B' : '#8343b1ff'} 
+                />
+              </TouchableOpacity>
+              
+              {/* Share Icon */}
+              <TouchableOpacity 
+                style={styles.shareButton}
+                onPress={() => handleShareQuestion(item.question, item.category)}
+              >
+                <Ionicons 
+                  name="share-outline" 
+                  size={24} 
+                  color="#8343b1ff" 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </View >
       </View >
-    </View >
-  );
+    );
+  };
 
   const renderDot = (index) => (
     <TouchableOpacity
@@ -177,15 +310,16 @@ function AllQuestionsScreen({ navigation }) {
             style={[
               styles.navButton,
               styles.previousButton,
-              styles.circleButton,
+              styles.previousCircleButton,
+              styles.leftArrowButton,
               { opacity: currentIndex === 0 ? 0.5 : 1 }
             ]}
             disabled={currentIndex === 0}
           >
-            <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={20} color="#8343b1ff" />
           </TouchableOpacity>
 
-          <View style={styles.buttonSpacer} />
+          <View style={styles.centerSpacer} />
 
           <TouchableOpacity
             onPress={handleNext}
@@ -193,11 +327,13 @@ function AllQuestionsScreen({ navigation }) {
               styles.navButton,
               styles.nextButton,
               styles.circleButton,
+              styles.rightArrowButton,
               { opacity: currentIndex === allQuestions.length - 1 ? 0.5 : 1 }
             ]}
             disabled={currentIndex === allQuestions.length - 1}
           >
-            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+            <Text style={styles.nextButtonText}>Next</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View >
@@ -333,8 +469,19 @@ const styles = StyleSheet.create({
   },
   navigationButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  leftArrowButton: {
+    alignSelf: 'flex-start',
+  },
+  rightArrowButton: {
+    alignSelf: 'flex-end',
+  },
+  centerSpacer: {
+    flex: 1,
   },
   navButton: {
     flexDirection: 'row',
@@ -346,27 +493,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   previousButton: {
-    backgroundColor: '#8343b1ff',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#8343b1ff',
   },
   nextButton: {
     backgroundColor: '#8343b1ff',
+    borderWidth: 2,
+    borderColor: '#8343b1ff',
   },
-  navButtonText: {
+  nextButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-    marginHorizontal: 4,
+    marginRight: 4,
   },
-  circleButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    minWidth: 50,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
+  favoriteButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  buttonSpacer: {
-    flex: 2,
+  actionButtons: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
 });
 
