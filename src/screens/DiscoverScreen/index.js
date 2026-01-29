@@ -62,6 +62,50 @@ const DiscoverScreen = ({ route, onBack }) => {
     }
   };
   
+  const handleDeleteAnswer = async (itemId) => {
+    Alert.alert(
+      'Delete Answer',
+      'Are you sure you want to delete this answer? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
+              const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+              
+              // Remove the item with the matching id
+              const updatedSubmissions = submissions.filter(item => item.id !== itemId);
+              
+              await AsyncStorage.setItem('discoverSubmissions', JSON.stringify(updatedSubmissions));
+              
+              // Update state to refresh the UI
+              setSubmittedQuestions(updatedSubmissions.map(item => ({
+                ...item,
+                key: item.id
+              })));
+              
+              console.log('Deleted answer with id:', itemId);
+              
+              // Adjust current index if necessary
+              if (currentIndex >= updatedSubmissions.length && currentIndex > 0) {
+                setCurrentIndex(currentIndex - 1);
+              }
+            } catch (error) {
+              console.error('Error deleting answer:', error);
+              Alert.alert('Error', 'Could not delete the answer. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+  
   // Handle back button press with proper navigation
   const handleBack = React.useCallback(() => {
     if (onBack) {
@@ -191,18 +235,34 @@ const DiscoverScreen = ({ route, onBack }) => {
             </Text>
           </View>
           
-          {/* Share Button */}
-          <TouchableOpacity 
-            style={styles.shareButton}
-            onPress={() => handleShareAnswer(item.question, item.answer, item.mood || 'No mood')}
-          >
-            <Ionicons 
-              name="share-outline" 
-              size={20} 
-              color="#8343b1ff" 
-            />
-            <Text style={styles.shareButtonText}>Share</Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            {/* Delete Button */}
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDeleteAnswer(item.id)}
+            >
+              <Ionicons 
+                name="trash-outline" 
+                size={20} 
+                color="#FF4444" 
+              />
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+            
+            {/* Share Button */}
+            <TouchableOpacity 
+              style={styles.shareButton}
+              onPress={() => handleShareAnswer(item.question, item.answer, item.mood || 'No mood')}
+            >
+              <Ionicons 
+                name="share-outline" 
+                size={20} 
+                color="#8343b1ff" 
+              />
+              <Text style={styles.shareButtonText}>Share</Text>
+            </TouchableOpacity>
+          </View>
           
           <View style={styles.pagination}>
             {submittedQuestions.map((_, i) => (
@@ -264,51 +324,69 @@ const DiscoverScreen = ({ route, onBack }) => {
       
       {/* Progress Bar */}
       <View style={[styles.progressContainer, { marginVertical: verticalScale(10) }]}>
-        <View style={[
-          styles.progressBar, 
-          { 
-            width: `${((currentIndex + 1) / submittedQuestions.length) * 100}%`,
-            backgroundColor: '#8A2BE2',
-          }
-        ]} />
+        {submittedQuestions.length > 0 && (
+          <View style={[
+            styles.progressBar, 
+            { 
+              width: `${((currentIndex + 1) / submittedQuestions.length) * 100}%`,
+              backgroundColor: '#8A2BE2',
+            }
+          ]} />
+        )}
       </View>
 
       {/* Carousel */}
       <View style={[styles.carouselContainer, { marginTop: verticalScale(10) }]}>
-        <Animated.FlatList
-          ref={flatListRef}
-          data={submittedQuestions}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          pagingEnabled
-          snapToInterval={cardWidth + scale(20)}
-          decelerationRate="fast"
-          snapToAlignment="center"
-          contentContainerStyle={[
-            styles.carouselContent,
-            { paddingHorizontal: scale(10) }
-          ]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { 
-              useNativeDriver: false,
-              useNativeDriverForScrollEvents: false 
-            }
-          )}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          getItemLayout={(data, index) => ({
-            length: cardWidth + scale(20),
-            offset: (cardWidth + scale(20)) * index,
-            index,
-          })}
-          maxToRenderPerBatch={3}
-          updateCellsBatchingPeriod={50}
-          windowSize={5}
-          initialNumToRender={1}
-        />
+        {submittedQuestions.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons 
+              name="document-text-outline" 
+              size={scale(80)} 
+              color="#E6D7FF" 
+            />
+            <Text style={[styles.emptyStateTitle, { fontSize: responsiveFontSize(20) }]}>
+              No Questions Added Yet
+            </Text>
+            <Text style={[styles.emptyStateSubtitle, { fontSize: responsiveFontSize(16) }]}>
+              Start answering questions from the home screen to see them here!
+            </Text>
+          </View>
+        ) : (
+          <Animated.FlatList
+            ref={flatListRef}
+            data={submittedQuestions}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            snapToInterval={cardWidth + scale(20)}
+            decelerationRate="fast"
+            snapToAlignment="center"
+            contentContainerStyle={[
+              styles.carouselContent,
+              { paddingHorizontal: scale(10) }
+            ]}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { 
+                useNativeDriver: false,
+                useNativeDriverForScrollEvents: false 
+              }
+            )}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            getItemLayout={(data, index) => ({
+              length: cardWidth + scale(20),
+              offset: (cardWidth + scale(20)) * index,
+              index,
+            })}
+            maxToRenderPerBatch={3}
+            updateCellsBatchingPeriod={50}
+            windowSize={5}
+            initialNumToRender={1}
+          />
+        )}
       </View>
 
       {/* Navigation Buttons */}
@@ -426,6 +504,24 @@ const styles = StyleSheet.create({
   carouselContent: {
     alignItems: 'center',
   },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: scale(40),
+  },
+  emptyStateTitle: {
+    color: '#4B0082',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: verticalScale(20),
+    marginBottom: verticalScale(10),
+  },
+  emptyStateSubtitle: {
+    color: '#8A4FFF',
+    textAlign: 'center',
+    lineHeight: scale(24),
+  },
   slide: {
     paddingHorizontal: scale(10),
   },
@@ -493,11 +589,35 @@ const styles = StyleSheet.create({
     borderRadius: scale(20),
     paddingVertical: scale(8),
     paddingHorizontal: scale(16),
-    marginTop: verticalScale(15),
-    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(131, 67, 177, 0.3)',
   },
   shareButtonText: {
     color: '#8343b1ff',
+    fontSize: responsiveFontSize(14),
+    fontWeight: '500',
+    marginLeft: scale(6),
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: verticalScale(15),
+    paddingHorizontal: scale(10),
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    borderRadius: scale(20),
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(16),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 68, 68, 0.3)',
+  },
+  deleteButtonText: {
+    color: '#FF4444',
     fontSize: responsiveFontSize(14),
     fontWeight: '500',
     marginLeft: scale(6),

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableO
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones, allSubcategories } from '../../data/decks';
 import { getDateKey } from '../../utils/helpers';
 import { CategoryCard } from '../../components/CategoryCard';
@@ -41,6 +42,9 @@ const getDynamicStyles = (theme) => ({
 
 function DailyQuestion({ onAnswer, theme }) {
   const dynamicStyles = getDynamicStyles(theme);
+  const [expandedAnswer, setExpandedAnswer] = React.useState(false);
+  const [answerText, setAnswerText] = React.useState('');
+  const [savedAnswer, setSavedAnswer] = React.useState('');
   
   // Get one random question for the entire day from all questions across all zones and subcategories
   const getDailyRandomQuestion = () => {
@@ -67,6 +71,56 @@ function DailyQuestion({ onAnswer, theme }) {
   };
 
   const dailyQuestion = React.useMemo(() => getDailyRandomQuestion(), [getDateKey()]);
+  
+  const handleAnswerPress = () => {
+    setExpandedAnswer(!expandedAnswer);
+    if (!expandedAnswer) {
+      setAnswerText(savedAnswer || '');
+    }
+  };
+  
+  const handleSubmitAnswer = async () => {
+    if (answerText.trim()) {
+      try {
+        // Save to Discover screen submissions
+        const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
+        const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+        
+        // Check if this question already exists
+        const existingIndex = submissions.findIndex(
+          item => item.question === dailyQuestion.question && item.type === 'daily'
+        );
+        
+        const newSubmission = {
+          id: `daily-${Date.now()}`,
+          question: dailyQuestion.question,
+          answer: answerText.trim(),
+          category: dailyQuestion.category,
+          categoryId: dailyQuestion.categoryId,
+          color: dailyQuestion.color || '#8B5CF6',
+          type: 'daily',
+          timestamp: new Date().toISOString()
+        };
+        
+        if (existingIndex >= 0) {
+          // Update existing submission
+          submissions[existingIndex] = newSubmission;
+        } else {
+          // Add new submission
+          submissions.push(newSubmission);
+        }
+        
+        await AsyncStorage.setItem('discoverSubmissions', JSON.stringify(submissions));
+        setSavedAnswer(answerText.trim());
+        setExpandedAnswer(false);
+        setAnswerText('');
+        
+        console.log('Daily answer saved to discover screen:', newSubmission);
+      } catch (error) {
+        console.error('Error saving daily answer:', error);
+      }
+    }
+  };
   
   if (!dailyQuestion) {
     return null; // Fallback if no questions available
@@ -102,11 +156,44 @@ function DailyQuestion({ onAnswer, theme }) {
         <View style={styles.dailyQuestionFooter}>
           <TouchableOpacity 
             style={[styles.dailyQuestionAnswerButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => onAnswer && onAnswer(dailyQuestion.category, dailyQuestion.questionIndex)}
+            onPress={handleAnswerPress}
           >
-            <Text style={styles.dailyQuestionButtonText}>Answer Now</Text>
+            <Text style={styles.dailyQuestionButtonText}>
+              {expandedAnswer ? 'Close' : 'Answer Now'}
+            </Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Answer Section */}
+        {expandedAnswer && (
+          <View style={styles.answerSection}>
+            {savedAnswer && !answerText && (
+              <View style={styles.savedAnswer}>
+                <Text style={styles.savedAnswerLabel}>Your answer:</Text>
+                <Text style={styles.savedAnswerText}>{savedAnswer}</Text>
+              </View>
+            )}
+            
+            <TextInput
+              style={styles.answerInput}
+              multiline
+              placeholder="Share your thoughts..."
+              placeholderTextColor="#999"
+              value={answerText}
+              onChangeText={setAnswerText}
+              textAlignVertical="top"
+              autoFocus
+            />
+            
+            <TouchableOpacity 
+              style={[styles.submitButton, !answerText.trim() && styles.disabledButton]}
+              onPress={handleSubmitAnswer}
+              disabled={!answerText.trim()}
+            >
+              <Text style={styles.submitButtonText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -148,7 +235,7 @@ function MoodRecommendations({ currentMood, theme }) {
   );
 }
 
-export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover }) {
+export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover, onNavigateToFavorites }) {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
@@ -229,7 +316,10 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
             <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Discover</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}>
+          <TouchableOpacity 
+            style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}
+            onPress={onNavigateToFavorites}
+          >
             <Ionicons name="heart" size={24} color={theme.colors.primary} />
             <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Favorites</Text>
           </TouchableOpacity>
@@ -844,5 +934,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 4,
     lineHeight: 18,
+  },
+  answerSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.05)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  savedAnswer: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 8,
+  },
+  savedAnswerLabel: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  savedAnswerText: {
+    fontSize: 14,
+    color: '#2F2752',
+    lineHeight: 20,
+  },
+  answerInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#2F2752',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  submitButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#D1D5DB',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

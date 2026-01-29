@@ -36,6 +36,13 @@ const AppContent = () => {
   const [favorites, setFavorites] = useState([]);
   const [unreadFavoritesCount, setUnreadFavoritesCount] = useState(0);
 
+  const handleNavigateToFavorites = () => {
+    // Navigate to Favorites screen
+    if (navigationRef.current) {
+      navigationRef.current.navigate('Favorites');
+    }
+  };
+
   const handleNavigateToDiscover = () => {
     // Navigate to Discover screen
     if (navigationRef.current) {
@@ -225,6 +232,7 @@ const AppContent = () => {
       onNavigateToNotifications={() => console.log('Navigate to notifications')}
       onViewAllQuestions={handleViewAllQuestions}
       onNavigateToDiscover={handleNavigateToDiscover}
+      onNavigateToFavorites={handleNavigateToFavorites}
     />,
     CategoryQuestions: () => {
       console.log('CategoryQuestions screen rendering, selectedCategory:', selectedCategory?.name);
