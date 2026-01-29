@@ -88,6 +88,51 @@ const AppContent = () => {
     }
   };
 
+  const handleToggleFavorite = async (category, question) => {
+    console.log('Toggle favorite for question:', question, 'in category:', category.name);
+    try {
+      // Get existing favorites
+      const detailedFavorites = await AsyncStorage.getItem('detailedFavorites');
+      const detailed = detailedFavorites ? JSON.parse(detailedFavorites) : {};
+      
+      const key = `${category.id}-${question}`;
+      
+      if (detailed[key]) {
+        // Remove from favorites
+        delete detailed[key];
+        console.log('Removed from favorites:', key);
+      } else {
+        // Add to favorites
+        detailed[key] = {
+          categoryId: category.id,
+          categoryName: category.name,
+          question: question,
+          color: category.color || '#8B5CF6',
+          read: false,
+          timestamp: new Date().toISOString()
+        };
+        console.log('Added to favorites:', key);
+      }
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('detailedFavorites', JSON.stringify(detailed));
+      
+      // Update state
+      loadFavorites();
+      
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
+
+  const handleIsFavorite = (categoryId, question) => {
+    // Check if item is in favorites
+    const key = `${categoryId}-${question}`;
+    return favorites.some(fav => 
+      fav.categoryId === categoryId && fav.question === question
+    );
+  };
+
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
@@ -190,33 +235,31 @@ const AppContent = () => {
       return (
         <CategoryQuestionsScreen 
           category={selectedCategory}
+          favorites={favorites}
           onBack={() => {
             console.log('Back button pressed in CategoryQuestions');
             setSelectedCategory(null);
             navigationRef.current?.navigate('Home');
           }}
-          onToggleFavorite={(category, question) => console.log('Toggle favorite:', category.name, question)}
-          isFavorite={(categoryId, question) => false}
+          onToggleFavorite={handleToggleFavorite}
+          isFavorite={handleIsFavorite}
           onShareQuestion={(question) => console.log('Share question:', question)}
         />
       );
     },
-    AllQuestionsScreen: ({ navigation, route }) => {
+    AllQuestions: ({ navigation, route }) => {
       return (
         <AllQuestionsScreen 
           navigation={navigation} 
           route={route}
-          onToggleFavorite={(category, question) => console.log('Toggle favorite:', category.name, question)}
-          isFavorite={(categoryId, question) => false}
+          onToggleFavorite={handleToggleFavorite}
+          isFavorite={handleIsFavorite}
           onShareQuestion={(question) => console.log('Share question:', question)}
         />
       );
     },
     MoodQuestions: ({ navigation, route }) => {
       return <MoodQuestionsScreen navigation={navigation} route={route} />;
-    },
-    SubcategoryQuestions: ({ navigation, route }) => {
-      return <SubcategoryQuestionsScreen navigation={navigation} route={route} />;
     },
     Favorites: () => {
       console.log('Rendering Favorites screen with items:', favorites);
@@ -339,8 +382,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestionsScreen' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? { display: 'none' } : undefined
               }}
             />
           ))}

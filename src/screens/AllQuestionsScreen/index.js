@@ -8,27 +8,9 @@ import { zones } from '../../data/decks';
 
 const { width } = Dimensions.get('window');
 
-function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQuestion }) {
+function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQuestion, favorites: appFavorites }) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [favorites, setFavorites] = useState(new Set());
   const flatListRef = useRef(null);
-  
-  // Load favorites from AsyncStorage on mount
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-  
-  const loadFavorites = async () => {
-    try {
-      const storedFavorites = await AsyncStorage.getItem('favorites');
-      if (storedFavorites) {
-        const favArray = JSON.parse(storedFavorites);
-        setFavorites(new Set(favArray));
-      }
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  };
   
   // Pagination settings
   const ITEMS_PER_PAGE = 1;
@@ -76,65 +58,16 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
     }
   };
 
-  const handleToggleFavorite = async (item, question) => {
-    const key = `${item.category || 'unknown'}-${question}`;
-    const newFavorites = new Set(favorites);
-    
-    console.log('Toggle favorite called for:', key);
-    
-    if (newFavorites.has(key)) {
-      newFavorites.delete(key);
-      console.log('Removing from favorites:', key);
-    } else {
-      newFavorites.add(key);
-      console.log('Adding to favorites:', key);
-    }
-    
-    setFavorites(newFavorites);
-    
-    // Save to AsyncStorage
-    try {
-      await AsyncStorage.setItem('favorites', JSON.stringify([...newFavorites]));
-      console.log('Saved simple favorites to storage');
-      
-      // Also save detailed favorite info for FavoritesScreen
-      await saveDetailedFavorite(item, question, newFavorites.has(key));
-      console.log('Saved detailed favorite to storage');
-    } catch (error) {
-      console.error('Error saving favorite:', error);
-    }
-    
-    // Call the original onToggleFavorite if provided
+  const handleToggleFavorite = (item, question) => {
+    console.log('Toggle favorite called for:', question, 'in category:', item.category);
     if (onToggleFavorite) {
-      onToggleFavorite(item, question);
-    }
-  };
-  
-  const saveDetailedFavorite = async (item, question, isFavorited) => {
-    try {
-      const detailedFavorites = await AsyncStorage.getItem('detailedFavorites');
-      const detailed = detailedFavorites ? JSON.parse(detailedFavorites) : {};
-      const key = `${item.category || 'unknown'}-${question}`;
-      
-      if (isFavorited) {
-        // Add detailed favorite info
-        detailed[key] = {
-          categoryId: item.category || 'unknown',
-          categoryName: item.category || 'Unknown',
-          question: question,
-          zone: item.zone || 'Unknown',
-          color: item.color || '#8B5CF6',
-          timestamp: new Date().toISOString(),
-          read: false
-        };
-      } else {
-        // Remove from detailed favorites
-        delete detailed[key];
-      }
-      
-      await AsyncStorage.setItem('detailedFavorites', JSON.stringify(detailed));
-    } catch (error) {
-      console.error('Error saving detailed favorite:', error);
+      // Create a category object similar to what CategoryQuestionsScreen expects
+      const category = {
+        id: item.categoryId || item.category?.toLowerCase().replace(/\s+/g, '-') || 'unknown',
+        name: item.category,
+        color: item.color || '#8B5CF6'
+      };
+      onToggleFavorite(category, question);
     }
   };
   
@@ -155,8 +88,13 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
   };
 
   const checkIsFavorite = (categoryId, question) => {
-    const key = `${categoryId || 'unknown'}-${question}`;
-    return favorites.has(key);
+    if (isFavorite) {
+      return isFavorite(categoryId, question);
+    }
+    // Fallback to checking appFavorites if isFavorite is not provided
+    return appFavorites && appFavorites.some(fav => 
+      fav.categoryId === categoryId && fav.question === question
+    );
   };
 
   const loadPageIfNeeded = (index) => {

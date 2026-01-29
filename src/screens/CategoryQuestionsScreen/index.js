@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, Share, Dimensions } from 'react-native';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, Share, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '../../navigation/Header';
@@ -7,10 +7,24 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion }) {
+export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion, favorites }) {
   const { theme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef(null);
+  const scrollViewRef = useRef(null);
+  
+  // Preserve scroll position when favorites change
+  useEffect(() => {
+    if (scrollViewRef.current && currentIndex > 0) {
+      // Scroll back to current position after favorites update
+      setTimeout(() => {
+        scrollViewRef.current.scrollTo({ 
+          x: currentIndex * width, 
+          y: 0, 
+          animated: false 
+        });
+      }, 50);
+    }
+  }, [favorites]);
   
   const handleShareQuestion = async (question, categoryName) => {
     try {
@@ -31,6 +45,63 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
     } catch (error) {
       console.error('Error sharing category question:', error);
     }
+  };
+
+  const goToPrevious = () => {
+    console.log('goToPrevious called, currentIndex:', currentIndex);
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      
+      // Use ScrollView scrollTo for reliable navigation
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          const offset = newIndex * width;
+          scrollViewRef.current.scrollTo({ 
+            x: offset, 
+            y: 0, 
+            animated: true 
+          });
+          console.log('ScrollView scrollTo called for previous, offset:', offset);
+        }
+      }, 50);
+    }
+  };
+
+  const goToNext = () => {
+    console.log('goToNext called, currentIndex:', currentIndex, 'total:', category.questions.length);
+    if (currentIndex < category.questions.length - 1) {
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      
+      // Use ScrollView scrollTo for reliable navigation
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          const offset = newIndex * width;
+          scrollViewRef.current.scrollTo({ 
+            x: offset, 
+            y: 0, 
+            animated: true 
+          });
+          console.log('ScrollView scrollTo called for next, offset:', offset);
+        }
+      }, 50);
+    }
+  };
+
+  const handleToggleFavorite = (category, question) => {
+    console.log('Toggle favorite for question:', question, 'in category:', category.name);
+    if (onToggleFavorite) {
+      onToggleFavorite(category, question);
+    }
+  };
+
+  // Handle scroll end to update current index
+  const handleScrollEnd = (event) => {
+    const contentOffset = event.nativeEvent.contentOffset;
+    const index = Math.round(contentOffset.x / width);
+    setCurrentIndex(index);
+    console.log('Scroll ended, current index:', index);
   };
 
   console.log('CategoryQuestionsScreen rendered with:', category?.name, 'questions:', category?.questions?.length);
@@ -138,19 +209,124 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
       </View>
 
       {/* Questions Carousel */}
-      <FlatList
-        ref={flatListRef}
-        data={category.questions}
-        renderItem={renderQuestionItem}
-        keyExtractor={(item, index) => `${category.id}-${index}`}
+      <ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        pagingEnabled
+        pagingEnabled={true}
         snapToInterval={width}
         decelerationRate="fast"
         snapToAlignment="center"
-        contentContainerStyle={styles.carousel}
-      />
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={{
+          width: width * category.questions.length,
+        }}
+      >
+        {category.questions.map((question, index) => {
+          const questionId = `${category.id}-${index}`;
+          // Check if this question is favorited by looking in the favorites array
+          const isFav = favorites && favorites.some(fav => 
+            fav.categoryId === category.id && fav.question === question
+          );
+          
+          return (
+            <View key={questionId} style={[styles.slide, { width }]}>
+              <View style={styles.cardContainer}>
+                <LinearGradient
+                  colors={[categoryColor + '15', categoryColor + '05']}
+                  style={styles.cardGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+                
+                <View style={styles.cardContent}>
+                  <View style={[styles.iconContainer, { backgroundColor: categoryColor + '20' }]}>
+                    <Ionicons name="help-circle-outline" size={48} color={categoryColor} />
+                  </View>
+                  
+                  <View style={styles.categoryTag}>
+                    <Text style={styles.categoryText}>{category.name}</Text>
+                  </View>
+                  
+                  <Text style={styles.questionText}>{question}</Text>
+                  
+                  <View style={styles.questionNumber}>
+                    <Text style={styles.numberText}>Question {index + 1} of {category.questions.length}</Text>
+                  </View>
+                  
+                  {/* Action Buttons */}
+                  <View style={styles.actionButtons}>
+                    {/* Favorite Button */}
+                    <TouchableOpacity 
+                      onPress={() => handleToggleFavorite(category, question)}
+                      style={[
+                        styles.favoriteButton,
+                        isFav && styles.favoriteButtonActive
+                      ]}
+                    >
+                      <Ionicons 
+                        name={isFav ? 'heart' : 'heart-outline'} 
+                        size={24} 
+                        color={isFav ? '#FF1493' : categoryColor} 
+                      />
+                    </TouchableOpacity>
+                    
+                    {/* Share Button */}
+                    <TouchableOpacity 
+                      onPress={() => handleShareQuestion(question, category.name)}
+                      style={styles.shareButton}
+                    >
+                      <Ionicons 
+                        name="share-outline" 
+                        size={24} 
+                        color={categoryColor} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+      
+      {/* Navigation Controls */}
+      <View style={styles.navigationContainer}>
+        {/* Previous Button */}
+        <TouchableOpacity
+          style={[
+            styles.navButton,
+            styles.previousButton,
+            currentIndex === 0 && styles.disabledButton
+          ]}
+          onPress={goToPrevious}
+          disabled={currentIndex === 0}
+        >
+          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+          <Text style={styles.navButtonText}>Previous</Text>
+        </TouchableOpacity>
+        
+        {/* Question Counter */}
+        <View style={styles.counterContainer}>
+          <Text style={styles.counterText}>
+            {currentIndex + 1} / {category.questions.length}
+          </Text>
+        </View>
+        
+        {/* Next Button */}
+        <TouchableOpacity
+          style={[
+            styles.navButton,
+            styles.nextButton,
+            currentIndex === category.questions.length - 1 && styles.disabledButton
+          ]}
+          onPress={goToNext}
+          disabled={currentIndex === category.questions.length - 1}
+        >
+          <Text style={styles.navButtonText}>Next</Text>
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -286,6 +462,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(255, 20, 147, 0.1)',
+    borderWidth: 1,
+    borderColor: '#FF1493',
+  },
   shareButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
@@ -295,5 +476,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E6D6FF',
+  },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8343b1ff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    minWidth: 100,
+    justifyContent: 'center',
+  },
+  previousButton: {
+    backgroundColor: '#8343b1ff',
+  },
+  nextButton: {
+    backgroundColor: '#8343b1ff',
+  },
+  disabledButton: {
+    backgroundColor: '#E0E0E0',
+    opacity: 0.5,
+  },
+  navButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 4,
+  },
+  counterContainer: {
+    backgroundColor: '#F8F4FF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#8343b1ff',
+  },
+  counterText: {
+    color: '#8343b1ff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

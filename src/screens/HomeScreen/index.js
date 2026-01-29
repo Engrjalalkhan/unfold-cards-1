@@ -160,7 +160,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     console.log('handleViewAllQuestions called');
     try {
       console.log('Attempting to navigate to AllQuestionsScreen...');
-      navigation.navigate('AllQuestionsScreen');
+      navigation.navigate('AllQuestions');
       console.log('Navigation call completed');
     } catch (error) {
       console.error('Navigation error:', error);
