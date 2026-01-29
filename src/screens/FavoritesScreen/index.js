@@ -57,9 +57,11 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
               </View>
               <View style={styles.favoriteQuestionsList}>
                 {g.questions.map((q, i) => (
-                  <View key={`${g.categoryId}-${i}`} style={styles.favoriteItemRow}>
-                    <Text style={[styles.favoriteQuestion, { color: theme.colors.text }]}>{q.text}</Text>
-                    <View style={styles.favoriteActions}>
+                  <View key={`${g.categoryId}-${i}`}>
+                    <View style={styles.favoriteItemRow}>
+                      <Text style={[styles.favoriteQuestion, { color: theme.colors.text }]}>{q.text}</Text>
+                    </View>
+                    <View style={styles.favoriteActionsRow}>
                       <TouchableOpacity
                         style={[styles.favoriteOpenBtn, { backgroundColor: q.read ? '#8343b1ff' : '#E6D6FF' }]}
                         onPress={() => onToggleRead && onToggleRead({ categoryId: g.categoryId, question: q.text, read: !q.read })}
@@ -73,6 +75,9 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
                         <Text style={[styles.removeText, { color: theme.colors.text }]}>Remove</Text>
                       </TouchableOpacity>
                     </View>
+                    {i < g.questions.length - 1 && (
+                      <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+                    )}
                   </View>
                 ))}
               </View>
@@ -97,16 +102,18 @@ const styles = StyleSheet.create({
   favoriteCountBadge: { marginLeft: 8, backgroundColor: '#F5EEFF', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   favoriteCountText: { color: '#7A6FA3', fontSize: 12, fontWeight: '700' },
   favoriteQuestionsList: { marginTop: 10 },
-  favoriteItemRow: { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  favoriteQuestion: { color: '#2F2752', fontSize: 16, flex: 1, marginRight: 12 },
+  favoriteItemRow: { marginBottom: 8 },
+  favoriteActionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  dividerLine: { height: 1, marginVertical: 8, opacity: 0.5 },
+  favoriteQuestion: { color: '#2F2752', fontSize: 16, lineHeight: 22 },
   favoriteActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   favoriteOpenBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
   answerText: { 
     color: '#fff', 
     fontWeight: '700' 
   },
-  shareBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
+  shareBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
   shareText: { color: '#2F2752' },
-  removeBtn: { marginLeft: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
+  removeBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
   removeText: { color: '#2F2752' },
 });
