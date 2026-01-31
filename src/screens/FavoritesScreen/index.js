@@ -27,59 +27,125 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
       console.error('Error sharing favorite question:', error);
     }
   };
-  const grouped = React.useMemo(() => {
-    if (!Array.isArray(items)) return [];
-    const map = {};
-    for (const f of items) {
-      if (!f || typeof f !== 'object') continue;
-      if (!map[f.categoryId]) map[f.categoryId] = { categoryId: f.categoryId, categoryName: f.categoryName || 'Unknown', color: f.color || '#9D4EDD', questions: [] };
-      map[f.categoryId].questions.push({
-        text: f.question || 'No question text',
-        read: !!f.read,
-      });
+  // Helper function to get zone name from category ID or category name
+  const getZoneName = (categoryId, categoryName) => {
+    // First try to extract from category name
+    if (categoryName) {
+      const name = categoryName.toLowerCase();
+      if (name.includes('relationship')) return 'Relationship Zone';
+      if (name.includes('friendship')) return 'Friendship Zone';
+      if (name.includes('family')) return 'Family Zone';
+      if (name.includes('emotional')) return 'Emotional Zone';
+      if (name.includes('fun')) return 'Fun Zone';
     }
-    return Object.values(map);
+    
+    // Then try to extract from category ID
+    if (categoryId) {
+      const id = categoryId.toLowerCase();
+      if (id.includes('relationship')) return 'Relationship Zone';
+      if (id.includes('friendship')) return 'Friendship Zone';
+      if (id.includes('family')) return 'Family Zone';
+      if (id.includes('emotional')) return 'Emotional Zone';
+      if (id.includes('fun')) return 'Fun Zone';
+    }
+    
+    // Default to category name if available, otherwise use a generic zone name
+    return categoryName ? categoryName : 'Personal Zone';
+  };
+
+  // Group by zone instead of category and create individual cards for each question
+  const individualQuestions = React.useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    
+    return items.map((item) => ({
+      id: `${item.categoryId}-${item.question}`,
+      question: item.question || 'No question text',
+      categoryId: item.categoryId,
+      categoryName: item.categoryName || 'Unknown',
+      zone: getZoneName(item.categoryId, item.categoryName),
+      color: item.color || '#9D4EDD',
+      read: !!item.read,
+      timestamp: item.timestamp,
+    }));
   }, [items]);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <Header title="Favorites" onBack={onBack} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        {grouped.length === 0 ? (
-          <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>No favorites yet. Add from any card.</Text>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {individualQuestions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="heart-outline" size={60} color="#E6D6FF" />
+            <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>No favorites yet</Text>
+            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textMuted }]}>
+              Add questions to favorites from any card to see them here
+            </Text>
+          </View>
         ) : (
-          grouped.map((g) => (
-            <View key={g.categoryId} style={[styles.favoriteCategoryCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <View style={styles.favoriteHeaderRow}>
-                <View style={[styles.zoneBadge, { backgroundColor: g.color }]} />
-                <Text style={[styles.zoneHeaderTitle, { color: theme.colors.text }]}>{g.categoryName}</Text>
-                <View style={[styles.favoriteCountBadge, { backgroundColor: theme.colors.surfaceTint }]}><Text style={[styles.favoriteCountText, { color: theme.colors.textMuted }]}>{g.questions.length}</Text></View>
+          individualQuestions.map((item) => (
+            <View key={item.id} style={[styles.questionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              {/* Zone Header */}
+              <View style={styles.cardHeader}>
+                <View style={[styles.zoneIndicator, { backgroundColor: item.color }]} />
+                <Text style={[styles.zoneTitle, { color: theme.colors.text }]}>{item.zone}</Text>
+                <View style={[styles.readStatusBadge, { 
+                  backgroundColor: item.read ? item.color : item.color + '20' 
+                }]}>
+                  <Text style={[styles.readStatusText, { 
+                    color: item.read ? '#FFFFFF' : item.color 
+                  }]}>{item.read ? 'Read' : 'New'}</Text>
+                </View>
               </View>
-              <View style={styles.favoriteQuestionsList}>
-                {g.questions.map((q, i) => (
-                  <View key={`${g.categoryId}-${i}`}>
-                    <View style={styles.favoriteItemRow}>
-                      <Text style={[styles.favoriteQuestion, { color: theme.colors.text }]}>{q.text}</Text>
-                    </View>
-                    <View style={styles.favoriteActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.favoriteOpenBtn, { backgroundColor: q.read ? '#8343b1ff' : '#E6D6FF' }]}
-                        onPress={() => onToggleRead && onToggleRead({ categoryId: g.categoryId, question: q.text, read: !q.read })}
-                      >
-                        <Text style={[styles.answerText, { color: q.read ? '#FFFFFF' : '#8343b1ff' }]}>{q.read ? 'Read' : 'Unread'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.shareBtn, { backgroundColor: theme.colors.surfaceTint }]} onPress={() => handleShareQuestion(q.text, g.categoryName)}>
-                        <Text style={[styles.shareText, { color: theme.colors.text }]}>Share</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.removeBtn, { backgroundColor: theme.colors.surfaceTint }]} onPress={() => onRemove({ categoryId: g.categoryId, question: q.text })}>
-                        <Text style={[styles.removeText, { color: theme.colors.text }]}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {i < g.questions.length - 1 && (
-                      <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-                    )}
-                  </View>
-                ))}
+              
+              {/* Question Content */}
+              <View style={styles.questionContent}>
+                <Text style={[styles.questionText, { color: theme.colors.text }]}>{item.question}</Text>
+              </View>
+              
+              {/* Action Buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.readButton, { 
+                    backgroundColor: item.read ? item.color : item.color + '20',
+                    borderColor: item.color 
+                  }]}
+                  onPress={() => onToggleRead && onToggleRead({ 
+                    categoryId: item.categoryId, 
+                    question: item.question, 
+                    read: !item.read 
+                  })}
+                >
+                  <Ionicons 
+                    name={item.read ? 'checkmark' : 'checkmark-outline'} 
+                    size={16} 
+                    color={item.read ? '#FFFFFF' : item.color} 
+                  />
+                  <Text style={[styles.actionButtonText, { 
+                    color: item.read ? '#FFFFFF' : item.color 
+                  }]}>{item.read ? 'Read' : 'Mark'}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.shareButton, { 
+                    backgroundColor: theme.colors.surfaceTint,
+                    borderColor: theme.colors.border 
+                  }]} 
+                  onPress={() => handleShareQuestion(item.question, item.zone)}
+                >
+                  <Ionicons name="share-outline" size={16} color={theme.colors.text} />
+                  <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.removeButton, { 
+                    backgroundColor: '#FF444420',
+                    borderColor: '#FF444440' 
+                  }]} 
+                  onPress={() => onRemove({ categoryId: item.categoryId, question: item.question })}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF4444" />
+                  <Text style={[styles.actionButtonText, { color: '#FF4444' }]}>Remove</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ))
@@ -94,26 +160,112 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  footerText: { color: '#7A6FA3', fontSize: 13 },
-  favoriteCategoryCard: { padding: 14, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E6D6FF', marginBottom: 12 },
-  favoriteHeaderRow: { flexDirection: 'row', alignItems: 'center' },
-  zoneBadge: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-  zoneHeaderTitle: { color: '#2F2752', fontSize: 18, fontWeight: '700', flex: 1 },
-  favoriteCountBadge: { marginLeft: 8, backgroundColor: '#F5EEFF', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  favoriteCountText: { color: '#7A6FA3', fontSize: 12, fontWeight: '700' },
-  favoriteQuestionsList: { marginTop: 10 },
-  favoriteItemRow: { marginBottom: 8 },
-  favoriteActionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  dividerLine: { height: 1, marginVertical: 8, opacity: 0.5 },
-  favoriteQuestion: { color: '#2F2752', fontSize: 16, lineHeight: 22 },
-  favoriteActions: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
-  favoriteOpenBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
-  answerText: { 
-    color: '#fff', 
-    fontWeight: '700' 
+  scrollContainer: {
+    padding: 16,
+    paddingBottom: 100,
   },
-  shareBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
-  shareText: { color: '#2F2752' },
-  removeBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#F5EEFF' },
-  removeText: { color: '#2F2752' },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    marginTop: 100,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  
+  // Individual Question Card Styles
+  questionCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  zoneIndicator: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  zoneTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  readStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  readStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Question Content Styles
+  questionContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  questionText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  
+  // Action Buttons Styles
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  readButton: {
+    // Styles applied dynamically
+  },
+  shareButton: {
+    // Styles applied dynamically
+  },
+  removeButton: {
+    // Styles applied dynamically
+  },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 export function MoodMeter({ onSelect }) {
   const handleMoodSelect = (mood) => {
@@ -19,7 +20,11 @@ export function MoodMeter({ onSelect }) {
   ];
 
   return (
-    <View style={styles.moodOverlay}>
+    <BlurView 
+      intensity={120} 
+      style={styles.moodOverlay}
+      tint="light"
+    >
       <View style={styles.moodCard}>
         <Text style={styles.moodTitle}>How are you feeling today?</Text>
         <Text style={styles.moodSubtitle}>Select one to set your vibe</Text>
@@ -37,7 +42,7 @@ export function MoodMeter({ onSelect }) {
         </View>
         <Text style={styles.moodHint}>You can change this anytime from the home screen later.</Text>
       </View>
-    </View>
+    </BlurView>
   );
 }
 
@@ -48,7 +53,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(47,39,82,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

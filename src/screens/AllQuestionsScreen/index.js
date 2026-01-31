@@ -219,7 +219,7 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle} > All Questions ({allQuestions.length}) </Text >
-        <View style={{ width: 40 }} />
+        {/* <View style={{ width: 40 }} /> */}
       </View >
 
       <FlatList
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     width: width - 40,
-    height: 500,
+    height: 400,
     borderRadius: 24,
     marginHorizontal: 20,
     backgroundColor: '#FFFFFF',

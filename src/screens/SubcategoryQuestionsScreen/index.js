@@ -194,10 +194,6 @@ export function SubcategoryQuestionsScreen({ route, navigation }) {
           <View style={[styles.cardGradient, { backgroundColor: item.color + '15' }]} />
           
           <View style={styles.cardContent}>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryText}>{item.category}</Text>
-            </View>
-            
             <Text style={styles.questionText}>{item.question}</Text>
             
             <View style={styles.questionNumber}>

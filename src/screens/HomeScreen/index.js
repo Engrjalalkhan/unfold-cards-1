@@ -1,14 +1,16 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones, allSubcategories } from '../../data/decks';
 import { getDateKey } from '../../utils/helpers';
 import { CategoryCard } from '../../components/CategoryCard';
 import { getMoodRecommendations, getRecommendedZones, isZoneRecommended } from '../../utils/moodRecommendations';
 import { useTheme } from '../../contexts/ThemeContext';
+import { StreakManager } from '../../utils/streakManager';
 
 // Helper function to get time of day
 const getTimeOfDay = () => {
@@ -40,7 +42,7 @@ const getDynamicStyles = (theme) => ({
   textMuted: { color: theme.colors.textMuted },
 });
 
-function DailyQuestion({ onAnswer, theme }) {
+function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays }) {
   const dynamicStyles = getDynamicStyles(theme);
   const [expandedAnswer, setExpandedAnswer] = React.useState(false);
   const [answerText, setAnswerText] = React.useState('');
@@ -82,11 +84,15 @@ function DailyQuestion({ onAnswer, theme }) {
   const handleSubmitAnswer = async () => {
     if (answerText.trim()) {
       try {
+        // Clear input immediately for better UX
+        const currentAnswer = answerText.trim();
+        setAnswerText('');
+        
         // Save to Discover screen submissions
         const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
         const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
         
-        // Check if this question already exists
+        // Check if this question already exists (for daily questions, update instead of duplicate)
         const existingIndex = submissions.findIndex(
           item => item.question === dailyQuestion.question && item.type === 'daily'
         );
@@ -94,30 +100,53 @@ function DailyQuestion({ onAnswer, theme }) {
         const newSubmission = {
           id: `daily-${Date.now()}`,
           question: dailyQuestion.question,
-          answer: answerText.trim(),
+          answer: currentAnswer,
           category: dailyQuestion.category,
           categoryId: dailyQuestion.categoryId,
           color: dailyQuestion.color || '#8B5CF6',
           type: 'daily',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          mood: 'Daily Question' // Add mood for consistency with mood questions
         };
         
         if (existingIndex >= 0) {
           // Update existing submission
           submissions[existingIndex] = newSubmission;
+          console.log('Updated existing daily submission in Discover screen');
         } else {
           // Add new submission
           submissions.push(newSubmission);
+          console.log('Added new daily submission to Discover screen');
         }
         
+        // Save to AsyncStorage
         await AsyncStorage.setItem('discoverSubmissions', JSON.stringify(submissions));
-        setSavedAnswer(answerText.trim());
-        setExpandedAnswer(false);
-        setAnswerText('');
         
-        console.log('Daily answer saved to discover screen:', newSubmission);
+        // Clear input and update UI
+        setSavedAnswer(currentAnswer);
+        setExpandedAnswer(false);
+        
+        // Update streak after successful submission
+        const newStreak = await StreakManager.updateStreak();
+        setStreakDays(newStreak);
+        
+        console.log('✅ Daily question and answer successfully saved to Discover screen:', {
+          question: newSubmission.question,
+          answer: newSubmission.answer,
+          type: newSubmission.type,
+          totalSubmissions: submissions.length
+        });
+        console.log('✅ Streak updated to:', newStreak);
+        
+        // Navigate to Discover screen to show the newly added submission
+        if (onNavigateToDiscover) {
+          console.log('🔄 Navigating to Discover screen...');
+          onNavigateToDiscover();
+        }
       } catch (error) {
         console.error('Error saving daily answer:', error);
+        // Restore the answer text if there was an error
+        setAnswerText(answerText);
       }
     }
   };
@@ -235,12 +264,28 @@ function MoodRecommendations({ currentMood, theme }) {
   );
 }
 
-export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover, onNavigateToFavorites }) {
+export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover, onNavigateToFavorites, onNavigateToProgress }) {
   const { theme } = useTheme();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
   const [todayKey, setTodayKey] = React.useState(getDateKey());
   const [query, setQuery] = React.useState('');
+  const [streakDays, setStreakDays] = React.useState(0);
+
+  // Load streak data on mount
+  React.useEffect(() => {
+    loadStreakData();
+  }, []);
+
+  const loadStreakData = async () => {
+    try {
+      const { streakDays } = await StreakManager.getStreakData();
+      setStreakDays(streakDays);
+    } catch (error) {
+      console.error('Error loading streak data:', error);
+    }
+  };
 
   // Function to navigate to AllQuestionsScreen
   const handleViewAllQuestions = () => {
@@ -277,12 +322,17 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const dynamicStyles = getDynamicStyles(theme);
   return (
     <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
+      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Profile */}
-        <View style={[styles.headerContainer, dynamicStyles.bgBackground]}>
+        {/* Header with Profile - Responsive with SafeArea */}
+        <View style={[
+          styles.headerContainer, 
+          dynamicStyles.bgBackground,
+          { paddingTop: insets.top + 16 }
+        ]}>
           <View style={styles.profileSection}>
             {/* Removed avatar container with purple background circle as requested */}
             <View style={styles.profileInfo}>
@@ -290,7 +340,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                 Hi Friend
               </Text>
               <Text style={[styles.userStatus, dynamicStyles.textMuted]}>
-                🔥 {stats?.streakDays ?? 1} day streak
+                🔥 {streakDays} day streak
               </Text>
             </View>
             <TouchableOpacity style={[styles.settingsButton, dynamicStyles.bgSurface]} onPress={onNavigateToNotifications}>
@@ -301,7 +351,13 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
         {/* Daily Question Card */}
         <View style={styles.cardContainer}>
-          <DailyQuestion key={todayKey} onAnswer={onAnswerDaily} theme={theme} />
+          <DailyQuestion 
+            key={todayKey} 
+            onAnswer={onAnswerDaily} 
+            theme={theme} 
+            onNavigateToDiscover={onNavigateToDiscover}
+            setStreakDays={setStreakDays}
+          />
         </View>
 
         {/* Mood Recommendations */}
@@ -323,7 +379,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             <Ionicons name="heart" size={24} color={theme.colors.primary} />
             <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Favorites</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}>
+          <TouchableOpacity style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]} onPress={onNavigateToProgress}>
             <Ionicons name="bar-chart" size={24} color={theme.colors.primary} />
             <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Progress</Text>
           </TouchableOpacity>
@@ -449,9 +505,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   headerContainer: {
-    paddingTop: 20,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    // paddingTop is now set dynamically with safe area insets
   },
   profileSection: {
     flexDirection: 'row',

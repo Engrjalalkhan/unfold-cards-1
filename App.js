@@ -22,6 +22,8 @@ import { ShuffleScreen } from './src/screens/ShuffleScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SubcategoryQuestionsScreen } from './src/screens/SubcategoryQuestionsScreen';
 import DiscoverScreen from './src/screens/DiscoverScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { ProgressScreen } from './src/screens/ProgressScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -47,6 +49,20 @@ const AppContent = () => {
     // Navigate to Discover screen
     if (navigationRef.current) {
       navigationRef.current.navigate('Discover');
+    }
+  };
+
+  const handleNavigateToNotifications = () => {
+    // Navigate to Notifications screen
+    if (navigationRef.current) {
+      navigationRef.current.navigate('Notifications');
+    }
+  };
+
+  const handleNavigateToProgress = () => {
+    // Navigate to Progress screen
+    if (navigationRef.current) {
+      navigationRef.current.navigate('Progress');
     }
   };
 
@@ -229,10 +245,11 @@ const AppContent = () => {
       theme={theme} 
       onSelectCategory={handleSelectCategory}
       onAnswerDaily={() => console.log('Daily question answered')}
-      onNavigateToNotifications={() => console.log('Navigate to notifications')}
+      onNavigateToNotifications={handleNavigateToNotifications}
       onViewAllQuestions={handleViewAllQuestions}
       onNavigateToDiscover={handleNavigateToDiscover}
       onNavigateToFavorites={handleNavigateToFavorites}
+      onNavigateToProgress={handleNavigateToProgress}
     />,
     CategoryQuestions: () => {
       console.log('CategoryQuestions screen rendering, selectedCategory:', selectedCategory?.name);
@@ -341,6 +358,12 @@ const AppContent = () => {
     Discover: ({ navigation, route }) => {
       return <DiscoverScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
     },
+    Notifications: ({ navigation, route }) => {
+      return <NotificationsScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
+    },
+    Progress: ({ navigation, route }) => {
+      return <ProgressScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
+    },
   };
 
   return (
@@ -390,8 +413,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' ? { display: 'none' } : undefined
               }}
             />
           ))}

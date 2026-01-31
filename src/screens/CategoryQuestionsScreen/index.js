@@ -11,20 +11,45 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   const { theme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef(null);
+  const scrollPositionRef = useRef(0); // Track scroll position to prevent loops
   
-  // Preserve scroll position when favorites change
+  // Handle scroll end to update current index
+  const handleScrollEnd = (event) => {
+    const contentOffset = event.nativeEvent.contentOffset;
+    const index = Math.round(contentOffset.x / width);
+    setCurrentIndex(index);
+    scrollPositionRef.current = index; // Track position
+    console.log('Scroll ended, current index:', index);
+  };
+
+  // Preserve scroll position when favorites change - multiple attempts
   useEffect(() => {
-    if (scrollViewRef.current && currentIndex > 0) {
-      // Scroll back to current position after favorites update
-      setTimeout(() => {
-        scrollViewRef.current.scrollTo({ 
-          x: currentIndex * width, 
-          y: 0, 
-          animated: false 
-        });
-      }, 50);
+    if (scrollViewRef.current && scrollPositionRef.current > 0) {
+      const targetIndex = scrollPositionRef.current;
+      
+      // Multiple restoration attempts at different intervals
+      const restoreAttempts = [
+        { delay: 0, label: 'Immediate' },
+        { delay: 50, label: 'Quick' },
+        { delay: 200, label: 'Delayed' },
+        { delay: 500, label: 'Final' }
+      ];
+      
+      restoreAttempts.forEach(({ delay, label }) => {
+        setTimeout(() => {
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ 
+              x: targetIndex * width, 
+              y: 0, 
+              animated: false 
+            });
+            setCurrentIndex(targetIndex);
+            console.log(`${label} scroll position restoration:`, targetIndex);
+          }
+        }, delay);
+      });
     }
-  }, [favorites]);
+  }, [favorites, width]);
   
   const handleShareQuestion = async (question, categoryName) => {
     try {
@@ -89,20 +114,45 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
     }
   };
 
-  const handleToggleFavorite = (category, question) => {
+  const handleToggleFavorite = useCallback((category, question) => {
     console.log('Toggle favorite for question:', question, 'in category:', category.name);
+    
+    // Store current scroll position immediately
+    const currentScrollPosition = currentIndex;
+    scrollPositionRef.current = currentScrollPosition;
+    
+    // Call parent function
     if (onToggleFavorite) {
       onToggleFavorite(category, question);
     }
-  };
-
-  // Handle scroll end to update current index
-  const handleScrollEnd = (event) => {
-    const contentOffset = event.nativeEvent.contentOffset;
-    const index = Math.round(contentOffset.x / width);
-    setCurrentIndex(index);
-    console.log('Scroll ended, current index:', index);
-  };
+    
+    // Immediate restoration attempt
+    requestAnimationFrame(() => {
+      if (scrollViewRef.current) {
+        const offset = currentScrollPosition * width;
+        scrollViewRef.current.scrollTo({ 
+          x: offset, 
+          y: 0, 
+          animated: false 
+        });
+        console.log('Immediate position restoration:', currentScrollPosition);
+      }
+    });
+    
+    // Backup restoration after delay
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        const offset = currentScrollPosition * width;
+        scrollViewRef.current.scrollTo({ 
+          x: offset, 
+          y: 0, 
+          animated: false 
+        });
+        setCurrentIndex(currentScrollPosition);
+        console.log('Backup position restoration:', currentScrollPosition);
+      }
+    }, 500);
+  }, [currentIndex, onToggleFavorite, width]);
 
   console.log('CategoryQuestionsScreen rendered with:', category?.name, 'questions:', category?.questions?.length);
 
@@ -165,7 +215,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
             <View style={styles.actionButtons}>
               {/* Favorite Button */}
               <TouchableOpacity 
-                onPress={() => onToggleFavorite && onToggleFavorite(category, item)}
+                onPress={() => handleToggleFavorite(category, item)}
                 style={styles.favoriteButton}
               >
                 <Ionicons 
@@ -198,7 +248,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
       <Header title={category.name || 'Questions'} onBack={onBack} />
       
       {/* Category Header */}
-      <View style={styles.categoryHeader}>
+      {/* <View style={styles.categoryHeader}>
         <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
           <Text style={styles.categoryTitle}>{category.name}</Text>
           <Text style={styles.questionCount}>{category.questions.length} Questions</Text>
@@ -206,7 +256,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
         <Text style={[styles.categoryDescription, { color: theme.colors.textMuted }]}>
           Browse through all questions in this category
         </Text>
-      </View>
+      </View> */}
 
       {/* Questions Carousel */}
       <ScrollView

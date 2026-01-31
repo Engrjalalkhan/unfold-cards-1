@@ -16,7 +16,7 @@ import {
   BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Responsive scaling function
@@ -143,6 +143,14 @@ const DiscoverScreen = ({ route, onBack }) => {
   useEffect(() => {
     loadSubmittedQuestions();
   }, []);
+  
+  // Refresh data when screen comes into focus (e.g., after submitting daily question)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 Discover screen focused - refreshing submissions...');
+      loadSubmittedQuestions();
+    }, [])
+  );
   
   const loadSubmittedQuestions = async () => {
     try {

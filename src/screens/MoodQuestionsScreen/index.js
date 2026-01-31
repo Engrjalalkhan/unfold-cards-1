@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, TextInp
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StreakManager } from '../../utils/streakManager';
 
 const { width } = Dimensions.get('window');
 
@@ -106,11 +107,38 @@ const MoodQuestionsScreen = ({ route }) => {
     }
   };
   
-  const handleSaveAnswer = () => {
+  const handleSaveAnswer = async () => {
     if (expandedQuestion && answerText.trim()) {
-      saveAnswer(expandedQuestion, answerText.trim());
-      setExpandedQuestion(null);
-      setAnswerText('');
+      try {
+        // Clear input immediately for better UX
+        const currentAnswer = answerText.trim();
+        setAnswerText('');
+        
+        // Save to mood answers
+        const newAnswers = { ...answers, [expandedQuestion]: currentAnswer };
+        setAnswers(newAnswers);
+        await AsyncStorage.setItem('moodAnswers', JSON.stringify(newAnswers));
+        
+        // Also save to discover screen submissions
+        await saveToDiscoverScreen(expandedQuestion, currentAnswer, selectedMood);
+        
+        // Update streak after successful submission
+        const newStreak = await StreakManager.updateStreak();
+        
+        // Close the expanded question
+        setExpandedQuestion(null);
+        
+        console.log('Mood answer saved successfully:', currentAnswer);
+        console.log('Streak updated to:', newStreak);
+        
+        // Navigate to Discover screen after successful submission
+        navigation.navigate('Discover');
+        
+      } catch (error) {
+        console.error('Error saving mood answer:', error);
+        // Restore the answer text if there was an error
+        setAnswerText(answerText);
+      }
     }
   };
   
