@@ -1,52 +1,56 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDateKey } from './helpers';
 
 export class StreakManager {
   static STREAK_KEY = 'userStreak';
-  static LAST_SUBMISSION_KEY = 'lastSubmissionDate';
+  static LAST_SUBMISSION_KEY = 'lastSubmissionTime';
 
   // Get current streak data
   static async getStreakData() {
     try {
       const streakData = await AsyncStorage.getItem(this.STREAK_KEY);
-      const lastSubmission = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
+      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
       
       return {
         streakDays: streakData ? parseInt(streakData) : 0,
-        lastSubmissionDate: lastSubmission || null
+        lastSubmissionTime: lastSubmissionTime ? parseInt(lastSubmissionTime) : null
       };
     } catch (error) {
       console.error('Error getting streak data:', error);
-      return { streakDays: 0, lastSubmissionDate: null };
+      return { streakDays: 0, lastSubmissionTime: null };
     }
   }
 
   // Update streak when user submits any question
   static async updateStreak() {
     try {
-      const today = getDateKey();
-      const { streakDays, lastSubmissionDate } = await this.getStreakData();
+      const currentTime = Date.now();
+      const { streakDays, lastSubmissionTime } = await this.getStreakData();
 
       let newStreak = streakDays;
       
-      if (lastSubmissionDate === today) {
-        // Already submitted today, don't increment
-        console.log('Already submitted today, streak remains:', newStreak);
-      } else if (lastSubmissionDate === this.getYesterdayKey()) {
-        // Submitted yesterday, increment streak
-        newStreak = streakDays + 1;
-        console.log('Submitted yesterday, incrementing streak to:', newStreak);
+      if (lastSubmissionTime) {
+        const hoursSinceLastSubmission = (currentTime - lastSubmissionTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastSubmission < 24) {
+          // Submitted within 24 hours, increment streak
+          newStreak = streakDays + 1;
+          console.log(`Submitted within ${hoursSinceLastSubmission.toFixed(1)} hours, incrementing streak to:`, newStreak);
+        } else {
+          // More than 24 hours since last submission, reset streak
+          newStreak = 1;
+          console.log(`More than 24 hours since last submission (${hoursSinceLastSubmission.toFixed(1)} hours), starting new streak at:`, newStreak);
+        }
       } else {
-        // Missed days or first time, start new streak
+        // First time submitting
         newStreak = 1;
-        console.log('New streak starting at:', newStreak);
+        console.log('First submission, starting streak at:', newStreak);
       }
 
       // Save new streak data
       await AsyncStorage.setItem(this.STREAK_KEY, newStreak.toString());
-      await AsyncStorage.setItem(this.LAST_SUBMISSION_KEY, today);
+      await AsyncStorage.setItem(this.LAST_SUBMISSION_KEY, currentTime.toString());
 
-      console.log('Streak updated:', { streakDays: newStreak, lastSubmissionDate: today });
+      console.log('Streak updated:', { streakDays: newStreak, lastSubmissionTime: currentTime });
       return newStreak;
     } catch (error) {
       console.error('Error updating streak:', error);
@@ -54,22 +58,36 @@ export class StreakManager {
     }
   }
 
-  // Get yesterday's date key
-  static getYesterdayKey() {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+  // Check if user has submitted in the last 24 hours
+  static async hasSubmittedInLast24Hours() {
+    try {
+      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
+      if (!lastSubmissionTime) return false;
+      
+      const currentTime = Date.now();
+      const hoursSinceLastSubmission = (currentTime - parseInt(lastSubmissionTime)) / (1000 * 60 * 60);
+      
+      return hoursSinceLastSubmission < 24;
+    } catch (error) {
+      console.error('Error checking 24-hour submission status:', error);
+      return false;
+    }
   }
 
-  // Check if user has submitted today
-  static async hasSubmittedToday() {
+  // Get hours until streak expires
+  static async getHoursUntilStreakExpires() {
     try {
-      const lastSubmission = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
-      const today = getDateKey();
-      return lastSubmission === today;
+      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
+      if (!lastSubmissionTime) return 0;
+      
+      const currentTime = Date.now();
+      const hoursSinceLastSubmission = (currentTime - parseInt(lastSubmissionTime)) / (1000 * 60 * 60);
+      const hoursUntilExpire = 24 - hoursSinceLastSubmission;
+      
+      return Math.max(0, hoursUntilExpire);
     } catch (error) {
-      console.error('Error checking submission status:', error);
-      return false;
+      console.error('Error calculating hours until streak expires:', error);
+      return 0;
     }
   }
 

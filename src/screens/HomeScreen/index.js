@@ -47,12 +47,11 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
   const [expandedAnswer, setExpandedAnswer] = React.useState(false);
   const [answerText, setAnswerText] = React.useState('');
   const [savedAnswer, setSavedAnswer] = React.useState('');
+  const [currentQuestion, setCurrentQuestion] = React.useState(null);
+  const [questionSeed, setQuestionSeed] = React.useState(0);
   
-  // Get one random question for the entire day from all questions across all zones and subcategories
-  const getDailyRandomQuestion = () => {
-    const today = getDateKey(); // YYYY-MM-DD
-    const hash = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    
+  // Get one random question from all questions across all zones and subcategories
+  const getRandomQuestion = (seed = 0) => {
     // Collect all questions from all subcategories
     const allQuestions = [];
     allSubcategories.forEach(subcategory => {
@@ -67,12 +66,24 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
       }
     });
     
-    // Use hash to select the same question for the entire day
-    const randomIndex = hash % allQuestions.length;
+    // Use seed to select a question (for consistent daily question or random for "New" button)
+    const randomIndex = seed > 0 ? seed % allQuestions.length : Math.floor(Math.random() * allQuestions.length);
     return allQuestions[randomIndex];
   };
 
-  const dailyQuestion = React.useMemo(() => getDailyRandomQuestion(), [getDateKey()]);
+  // Get daily question (consistent for the day)
+  const getDailyRandomQuestion = () => {
+    const today = getDateKey(); // YYYY-MM-DD
+    const hash = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return getRandomQuestion(hash);
+  };
+
+  // Initialize with daily question
+  React.useEffect(() => {
+    const dailyQuestion = getDailyRandomQuestion();
+    setCurrentQuestion(dailyQuestion);
+    setQuestionSeed(0); // Reset seed for daily question
+  }, [getDateKey()]);
   
   const handleAnswerPress = () => {
     setExpandedAnswer(!expandedAnswer);
@@ -80,9 +91,20 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
       setAnswerText(savedAnswer || '');
     }
   };
+
+  // Handle "New" button click - get a random question
+  const handleNewQuestion = () => {
+    const newSeed = Date.now(); // Use timestamp as seed for randomness
+    const newQuestion = getRandomQuestion(newSeed);
+    setCurrentQuestion(newQuestion);
+    setQuestionSeed(newSeed);
+    setSavedAnswer(''); // Clear saved answer for new question
+    setAnswerText(''); // Clear input
+    setExpandedAnswer(false); // Close answer section
+  };
   
   const handleSubmitAnswer = async () => {
-    if (answerText.trim()) {
+    if (answerText.trim() && currentQuestion) {
       try {
         // Clear input immediately for better UX
         const currentAnswer = answerText.trim();
@@ -94,19 +116,20 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
         
         // Check if this question already exists (for daily questions, update instead of duplicate)
         const existingIndex = submissions.findIndex(
-          item => item.question === dailyQuestion.question && item.type === 'daily'
+          item => item.question === currentQuestion.question && item.type === 'daily'
         );
         
         const newSubmission = {
           id: `daily-${Date.now()}`,
-          question: dailyQuestion.question,
+          question: currentQuestion.question,
           answer: currentAnswer,
-          category: dailyQuestion.category,
-          categoryId: dailyQuestion.categoryId,
-          color: dailyQuestion.color || '#8B5CF6',
+          category: currentQuestion.category,
+          categoryId: currentQuestion.categoryId,
+          color: currentQuestion.color || '#8B5CF6',
           type: 'daily',
           timestamp: new Date().toISOString(),
-          mood: 'Daily Question' // Add mood for consistency with mood questions
+          mood: 'Daily Question', // Add mood for consistency with mood questions
+          isRandomQuestion: questionSeed > 0 // Flag to indicate if this was a random question
         };
         
         if (existingIndex >= 0) {
@@ -126,17 +149,13 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
         setSavedAnswer(currentAnswer);
         setExpandedAnswer(false);
         
-        // Update streak after successful submission
-        const newStreak = await StreakManager.updateStreak();
-        setStreakDays(newStreak);
-        
         console.log('✅ Daily question and answer successfully saved to Discover screen:', {
           question: newSubmission.question,
           answer: newSubmission.answer,
           type: newSubmission.type,
+          isRandomQuestion: newSubmission.isRandomQuestion,
           totalSubmissions: submissions.length
         });
-        console.log('✅ Streak updated to:', newStreak);
         
         // Navigate to Discover screen to show the newly added submission
         if (onNavigateToDiscover) {
@@ -150,8 +169,57 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
       }
     }
   };
+
+  // Handle sharing question - this is where streak is updated
+  const handleShareQuestion = async () => {
+    try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      setStreakDays(newStreak);
+      
+      console.log('✅ Streak updated to:', newStreak, 'after sharing question');
+      
+      // Share the question text
+      const shareText = `🤔 Question of the Day: ${currentQuestion.question}`;
+      
+      // Use React Native's Share functionality if available, or fallback to clipboard
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Question of the Day',
+            text: shareText,
+          });
+          console.log('Question shared successfully');
+        } catch (shareError) {
+          console.log('Share cancelled or failed:', shareError);
+          // Fallback to clipboard
+          await copyToClipboard(shareText);
+        }
+      } else {
+        // Fallback to clipboard
+        await copyToClipboard(shareText);
+      }
+    } catch (error) {
+      console.error('Error sharing question:', error);
+    }
+  };
+
+  // Helper function to copy to clipboard
+  const copyToClipboard = async (text) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        console.log('Question copied to clipboard');
+        // You could show a toast message here
+      } else {
+        console.log('Clipboard not available');
+      }
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
+  };
   
-  if (!dailyQuestion) {
+  if (!currentQuestion) {
     return null; // Fallback if no questions available
   }
 
@@ -173,49 +241,61 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
             />
             <Text style={[styles.dailyQuestionTitle, dynamicStyles.textPrimary]}>Question of the Day</Text>
           </View>
-          <TouchableOpacity style={[styles.dailyQuestionBadge, { backgroundColor: theme.colors.primary }]}>
+          <TouchableOpacity 
+            style={[styles.dailyQuestionBadge, { backgroundColor: theme.colors.primary }]}
+            onPress={handleNewQuestion}
+          >
             <Text style={styles.dailyQuestionBadgeText}>New</Text>
           </TouchableOpacity>
         </View>
         
         <Text style={[styles.dailyQuestionText, dynamicStyles.textPrimary]}>
-          {dailyQuestion.question}
+          {currentQuestion.question}
         </Text>
         
         <View style={styles.dailyQuestionFooter}>
+          <View style={styles.answerButtonContainer}>
+            <TouchableOpacity 
+              style={[styles.dailyQuestionAnswerButton, { backgroundColor: theme.colors.primary }]}
+              onPress={handleAnswerPress}
+            >
+              <Text style={styles.dailyQuestionButtonText}>
+                {expandedAnswer ? 'Close' : 'Answer Now'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
           <TouchableOpacity 
-            style={[styles.dailyQuestionAnswerButton, { backgroundColor: theme.colors.primary }]}
-            onPress={handleAnswerPress}
+            style={[styles.dailyQuestionShareButton, { backgroundColor: theme.colors.secondary }]}
+            onPress={handleShareQuestion}
           >
-            <Text style={styles.dailyQuestionButtonText}>
-              {expandedAnswer ? 'Close' : 'Answer Now'}
-            </Text>
+            <Ionicons name="share-outline" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
         
         {/* Answer Section */}
         {expandedAnswer && (
-          <View style={styles.answerSection}>
+          <View style={[styles.answerSection, { alignItems: 'center' }]}>
             {savedAnswer && !answerText && (
-              <View style={styles.savedAnswer}>
+              <View style={[styles.savedAnswer, { alignItems: 'center' }]}>
                 <Text style={styles.savedAnswerLabel}>Your answer:</Text>
                 <Text style={styles.savedAnswerText}>{savedAnswer}</Text>
               </View>
             )}
             
             <TextInput
-              style={styles.answerInput}
+              style={[styles.answerInput, { textAlign: 'center' }]}
               multiline
               placeholder="Share your thoughts..."
               placeholderTextColor="#999"
               value={answerText}
               onChangeText={setAnswerText}
-              textAlignVertical="top"
+              textAlignVertical="center"
               autoFocus
             />
             
             <TouchableOpacity 
-              style={[styles.submitButton, !answerText.trim() && styles.disabledButton]}
+              style={[styles.submitButton, !answerText.trim() && styles.disabledButton, { alignSelf: 'center' }]}
               onPress={handleSubmitAnswer}
               disabled={!answerText.trim()}
             >
@@ -940,19 +1020,41 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   dailyQuestionFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  answerButtonContainer: {
+    flex: 1,
     alignItems: 'center',
   },
   dailyQuestionAnswerButton: {
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 20,
-    minWidth: 140,
+    minWidth: 160,
+  },
+  dailyQuestionShareButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
+    position: 'absolute',
+    right: 0,
   },
   dailyQuestionButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  dailyQuestionShareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   moodCard: {
     marginTop: 12,

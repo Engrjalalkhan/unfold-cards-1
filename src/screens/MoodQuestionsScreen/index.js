@@ -265,7 +265,7 @@ const MoodQuestionsScreen = ({ route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#6B4EFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>Questions for when you're feeling</Text>
+        {/* <Text style={styles.title}>Questions for when you're feeling</Text> */}
         <View style={styles.moodContainer}>
           <Text style={styles.moodEmoji}>{selectedMood.emoji}</Text>
           <Text style={styles.moodLabel}>{selectedMood.label}</Text>
@@ -300,10 +300,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E6D6FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
   backButton: {
-    marginBottom: 16,
+    position: 'absolute',
+    left: 20,
+    top: 50,
     padding: 4,
+    zIndex: 1,
   },
   title: {
     fontSize: 24,
