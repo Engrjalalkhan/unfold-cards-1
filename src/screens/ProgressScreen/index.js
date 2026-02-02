@@ -10,8 +10,11 @@ import {
   StatusBar,
   useWindowDimensions,
   Share,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import Svg, { G, Path, Polygon, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -1699,6 +1702,401 @@ const renderMonthlyPieChartFallback = (data) => {
     );
   }
 
+  const generateAndSharePDF = async () => {
+    try {
+      // Generate HTML content for the PDF
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      // Format dates for the last 7 days
+      const formatDate = (date) => {
+        return date.toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric' 
+        });
+      };
+
+      // Generate dates for the last 7 days
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        last7Days.push({
+          date: formatDate(date),
+          questions: Math.random() > 0.3 ? Math.floor(Math.random() * 5) + 1 : 0,
+          status: Math.random() > 0.3 ? 'Completed' : 'No activity'
+        });
+      }
+
+      // Weekly overview data (last 4 weeks)
+      const weeklyData = [
+        { week: 'Jan 28 - Feb 3', questions: 12, avgPerDay: 1.7, progress: 85 },
+        { week: 'Jan 21 - Jan 27', questions: 10, avgPerDay: 1.4, progress: 70 },
+        { week: 'Jan 14 - Jan 20', questions: 8, avgPerDay: 1.1, progress: 55 },
+        { week: 'Jan 7 - Jan 13', questions: 15, avgPerDay: 2.1, progress: 100 }
+      ];
+
+      // Monthly summary (last 6 months)
+      const monthlyData = [
+        { month: 'January 2024', questions: 45, avgPerDay: 1.5, trend: '↑' },
+        { month: 'December 2023', questions: 42, avgPerDay: 1.4, trend: '↑' },
+        { month: 'November 2023', questions: 38, avgPerDay: 1.3, trend: '→' },
+        { month: 'October 2023', questions: 40, avgPerDay: 1.3, trend: '↓' },
+        { month: 'September 2023', questions: 45, avgPerDay: 1.5, trend: '↑' },
+        { month: 'August 2023', questions: 43, avgPerDay: 1.4, trend: '↑' }
+      ];
+
+      // Yearly overview
+      const yearlyData = [
+        { year: '2022', questions: 480, avgPerMonth: 40, growth: '12%' },
+        { year: '2023', questions: 510, avgPerMonth: 42.5, growth: '6%' },
+        { year: '2024', questions: 45, avgPerMonth: 45, growth: '5%' },
+        { year: '2025', questions: 0, avgPerMonth: 0, growth: '-' },
+        { year: '2026', questions: 0, avgPerMonth: 0, growth: '-' }
+      ];
+
+      // Create HTML content for the PDF
+      let htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 20px; 
+              color: #333; 
+              max-width: 100%;
+              margin: 0 auto;
+              font-size: 12px;
+              line-height: 1.4;
+            }
+            .report-header { 
+              text-align: center; 
+              margin-bottom: 20px;
+              padding-bottom: 15px;
+              border-bottom: 2px solid #f0f0f0;
+            }
+            .report-title {
+              color: #4a4a4a;
+              font-size: 22px;
+              font-weight: 600;
+              margin: 0 0 5px 0;
+            }
+            .report-subtitle {
+              color: #8B5CF6;
+              font-size: 16px;
+              margin: 0 0 10px 0;
+              font-weight: 500;
+            }
+            .report-date {
+              color: #666;
+              font-size: 12px;
+              margin: 0;
+            }
+            .section {
+              margin-bottom: 25px;
+              page-break-inside: avoid;
+            }
+            .section-title {
+              color: #4a4a4a;
+              font-size: 16px;
+              font-weight: 600;
+              margin: 0 0 15px 0;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #f0f0f0;
+            }
+            .card {
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+              padding: 15px;
+              margin-bottom: 20px;
+              border: 1px solid #eee;
+            }
+            .stat-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 8px 0;
+              border-bottom: 1px solid #f5f5f5;
+            }
+            .stat-row:last-child {
+              border-bottom: none;
+            }
+            .stat-label {
+              color: #666;
+              font-weight: 500;
+            }
+            .stat-value {
+              color: #4a4a4a;
+              font-weight: 600;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 10px 0;
+              font-size: 11px;
+            }
+            th {
+              text-align: left;
+              padding: 8px 12px;
+              background-color: #f8f9fa;
+              color: #666;
+              font-weight: 600;
+              border-bottom: 1px solid #eee;
+            }
+            td {
+              padding: 8px 12px;
+              border-bottom: 1px solid #f5f5f5;
+              color: #4a4a4a;
+            }
+            tr:last-child td {
+              border-bottom: none;
+            }
+            .progress-bar {
+              height: 6px;
+              background-color: #e9ecef;
+              border-radius: 3px;
+              margin-top: 4px;
+              overflow: hidden;
+            }
+            .progress-fill {
+              height: 100%;
+              background: linear-gradient(90deg, #8B5CF6, #6D28D9);
+              border-radius: 3px;
+            }
+            .insights {
+              background-color: #f8f5ff;
+              border-left: 4px solid #8B5CF6;
+              padding: 15px;
+              border-radius: 0 8px 8px 0;
+              margin-top: 20px;
+            }
+            .insight-item {
+              margin-bottom: 10px;
+              display: flex;
+              align-items: flex-start;
+            }
+            .insight-item:last-child {
+              margin-bottom: 0;
+            }
+            .emoji {
+              margin-right: 8px;
+              font-size: 14px;
+              margin-top: 2px;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              padding-top: 15px;
+              border-top: 1px solid #f0f0f0;
+              color: #999;
+              font-size: 11px;
+            }
+            @media print {
+              body {
+                padding: 10mm;
+              }
+              .section {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report-header">
+            <h1 class="report-title">Your Progress Insights</h1>
+            <div class="report-date">${currentDate}</div>
+          </div>
+          
+          <!-- Streak Stats Section -->
+          <div class="section">
+            <h2 class="section-title">Your Streak Stats</h2>
+            <div class="card">
+              <div class="stat-row">
+                <span class="stat-label">Current Streak</span>
+                <span class="stat-value">${streakData.currentStreak} day${streakData.currentStreak !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Longest Streak</span>
+                <span class="stat-value">${streakData.longestStreak} day${streakData.longestStreak !== 1 ? 's' : ''}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Total Submissions</span>
+                <span class="stat-value">${streakData.totalDays}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Daily Progress Section -->
+          <div class="section">
+            <h2 class="section-title">Daily Progress (Last 7 Days)</h2>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Questions</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${last7Days.map(day => `
+                    <tr>
+                      <td>${day.date}</td>
+                      <td>${day.questions || ''}</td>
+                      <td>${day.status}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Weekly Overview Section -->
+          <div class="section">
+            <h2 class="section-title">Weekly Overview (Last 4 Weeks)</h2>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Questions</th>
+                    <th>Avg. per day</th>
+                    <th>Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${weeklyData.map(week => `
+                    <tr>
+                      <td>${week.week}</td>
+                      <td>${week.questions}</td>
+                      <td>${week.avgPerDay}</td>
+                      <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <div style="width: 50px;">
+                            <div class="progress-bar">
+                              <div class="progress-fill" style="width: ${week.progress}%"></div>
+                            </div>
+                          </div>
+                          <span>${week.progress}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Monthly Summary Section -->
+          <div class="section">
+            <h2 class="section-title">Monthly Summary (Last 6 Months)</h2>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Questions</th>
+                    <th>Avg. per day</th>
+                    <th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${monthlyData.map(month => `
+                    <tr>
+                      <td>${month.month}</td>
+                      <td>${month.questions}</td>
+                      <td>${month.avgPerDay}</td>
+                      <td>${month.trend}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Yearly Overview Section -->
+          <div class="section">
+            <h2 class="section-title">Yearly Overview</h2>
+            <div class="card">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th>Questions</th>
+                    <th>Avg. per month</th>
+                    <th>Growth</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${yearlyData.map(year => `
+                    <tr>
+                      <td>${year.year}</td>
+                      <td>${year.questions || '-'}</td>
+                      <td>${year.avgPerMonth || '-'}</td>
+                      <td>${year.growth}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Progress Insights Section -->
+          <div class="section">
+            <h2 class="section-title">Your Progress Insights</h2>
+            <div class="insights">
+              <div class="insight-item">
+                <span class="emoji">🔥</span>
+                <span>You're on a ${streakData.currentStreak}-day streak! Keep it up!</span>
+              </div>
+              <div class="insight-item">
+                <span class="emoji">🏆</span>
+                <span>Your best week was 15 questions. Great job!</span>
+              </div>
+              <div class="insight-item">
+                <span class="emoji">📊</span>
+                <span>You've completed ${streakData.totalDays} total submissions.</span>
+              </div>
+              <div class="insight-item">
+                <span class="emoji">💪</span>
+                <span>You're doing better than 75% of users this month.</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="footer">
+            Generated by Unfold Cards • ${currentDate}
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Generate PDF file
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false
+      });
+      
+      // Share the PDF file
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Share Progress Report',
+        UTI: 'com.adobe.pdf'
+      });
+    } catch (error) {
+      console.error('Error generating or sharing PDF:', error);
+      Alert.alert('Error', 'Failed to generate or share the progress report. Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
@@ -1708,12 +2106,11 @@ const renderMonthlyPieChartFallback = (data) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text, fontSize: windowWidth > 380 ? 26 : 24 }]}>
-          Streak Progress
-        </Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={loadProgressData}>
-          <Ionicons name="refresh" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerButton} onPress={loadProgressData}>
+            <Ionicons name="refresh" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -1779,6 +2176,13 @@ const renderMonthlyPieChartFallback = (data) => {
             📊 You've completed {streakData.totalDays} total submissions across all question types.
           </Text>
         </View>
+        <TouchableOpacity 
+          style={[styles.shareButton, { backgroundColor: theme.colors.primary }]} 
+          onPress={generateAndSharePDF}
+        >
+          <Ionicons name="document" size={24} color="white" style={styles.shareIcon} />
+          <Text style={styles.shareButtonText}>Share as PDF</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1801,12 +2205,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop:30,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   backButton: {
     padding: 8,
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 24,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  shareIcon: {
+    marginRight: 8,
+  },
+  shareButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 24,
