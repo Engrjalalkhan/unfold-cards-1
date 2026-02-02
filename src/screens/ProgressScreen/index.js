@@ -1702,6 +1702,262 @@ const renderMonthlyPieChartFallback = (data) => {
     );
   }
 
+  // Function to generate SVG for bar chart
+  const generateBarChartSVG = (data, width = 300, height = 150, color = '#8B5CF6') => {
+    const maxValue = Math.max(...data.map(d => d.value), 1);
+    const barWidth = (width - 40) / data.length - 10;
+    const chartHeight = height - 40;
+    
+    return `
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect width="${width}" height="${height}" fill="#ffffff" />
+        ${data.map((item, i) => {
+          const barHeight = (item.value / maxValue) * (chartHeight - 20);
+          const x = 30 + i * (barWidth + 10);
+          const y = chartHeight - barHeight;
+          return `
+            <g key="${i}">
+              <rect 
+                x="${x}" 
+                y="${y}" 
+                width="${barWidth}" 
+                height="${barHeight}" 
+                fill="${color}" 
+                opacity="0.8"
+                rx="2"
+                ry="2"
+              />
+              <text 
+                x="${x + barWidth / 2}" 
+                y="${y - 5}" 
+                text-anchor="middle" 
+                font-size="10" 
+                fill="#666"
+              >
+                ${item.value}
+              </text>
+              <text 
+                x="${x + barWidth / 2}" 
+                y="${chartHeight + 15}" 
+                text-anchor="middle" 
+                font-size="9" 
+                fill="#666"
+                transform="rotate(-45, ${x + barWidth / 2}, ${chartHeight + 15})"
+              >
+                ${item.label}
+              </text>
+            </g>
+          `;
+        }).join('')}
+        <line 
+          x1="25" 
+          y1="0" 
+          x2="25" 
+          y2="${chartHeight}" 
+          stroke="#e0e0e0" 
+          stroke-width="1"
+        />
+        <line 
+          x1="25" 
+          y1="${chartHeight}" 
+          x2="${width - 5}" 
+          y2="${chartHeight}" 
+          stroke="#e0e0e0" 
+          stroke-width="1"
+        />
+      </svg>
+    `;
+  };
+
+  // Function to generate SVG for pie chart
+  const generatePieChartSVG = (data, width = 200, height = 200) => {
+    const radius = Math.min(width, height) / 2 - 10;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    let cumulativePercent = 0;
+    
+    // Calculate total for percentages
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    
+    // Generate SVG path for each segment
+    const paths = data.map((item, i) => {
+      const percentage = item.value / total;
+      const startX = centerX + radius * Math.cos(2 * Math.PI * cumulativePercent);
+      const startY = centerY + radius * Math.sin(2 * Math.PI * cumulativePercent);
+      cumulativePercent += percentage;
+      const endX = centerX + radius * Math.cos(2 * Math.PI * cumulativePercent);
+      const endY = centerY + radius * Math.sin(2 * Math.PI * cumulativePercent);
+      
+      // If the slice is more than 50%, take the large arc flag
+      const largeArcFlag = percentage > 0.5 ? 1 : 0;
+      
+      return `
+        <path 
+          d="M ${centerX} ${centerY} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z"
+          fill="${item.color}"
+          stroke="#ffffff"
+          stroke-width="1"
+        />
+      `;
+    }).join('');
+    
+    // Add labels
+    const labels = data.map((item, i) => {
+      const percentage = item.value / total;
+      const angle = 2 * Math.PI * (cumulativePercent - percentage / 2);
+      const labelRadius = radius * 0.7;
+      const x = centerX + labelRadius * Math.cos(angle);
+      const y = centerY + labelRadius * Math.sin(angle);
+      
+      return `
+        <circle cx="${x}" cy="${y}" r="2" fill="${item.color}" />
+        <text 
+          x="${x + (x > centerX ? 5 : -5)}" 
+          y="${y + 3}" 
+          text-anchor="${x > centerX ? 'start' : 'end'}" 
+          font-size="8" 
+          fill="#666"
+        >
+          ${item.label} (${Math.round(percentage * 100)}%)
+        </text>
+      `;
+    }).join('');
+    
+    return `
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="#f5f5f5" />
+        ${paths}
+        ${labels}
+      </svg>
+    `;
+  };
+
+  // Function to generate SVG for line chart
+  const generateLineChartSVG = (data, width = 400, height = 200, color = '#8B5CF6') => {
+    const maxValue = Math.max(...data.map(d => d.value), 1);
+    const chartWidth = width - 40;
+    const chartHeight = height - 40;
+    
+    // Generate points for the line
+    const points = data.map((item, i) => {
+      const x = 30 + (i * chartWidth) / (data.length - 1);
+      const y = chartHeight - (item.value / maxValue) * (chartHeight - 20);
+      return `${x},${y}`;
+    }).join(' ');
+    
+    // Generate area points (for fill)
+    const areaPoints = `${points} ${30 + chartWidth},${chartHeight} 30,${chartHeight}`;
+    
+    // Generate x-axis labels
+    const xLabels = data.map((item, i) => {
+      const x = 30 + (i * chartWidth) / (data.length - 1);
+      return `
+        <text 
+          x="${x}" 
+          y="${chartHeight + 15}" 
+          text-anchor="middle" 
+          font-size="9" 
+          fill="#666"
+        >
+          ${item.label}
+        </text>
+      `;
+    }).join('');
+    
+    // Generate y-axis labels
+    const yLabels = [];
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) {
+      const value = Math.round((maxValue / steps) * (steps - i));
+      const y = (i * chartHeight) / steps + 10;
+      yLabels.push(`
+        <text 
+          x="25" 
+          y="${y}" 
+          text-anchor="end" 
+          font-size="9" 
+          fill="#999"
+          dominant-baseline="middle"
+        >
+          ${value}
+        </text>
+        <line 
+          x1="30" 
+          y1="${y}" 
+          x2="${width - 10}" 
+          y2="${y}" 
+          stroke="#f0f0f0" 
+          stroke-width="1" 
+          stroke-dasharray="2,2"
+        />
+      `);
+    }
+    
+    return `
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect width="${width}" height="${height}" fill="#ffffff" />
+        
+        <!-- Grid lines -->
+        <line 
+          x1="30" 
+          y1="0" 
+          x2="30" 
+          y2="${chartHeight}" 
+          stroke="#e0e0e0" 
+          stroke-width="1"
+        />
+        <line 
+          x1="30" 
+          y1="${chartHeight}" 
+          x2="${width - 10}" 
+          y2="${chartHeight}" 
+          stroke="#e0e0e0" 
+          stroke-width="1"
+        />
+        
+        <!-- Y-axis labels -->
+        ${yLabels.join('')}
+        
+        <!-- Area fill -->
+        <polygon 
+          points="${areaPoints}" 
+          fill="${color}" 
+          fill-opacity="0.1" 
+          stroke="none"
+        />
+        
+        <!-- Line -->
+        <polyline 
+          points="${points}" 
+          fill="none" 
+          stroke="${color}" 
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        
+        <!-- Dots -->
+        ${data.map((item, i) => {
+          const x = 30 + (i * chartWidth) / (data.length - 1);
+          const y = chartHeight - (item.value / maxValue) * (chartHeight - 20);
+          return `
+            <circle 
+              cx="${x}" 
+              cy="${y}" 
+              r="3" 
+              fill="${color}" 
+              stroke="#ffffff" 
+              stroke-width="1.5"
+            />
+          `;
+        }).join('')}
+        
+        <!-- X-axis labels -->
+        ${xLabels}
+      </svg>
+    `;
+  };
+
   const generateAndSharePDF = async () => {
     try {
       // Generate HTML content for the PDF
@@ -1721,15 +1977,21 @@ const renderMonthlyPieChartFallback = (data) => {
         });
       };
 
-      // Generate dates for the last 7 days
+      // Generate data for the last 7 days
       const last7Days = [];
+      const dailyChartData = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
+        const questions = Math.random() > 0.3 ? Math.floor(Math.random() * 5) + 1 : 0;
         last7Days.push({
           date: formatDate(date),
-          questions: Math.random() > 0.3 ? Math.floor(Math.random() * 5) + 1 : 0,
-          status: Math.random() > 0.3 ? 'Completed' : 'No activity'
+          questions,
+          status: questions > 0 ? 'Completed' : 'No activity'
+        });
+        dailyChartData.push({
+          label: date.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0),
+          value: questions
         });
       }
 
@@ -1938,6 +2200,9 @@ const renderMonthlyPieChartFallback = (data) => {
           <div class="section">
             <h2 class="section-title">Daily Progress (Last 7 Days)</h2>
             <div class="card">
+              <div style="margin-bottom: 15px;">
+                ${generateLineChartSVG(dailyChartData, 500, 200, '#8B5CF6')}
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -1963,6 +2228,17 @@ const renderMonthlyPieChartFallback = (data) => {
           <div class="section">
             <h2 class="section-title">Weekly Overview (Last 4 Weeks)</h2>
             <div class="card">
+              <div style="margin-bottom: 15px; text-align: center;">
+                ${generateBarChartSVG(
+                  weeklyData.map(week => ({
+                    label: week.week.split(' - ')[0].split(' ')[1],
+                    value: week.questions
+                  })),
+                  500,
+                  200,
+                  '#3B82F6'
+                )}
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -1999,6 +2275,32 @@ const renderMonthlyPieChartFallback = (data) => {
           <div class="section">
             <h2 class="section-title">Monthly Summary (Last 6 Months)</h2>
             <div class="card">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                <div style="flex: 1; text-align: center;">
+                  <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Questions by Month</div>
+                  ${generateBarChartSVG(
+                    monthlyData.map(month => ({
+                      label: month.month.split(' ')[0].substring(0, 3),
+                      value: month.questions
+                    })),
+                    400,
+                    200,
+                    '#10B981'
+                  )}
+                </div>
+                <div style="flex: 1; text-align: center;">
+                  <div style="font-size: 11px; color: #666; margin-bottom: 5px;">Daily Average</div>
+                  ${generateLineChartSVG(
+                    monthlyData.map(month => ({
+                      label: month.month.split(' ')[0].substring(0, 3),
+                      value: month.avgPerDay
+                    })),
+                    400,
+                    200,
+                    '#F59E0B'
+                  )}
+                </div>
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -2014,7 +2316,9 @@ const renderMonthlyPieChartFallback = (data) => {
                       <td>${month.month}</td>
                       <td>${month.questions}</td>
                       <td>${month.avgPerDay}</td>
-                      <td>${month.trend}</td>
+                      <td style="color: ${month.trend === '↑' ? '#10B981' : month.trend === '↓' ? '#EF4444' : '#6B7280'}">
+                        ${month.trend}
+                      </td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -2026,6 +2330,19 @@ const renderMonthlyPieChartFallback = (data) => {
           <div class="section">
             <h2 class="section-title">Yearly Overview</h2>
             <div class="card">
+              <div style="text-align: center; margin-bottom: 15px;">
+                ${generatePieChartSVG(
+                  yearlyData
+                    .filter(year => year.questions > 0)
+                    .map((year, i) => ({
+                      label: year.year,
+                      value: year.questions,
+                      color: ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'][i % 5]
+                    })),
+                  400,
+                  250
+                )}
+              </div>
               <table>
                 <thead>
                   <tr>
@@ -2036,14 +2353,22 @@ const renderMonthlyPieChartFallback = (data) => {
                   </tr>
                 </thead>
                 <tbody>
-                  ${yearlyData.map(year => `
-                    <tr>
-                      <td>${year.year}</td>
-                      <td>${year.questions || '-'}</td>
-                      <td>${year.avgPerMonth || '-'}</td>
-                      <td>${year.growth}</td>
-                    </tr>
-                  `).join('')}
+                  ${yearlyData.map((year, i) => {
+                    const color = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'][i % 5];
+                    return `
+                      <tr>
+                        <td>
+                          <span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-right: 8px;"></span>
+                          ${year.year}
+                        </td>
+                        <td>${year.questions || '-'}</td>
+                        <td>${year.avgPerMonth || '-'}</td>
+                        <td style="color: ${year.growth === '-' ? '#6B7280' : year.growth.includes('-') ? '#EF4444' : '#10B981'}">
+                          ${year.growth}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
                 </tbody>
               </table>
             </div>
