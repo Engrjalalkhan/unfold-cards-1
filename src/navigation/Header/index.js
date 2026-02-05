@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -10,20 +10,38 @@ const getDynamicStyles = (theme) => ({
 });
 
 export function Header({ title, onBack, right }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const dynamicStyles = getDynamicStyles(theme);
+  
+  const headerStyles = [
+    styles.header,
+    { 
+      backgroundColor: isDark ? '#000000' : '#FFFFFF',
+      borderBottomWidth: isDark ? 1 : 0,
+      borderBottomColor: isDark ? '#333' : 'transparent'
+    }
+  ];
+  
+  const backButtonColor = isDark ? '#FFFFFF' : '#4B0082';
+  
   return (
-    <View style={[styles.header, { backgroundColor: '#FFFFFF' }]}>
-      {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#4B0082" />
-        </TouchableOpacity>
-      ) : (
-        <View style={{ width: 40 }} />
-      )}
-      <Text style={[styles.headerTitle, dynamicStyles.textPrimary]}>{title}</Text>
-      {right ? right : <View style={{ width: 40 }} />}
-    </View>
+    <>
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#000000' : '#FFFFFF'}
+      />
+      <View style={headerStyles}>
+        {onBack ? (
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={backButtonColor} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
+        <Text style={[styles.headerTitle, dynamicStyles.textPrimary, isDark && { color: '#FFFFFF' }]}>{title}</Text>
+        {right ? right : <View style={{ width: 40 }} />}
+      </View>
+    </>
   );
 }
 
@@ -35,7 +53,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     paddingTop: 30,
-    backgroundColor: '#FFFFFF',
   },
   backButton: {
     padding: 8,

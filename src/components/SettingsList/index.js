@@ -2,17 +2,34 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const getDynamicStyles = (theme) => ({
-  bgSurface: { backgroundColor: theme.colors.surface },
-  borderColor: { borderColor: theme.colors.border },
-  shadowColor: { shadowColor: theme.colors.shadow },
-  textPrimary: { color: theme.colors.text },
-  textMuted: { color: theme.colors.textMuted },
-  textPrimaryText: { color: theme.colors.primaryText },
+const getDynamicStyles = (theme, isDark) => ({
+  bgSurface: { 
+    backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface,
+    shadowColor: isDark ? '#000' : 'rgba(90, 60, 180, 0.25)',
+  },
+  borderColor: { 
+    borderColor: isDark ? '#333' : theme.colors.border,
+    borderBottomColor: isDark ? '#333' : '#E6D6FF',
+  },
+  textPrimary: { 
+    color: isDark ? '#FFFFFF' : theme.colors.text 
+  },
+  textMuted: { 
+    color: isDark ? '#A0A0A0' : theme.colors.textMuted 
+  },
+  textPrimaryText: { 
+    color: isDark ? '#FFFFFF' : theme.colors.primaryText 
+  },
 });
 
-export const SettingsList = React.memo(function SettingsList({ onEditProfile, onEnableNotifications, onSignOut, theme }) {
-  const dynamicStyles = getDynamicStyles(theme);
+export const SettingsList = React.memo(function SettingsList({ 
+  onEditProfile, 
+  onEnableNotifications, 
+  onSignOut, 
+  theme,
+  isDark = false 
+}) {
+  const dynamicStyles = getDynamicStyles(theme, isDark);
   return (
     <View style={[styles.listCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
       <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onEditProfile}>
@@ -43,11 +60,8 @@ export const SettingsList = React.memo(function SettingsList({ onEditProfile, on
 
 const styles = StyleSheet.create({
   listCard: { 
-    backgroundColor: '#FFFFFF', 
     borderRadius: 18, 
     borderWidth: 1, 
-    borderColor: '#E6D6FF', 
-    shadowColor: 'rgba(90, 60, 180, 0.25)',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -55,8 +69,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden'
   },
-  listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
-  listIconI: { marginRight: 12 },
-  listItemText: { color: '#2F2752', fontSize: 16, flex: 1 },
-  listChevron: { color: '#7A6FA3', fontSize: 22 },
+  listItemRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 12, 
+    paddingHorizontal: 12, 
+    borderBottomWidth: 1 
+  },
+  listIconI: { 
+    marginRight: 12 
+  },
+  listItemText: { 
+    fontSize: 16, 
+    flex: 1 
+  },
+  listChevron: { 
+    fontSize: 22 
+  },
 });

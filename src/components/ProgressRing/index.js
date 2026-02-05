@@ -57,10 +57,10 @@ export function ProgressRing({ size = 200, thickness = 14, progress = 0, trackCo
         borderRadius: size / 2,
         borderWidth: thickness,
         borderColor: trackColor,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#7A6FA3',
+        backgroundColor: theme?.isDark ? '#000000' : '#FFFFFF',
+        shadowColor: theme?.isDark ? '#000' : '#7A6FA3',
         shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.1,
+        shadowOpacity: theme?.isDark ? 0.3 : 0.1,
         shadowRadius: 8,
         elevation: 4,
       }} />

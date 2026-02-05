@@ -22,7 +22,38 @@ const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = height * 0.6;
 
 export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  
+  // Theme-based styles
+  const dynamicStyles = {
+    screen: {
+      backgroundColor: isDark ? '#000000' : '#F8F8FF',
+    },
+    container: {
+      backgroundColor: isDark ? '#000000' : '#F8F8FF',
+    },
+    card: {
+      backgroundColor: isDark ? '#121212' : '#FFFFFF',
+      shadowColor: isDark ? '#000' : '#000',
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: isDark ? '#333' : 'transparent',
+    },
+    cardQuestion: {
+      color: isDark ? '#FFFFFF' : '#1A1A1A',
+    },
+    controls: {
+      backgroundColor: isDark ? '#000000' : '#FFFFFF',
+      borderTopColor: isDark ? '#333' : '#F0F0F0',
+    },
+    topButton: {
+      backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5',
+    },
+    topButtonText: {
+      color: isDark ? '#E0E0E0' : '#4A4A4A',
+    }
+  };
+
   const [pick, setPick] = useState(() => randomPick());
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnimation = useState(new Animated.Value(0))[0];
@@ -169,8 +200,8 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
 
   // Card component
   const QuestionCard = () => (
-    <View style={styles.card}>
-      <Text style={styles.cardQuestion}>{pick.question}</Text>
+    <View style={[styles.card, dynamicStyles.card]}>
+      <Text style={[styles.cardQuestion, dynamicStyles.cardQuestion]}>{pick.question}</Text>
       <View style={styles.dotsContainer}>
         {[0, 1, 2].map((index) => (
           <Animated.View 
@@ -224,10 +255,10 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.screen, dynamicStyles.screen]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <Header title="Shuffle" onBack={onBack} />
-      
-      <View style={styles.container}>
+      <View style={[styles.container, dynamicStyles.container]}>
         
         {/* Card */}
         <View style={styles.cardOuterContainer}>
@@ -243,22 +274,26 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
         </View>
 
         {/* Buttons */}
-        <View style={styles.controls}>
+        <View style={[styles.controls, dynamicStyles.controls]}>
           <View style={styles.topButtonsContainer}>
             <TouchableOpacity 
-              style={[styles.topButton, styles.anotherButton]}
+              style={[styles.topButton, styles.anotherButton, dynamicStyles.topButton]}
               onPress={handleGetAnotherQuestion}
             >
-              <Ionicons name="refresh" size={16} color="#4A4A4A" />
-              <Text style={styles.topButtonText}>Another</Text>
+              <Ionicons name="refresh" size={16} color={isDark ? '#E0E0E0' : '#4A4A4A'} />
+              <Text style={[styles.topButtonText, dynamicStyles.topButtonText]}>Another</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.topButton, styles.shareButton]}
+              style={[styles.topButton, styles.shareButton, dynamicStyles.topButton]}
               onPress={handleShareQuestion}
             >
-              <Ionicons name="share-social" size={16} color="#4A4A4A" />
-              <Text style={styles.topButtonText}>Share</Text>
+              <Ionicons 
+                name="share-social" 
+                size={16} 
+                color={isDark ? '#E0E0E0' : '#4A4A4A'}
+              />
+              <Text style={[styles.topButtonText, dynamicStyles.topButtonText]}>Share</Text>
             </TouchableOpacity>
           </View>
           
@@ -285,7 +320,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5', // Using static color to match the design
   },
   cardOuterContainer: {
     flex: 1,
@@ -310,17 +344,15 @@ const styles = StyleSheet.create({
     backfaceVisibility: 'hidden',
   },
   card: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 40,
-    alignItems: 'center',
+    width: width * 0.9,
+    height: CARD_HEIGHT,
+    borderRadius: 24,
+    padding: 24,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 8,
   },
   dotsPatternContainer: {
     position: 'absolute',
@@ -357,12 +389,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardQuestion: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: '#333333',
+    fontSize: 24,
+    fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 30,
-    marginBottom: 30,
+    lineHeight: 34,
+    marginBottom: 24,
   },
   controls: {
     padding: 20,

@@ -20,15 +20,29 @@ import {
   scheduleNewCategoryAlert
 } from '../../services/notificationService';
 
-const getDynamicStyles = (theme) => ({
-  bgBackground: { backgroundColor: theme.colors.background },
-  bgSurface: { backgroundColor: theme.colors.surface },
-  bgSurfaceTint: { backgroundColor: theme.colors.surfaceTint },
-  borderColor: { borderColor: theme.colors.border },
-  shadowColor: { shadowColor: theme.colors.shadow },
-  textPrimary: { color: theme.colors.text },
-  textMuted: { color: theme.colors.textMuted },
-  primaryText: { color: theme.colors.primaryText },
+const getDynamicStyles = (theme, isDark) => ({
+  bgBackground: { backgroundColor: isDark ? '#000000' : theme.colors.background },
+  bgSurface: { backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface },
+  bgSurfaceTint: { backgroundColor: isDark ? '#2A2A2A' : theme.colors.surfaceTint },
+  borderColor: { borderColor: isDark ? '#333' : theme.colors.border },
+  shadowColor: { shadowColor: isDark ? '#000' : theme.colors.shadow },
+  textPrimary: { color: isDark ? '#FFFFFF' : theme.colors.text },
+  textMuted: { color: isDark ? '#A0A0A0' : theme.colors.textMuted },
+  primaryText: { color: isDark ? '#FFFFFF' : theme.colors.primaryText },
+  settingsCard: {
+    backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface,
+    borderColor: isDark ? '#333' : theme.colors.border,
+    shadowColor: isDark ? '#000' : '#5E4B8B',
+  },
+  notificationsPanel: {
+    backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface,
+    borderColor: isDark ? '#333' : theme.colors.border,
+    shadowColor: isDark ? '#000' : '#5E4B8B',
+  },
+  notificationItem: {
+    backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface,
+    borderColor: isDark ? '#333' : theme.colors.border,
+  },
 });
 
 export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack }) {
@@ -64,21 +78,24 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     } catch {}
   };
 
-  const dynamicStyles = getDynamicStyles(theme);
+  const dynamicStyles = getDynamicStyles(theme, isDark);
+  const backgroundColor = isDark ? '#000000' : theme.colors.background;
+  const surfaceColor = isDark ? '#1E1E1E' : theme.colors.surface;
+  
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor }]}>
       <Header title="Profile" onBack={onBack} />
       <ScrollView 
-        style={{ backgroundColor: '#FFFFFF' }}
-        contentContainerStyle={[styles.scrollContainer, { backgroundColor: '#FFFFFF' }]}
+        style={{ backgroundColor }}
+        contentContainerStyle={[styles.scrollContainer, { backgroundColor }]}
       >
         <View style={[styles.profileCard, { 
-          backgroundColor: '#FFFFFF',
-          borderColor: '#E6D6FF',
+          backgroundColor: surfaceColor,
+          borderColor: isDark ? '#333' : theme.colors.border,
           // Enhanced shadow for iOS
-          shadowColor: '#5E4B8B',
+          shadowColor: isDark ? '#000' : theme.colors.shadow,
           shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.15,
+          shadowOpacity: isDark ? 0.8 : 0.15,
           shadowRadius: 12,
           // Shadow for Android
           elevation: 8,
@@ -90,9 +107,16 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text>
         </View>
 
-        <View style={[styles.progressSection, { backgroundColor: '#FFFFFF' }]}>
+        <View style={[styles.progressSection, { backgroundColor }]}>
           <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Your Progress</Text>
-          <ProgressRing size={200} thickness={14} progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} trackColor={theme.colors.border} progressColor={theme.colors.primary} theme={theme}>
+          <ProgressRing 
+            size={200} 
+            thickness={14} 
+            progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} 
+            trackColor={isDark ? '#333' : theme.colors.border} 
+            progressColor={theme.colors.primary} 
+            theme={{ ...theme, isDark }}
+          >
             <Text style={[styles.progressRingValue, dynamicStyles.textPrimary]}>{stats?.questionsRead ?? 0}</Text>
             <Text style={[styles.progressRingSub, dynamicStyles.textMuted]}>of {TOTAL_QUESTIONS} goal</Text>
           </ProgressRing>
@@ -100,20 +124,35 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         </View>
 
         <View style={styles.tileRow}>
-          <StatTile theme={theme} icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} />} label="Saved" value={favoritesCount ?? 0} />
-          <StatTile theme={theme} icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} />} label="Shared" value={stats?.timesShared ?? 0} />
-          <StatTile theme={theme} icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} />} label="Streak" value={stats?.streakDays ?? 1} />
+          <StatTile 
+            theme={theme} 
+            isDark={isDark}
+            icon={<Ionicons name="heart-outline" size={20} color={theme.colors.primaryText} />} 
+            label="Saved" 
+            value={favoritesCount ?? 0} 
+          />
+          <StatTile 
+            theme={theme} 
+            isDark={isDark}
+            icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} />} 
+            label="Shared" 
+            value={stats?.timesShared ?? 0} 
+          />
+          <StatTile 
+            theme={theme} 
+            isDark={isDark}
+            icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} />} 
+            label="Streak" 
+            value={stats?.streakDays ?? 1} 
+          />
         </View>
 
         <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }, dynamicStyles.textMuted]}>Profile Settings</Text>
         {showNotifications ? (
-          <View style={[styles.notificationsPanel, dynamicStyles.bgSurface, dynamicStyles.borderColor, {
-            // Enhanced shadow for iOS
-            shadowColor: '#5E4B8B',
+          <View style={[styles.notificationsPanel, dynamicStyles.notificationsPanel, {
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.12,
+            shadowOpacity: isDark ? 0.3 : 0.12,
             shadowRadius: 8,
-            // Shadow for Android
             elevation: 6,
           }]}>
             <View style={[styles.notificationHeader, dynamicStyles.borderColor]}>
@@ -122,7 +161,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 <Text style={[styles.closeButton, dynamicStyles.textMuted]}>✕</Text>
               </TouchableOpacity>
             </View>
-            <View style={[styles.notificationItem, dynamicStyles.borderColor]}>
+            <View style={[styles.notificationItem, dynamicStyles.notificationItem]}>
               <View style={styles.notificationInfo}>
                 <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Daily Question Reminder</Text>
                 <Text style={[styles.notificationDesc, dynamicStyles.textMuted]}>Get a daily reminder to explore questions</Text>
@@ -134,7 +173,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
               />
             </View>
-            <View style={[styles.notificationItem, dynamicStyles.borderColor]}>
+            <View style={[styles.notificationItem, dynamicStyles.notificationItem]}>
               <View style={styles.notificationInfo}>
                 <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Weekly Highlights</Text>
                 <Text style={[styles.notificationDesc, dynamicStyles.textMuted]}>Weekly summary of your progress</Text>
@@ -146,7 +185,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
               />
             </View>
-            <View style={[styles.notificationItem]}>
+            <View style={[styles.notificationItem, dynamicStyles.notificationItem]}>
               <View style={styles.notificationInfo}>
                 <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>New Category Alerts</Text>
                 <Text style={[styles.notificationDesc, dynamicStyles.textMuted]}>Be notified about new question categories</Text>
@@ -165,20 +204,18 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             onEnableNotifications={() => setShowNotifications(true)}
             onSignOut={onSignOut}
             theme={theme}
+            isDark={isDark}
           />
         )}
 
         <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }, dynamicStyles.textMuted]}>App Settings</Text>
-        <View style={[styles.settingsCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, {
-            // Enhanced shadow for iOS
-            shadowColor: '#5E4B8B',
+        <View style={[styles.settingsCard, dynamicStyles.settingsCard, {
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.12,
+            shadowOpacity: isDark ? 0.3 : 0.12,
             shadowRadius: 8,
-            // Shadow for Android
             elevation: 6,
           }]}>
-          <View style={[styles.settingRow, dynamicStyles.borderColor]}>
+          <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, dynamicStyles.textPrimary]}>Dark Mode</Text>
               <Text style={[styles.settingDesc, dynamicStyles.textMuted]}>Toggle dark theme</Text>
@@ -314,7 +351,7 @@ const styles = StyleSheet.create({
   notificationLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },
   notificationDesc: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
   settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, elevation: 3 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12 },
   settingInfo: { flex: 1, marginRight: 16 },
   settingLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },
   settingDesc: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
