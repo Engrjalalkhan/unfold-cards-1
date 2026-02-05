@@ -131,7 +131,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#E8D5F7',
+    backgroundColor: '#ffff',
     alignItems: 'center',
     justifyContent: 'center',
   },

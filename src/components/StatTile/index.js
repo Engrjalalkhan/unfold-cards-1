@@ -21,7 +21,21 @@ export const StatTile = React.memo(function StatTile({ icon, label, value, suffi
 });
 
 const styles = StyleSheet.create({
-  statTile: { flex: 1, marginRight: 8, backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', paddingVertical: 12, paddingHorizontal: 12, shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10 },
+  statTile: { 
+    flex: 1, 
+    marginRight: 8, 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 18, 
+    borderWidth: 1, 
+    borderColor: '#E6D6FF', 
+    paddingVertical: 12, 
+    paddingHorizontal: 12, 
+    shadowColor: '#7A6FA3',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
   statTileHeader: { flexDirection: 'row', alignItems: 'center' },
   statTileIcon: { fontSize: 18, marginRight: 8 },
   statTileLabel: { color: '#7A6FA3', fontSize: 13 },

@@ -1,16 +1,16 @@
 export const lightTheme = {
   name: 'light',
   colors: {
-    background: '#E8D5F7',
-    surface: '#F5E6FF',
-    surfaceTint: '#ECE1FF',
-    border: '#D4B5FF',
+    background: '#FFFFFF',
+    surface: '#FFFFFF',
+    surfaceTint: '#F8F9FA',
+    border: '#E9ECEF',
     primary: '#8B5CF6',
     primaryText: '#6B3AA0',
-    text: '#5A3785',
-    textMuted: '#8B6FB1',
+    text: '#212529',
+    textMuted: '#6C757D',
     overlay: 'rgba(139,92,246,0.15)',
-    shadow: 'rgba(139,92,246,0.25)',
+    shadow: 'rgba(0,0,0,0.1)',
   },
   gradients: {
     zone: ['#F5E6FF', '#ECE1FF'],

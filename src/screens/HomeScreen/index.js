@@ -33,11 +33,11 @@ const getZoneIcon = (zoneId) => {
 };
 
 const getDynamicStyles = (theme) => ({
-  bgBackground: { backgroundColor: theme.colors.background },
-  bgSurface: { backgroundColor: theme.colors.surface },
-  bgSurfaceTint: { backgroundColor: theme.colors.surfaceTint },
-  borderColor: { borderColor: theme.colors.border },
-  shadowColor: { shadowColor: theme.colors.shadow },
+  bgBackground: { backgroundColor: '#FFFFFF' }, // Force white background
+  bgSurface: { backgroundColor: '#FFFFFF' }, // Force white surface
+  bgSurfaceTint: { backgroundColor: '#FFFFFF' }, // Force white surface tint
+  borderColor: { borderColor: '#E6D6FF' }, // Use consistent border color
+  shadowColor: { shadowColor: '#7A6FA3' }, // Use consistent shadow color
   textPrimary: { color: theme.colors.text },
   textMuted: { color: theme.colors.textMuted },
 });
@@ -401,17 +401,19 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
   const dynamicStyles = getDynamicStyles(theme);
   return (
-    <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
       <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[styles.scrollContent, { backgroundColor: '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header with Profile - Responsive with SafeArea */}
         <View style={[
           styles.headerContainer, 
-          dynamicStyles.bgBackground,
-          { paddingTop: insets.top + 16 }
+          { 
+            backgroundColor: '#FFFFFF',
+            paddingTop: insets.top + 16 
+          }
         ]}>
           <View style={styles.profileSection}>
             {/* Removed avatar container with purple background circle as requested */}
@@ -467,7 +469,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, dynamicStyles.bgSurfaceTint, dynamicStyles.borderColor]}>
+          <View style={[styles.searchBar, { backgroundColor: '#FFFFFF' }, dynamicStyles.borderColor]}>
             <Ionicons name="search-outline" size={20} color={theme.colors.textMuted} style={styles.searchIcon} />
             <TextInput
               value={query}
@@ -582,7 +584,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#FFFFFF',
   },
   headerContainer: {
     paddingBottom: 16,
@@ -656,15 +658,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   questionCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#E6D6FF',
+    backgroundColor: '#FFFFFF',
     padding: 0,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    // Enhanced shadow for iOS
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    // Enhanced elevation for Android
+    elevation: 10,
   },
   questionGradient: {
     position: 'absolute',
@@ -736,13 +742,17 @@ const styles = StyleSheet.create({
   focusCard: {
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#E6D6FF',
+    backgroundColor: '#FFFFFF',
     padding: 0,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    // Enhanced shadow for iOS
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 3,
+    // Enhanced elevation for Android
+    elevation: 6,
   },
   focusGradient: {
     position: 'absolute',
@@ -794,7 +804,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#E6D6FF',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 4,
+    // Shadow for quick action cards
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   quickActionText: {
     fontSize: 12,

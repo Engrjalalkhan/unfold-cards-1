@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#E8D5F7",
+      "backgroundColor": "#FFFFFF",
       "backgroundImage": "./assets/logo.png",
       "backgroundImageResizeMode": "cover",
       "backgroundImageBlurRadius": 30,
@@ -37,7 +37,7 @@
       "splash": {
         "image": "./assets/logo.png",
         "resizeMode": "contain",
-        "backgroundColor": "#E8D5F7",
+        "backgroundColor": "#FFFFFF",
         "imageStyle": {
           "width": 150,
           "height": 150,

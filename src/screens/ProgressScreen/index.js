@@ -2423,14 +2423,19 @@ const renderMonthlyPieChartFallback = (data) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Progress
+          </Text>
+        </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerButton} onPress={loadProgressData}>
             <Ionicons name="refresh" size={24} color={theme.colors.text} />
@@ -2516,11 +2521,13 @@ const renderMonthlyPieChartFallback = (data) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     fontSize: 16,
@@ -2534,6 +2541,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
+    paddingTop:50
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginRight:30
   },
   backButton: {
     padding: 8,

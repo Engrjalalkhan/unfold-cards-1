@@ -66,10 +66,23 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
   const dynamicStyles = getDynamicStyles(theme);
   return (
-    <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
       <Header title="Profile" onBack={onBack} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        <View style={[styles.profileCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
+      <ScrollView 
+        style={{ backgroundColor: '#FFFFFF' }}
+        contentContainerStyle={[styles.scrollContainer, { backgroundColor: '#FFFFFF' }]}
+      >
+        <View style={[styles.profileCard, { 
+          backgroundColor: '#FFFFFF',
+          borderColor: '#E6D6FF',
+          // Enhanced shadow for iOS
+          shadowColor: '#5E4B8B',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          // Shadow for Android
+          elevation: 8,
+        }]}>
           <View style={styles.emojiCircle}>
             <Text style={styles.emojiIcon}>👤</Text>
           </View>
@@ -77,7 +90,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text>
         </View>
 
-        <View style={[styles.progressSection, dynamicStyles.bgBackground]}>
+        <View style={[styles.progressSection, { backgroundColor: '#FFFFFF' }]}>
           <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Your Progress</Text>
           <ProgressRing size={200} thickness={14} progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} trackColor={theme.colors.border} progressColor={theme.colors.primary} theme={theme}>
             <Text style={[styles.progressRingValue, dynamicStyles.textPrimary]}>{stats?.questionsRead ?? 0}</Text>
@@ -94,7 +107,15 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
         <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }, dynamicStyles.textMuted]}>Profile Settings</Text>
         {showNotifications ? (
-          <View style={[styles.notificationsPanel, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
+          <View style={[styles.notificationsPanel, dynamicStyles.bgSurface, dynamicStyles.borderColor, {
+            // Enhanced shadow for iOS
+            shadowColor: '#5E4B8B',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            // Shadow for Android
+            elevation: 6,
+          }]}>
             <View style={[styles.notificationHeader, dynamicStyles.borderColor]}>
               <Text style={[styles.notificationTitle, dynamicStyles.textPrimary]}>Notification Settings</Text>
               <TouchableOpacity onPress={() => setShowNotifications(false)}>
@@ -148,7 +169,15 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         )}
 
         <Text style={[styles.sectionTitle, { paddingHorizontal: 0 }, dynamicStyles.textMuted]}>App Settings</Text>
-        <View style={[styles.settingsCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
+        <View style={[styles.settingsCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, {
+            // Enhanced shadow for iOS
+            shadowColor: '#5E4B8B',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            // Shadow for Android
+            elevation: 6,
+          }]}>
           <View style={[styles.settingRow, dynamicStyles.borderColor]}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, dynamicStyles.textPrimary]}>Dark Mode</Text>
@@ -165,7 +194,18 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
         {favorites.length > 0 && (
           <View style={styles.favoritesSection}>
-            <TouchableOpacity style={[styles.viewAllButton, dynamicStyles.bgSurfaceTint]} onPress={onViewAllFavorites}>
+            <TouchableOpacity 
+              style={[styles.viewAllButton, dynamicStyles.bgSurfaceTint, {
+                // Enhanced shadow for iOS
+                shadowColor: '#5E4B8B',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                // Shadow for Android
+                elevation: 6,
+              }]} 
+              onPress={onViewAllFavorites}
+            >
               <Text style={[styles.viewAllText, dynamicStyles.primaryText]}>View All Favorites ({favorites.length})</Text>
               <Ionicons name="arrow-forward" size={16} color={theme.colors.primaryText} />
             </TouchableOpacity>
@@ -179,7 +219,11 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContainer: {
+    padding: 16,
+    paddingBottom: 100,
   },
   profileCard: {
     alignItems: 'center',
@@ -187,17 +231,38 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E6D6FF',
-    shadowColor: 'rgba(157,78,221,0.25)',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
+    shadowColor: '#7A6FA3',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 12,
     marginBottom: 16,
+    backgroundColor: '#FFFFFF',
   },
-  emojiCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E6D6FF', alignItems: 'center', justifyContent: 'center', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14 },
+  emojiCircle: { 
+    width: 120, 
+    height: 120, 
+    borderRadius: 60, 
+    backgroundColor: '#FFFFFF', 
+    borderWidth: 1, 
+    borderColor: '#E6D6FF', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    shadowColor: '#7A6FA3',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 6,
+  },
   emojiIcon: { fontSize: 40 },
   profileTitle: { color: '#6B3AA0', fontSize: 28, fontWeight: '800', marginTop: 12 },
   profileTagline: { color: '#8B6FB1', fontSize: 14, marginTop: 6 },
-  progressSection: { alignItems: 'center', paddingTop: 12, paddingBottom: 12 },
+  progressSection: { 
+    alignItems: 'center', 
+    paddingTop: 12, 
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
   progressHeader: { color: '#5A3785', fontSize: 18, fontWeight: '700', marginBottom: 12 },
   progressRingValue: { color: '#5A3785', fontSize: 24, fontWeight: '800' },
   progressRingSub: { color: '#8B6FB1', fontSize: 13, marginTop: 4 },
@@ -211,15 +276,44 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 16,
   },
-  notificationsPanel: { backgroundColor: '#FAF5FF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, padding: 16 },
-  notificationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
+  notificationsPanel: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 18, 
+    borderWidth: 1, 
+    borderColor: '#E6D6FF', 
+    shadowColor: 'rgba(90, 60, 180, 0.25)',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 16,
+    marginBottom: 16, 
+    padding: 20, 
+    elevation: 8,
+    overflow: 'hidden'
+  },
+  notificationHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 16, 
+    paddingBottom: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#E6D6FF' 
+  },
   notificationTitle: { color: '#5A3785', fontSize: 18, fontWeight: '700' },
   closeButton: { color: '#7A6FA3', fontSize: 20 },
-  notificationItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
+  notificationItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingVertical: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#F0E5FF',
+    backgroundColor: '#FFFFFF'
+  },
   notificationInfo: { flex: 1, marginRight: 16 },
   notificationLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },
   notificationDesc: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
-  settingsCard: { backgroundColor: '#FAF5FF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, elevation: 3 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
   settingInfo: { flex: 1, marginRight: 16 },
   settingLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },

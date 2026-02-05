@@ -13,7 +13,7 @@ export function Header({ title, onBack, right }) {
   const { theme } = useTheme();
   const dynamicStyles = getDynamicStyles(theme);
   return (
-    <View style={[styles.header, dynamicStyles.bgSurface]}>
+    <View style={[styles.header, { backgroundColor: '#FFFFFF' }]}>
       {onBack ? (
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#4B0082" />
@@ -34,7 +34,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingTop:30,
+    paddingTop: 30,
+    backgroundColor: '#FFFFFF',
   },
   backButton: {
     padding: 8,

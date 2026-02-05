@@ -63,10 +63,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E6D6FF',
     minWidth: 260,
-    shadowColor: 'rgba(124,77,255,0.18)',
-    shadowOpacity: 0.35,
+    // Enhanced shadow for iOS
+    shadowColor: '#5E4B8B',
     shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
     shadowRadius: 12,
+    // Shadow for Android
+    elevation: 10,
     marginBottom: 10,
   },
   deckBadge: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },

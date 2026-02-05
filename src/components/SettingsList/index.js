@@ -42,7 +42,19 @@ export const SettingsList = React.memo(function SettingsList({ onEditProfile, on
 });
 
 const styles = StyleSheet.create({
-  listCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(124,77,255,0.18)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12 },
+  listCard: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 18, 
+    borderWidth: 1, 
+    borderColor: '#E6D6FF', 
+    shadowColor: 'rgba(90, 60, 180, 0.25)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    marginBottom: 16,
+    overflow: 'hidden'
+  },
   listItemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6FF' },
   listIconI: { marginRight: 12 },
   listItemText: { color: '#2F2752', fontSize: 16, flex: 1 },

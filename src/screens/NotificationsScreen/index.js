@@ -94,46 +94,56 @@ export function NotificationsScreen({ onBack }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#EADCF6',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
+    paddingTop: 10, // Added some top padding to content
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 50,
     paddingBottom: 8,
+    position: 'relative',
+    width: '100%',
   },
   backButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F6F0FC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    position: 'absolute',
+    left: 20,
+    zIndex: 1,
+    top:50
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#3E2C6E',
+    textAlign: 'center',
+    width: '100%',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#4A3A75',
-    marginTop: 18,
-    marginBottom: 10,
+    color: '#2F2752',
+    marginBottom: 16,
+    marginTop: 8,
+    marginHorizontal: 16,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 24,
-    marginBottom: 10,
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   viewAllText: {
     fontSize: 12,
@@ -141,12 +151,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   notificationCard: {
-    backgroundColor: '#F3EAFE',
-    borderRadius: 18,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
+    marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#E3D0F6',
+    borderColor: '#F0E5FF',
+    shadowColor: 'rgba(90, 60, 180, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
   notificationCardCompact: {
     backgroundColor: '#F5ECFE',
@@ -154,6 +170,7 @@ const styles = StyleSheet.create({
   notificationContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   notificationIcon: {
     width: 36,
@@ -169,16 +186,19 @@ const styles = StyleSheet.create({
   },
   notificationText: {
     flex: 1,
+    alignItems: 'center',
   },
   notificationTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: '#4A3A75',
+    textAlign: 'center',
   },
   notificationSubtitle: {
     fontSize: 12,
     color: '#7D6BA6',
     marginTop: 2,
+    textAlign: 'center',
   },
   notificationTime: {
     fontSize: 11,

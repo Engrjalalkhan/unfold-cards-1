@@ -93,7 +93,7 @@ export function CarouselOnboardingScreen({ onContinue }) {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -138,19 +138,26 @@ export function CarouselOnboardingScreen({ onContinue }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 20, // Add some top padding for status bar
   },
   scrollView: {
     flex: 1,
+    marginTop: 40, // Add margin for header
   },
   slide: {
-    flex: 1,
+    width: width,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingTop: 20, // Add top padding
   },
   cardContainer: {
-    width: width - 40,
-    height: 500,
+    width: '100%',
+    maxWidth: 400, // Max width for larger screens
+    height: '90%',
+    maxHeight: 500, // Max height for larger screens
+    minHeight: 400, // Min height for smaller screens
     borderRadius: 24,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -197,6 +204,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   footer: {
+    paddingBottom: 20, // Add bottom padding for safe area
     paddingHorizontal: 24,
     paddingBottom: 32,
     paddingTop: 16,
@@ -204,7 +212,8 @@ const styles = StyleSheet.create({
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+    marginTop: 20,
   },
   dot: {
     width: 8,
@@ -221,9 +230,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    marginBottom: 12,
+    borderRadius: 30,
+    marginBottom: 16,
   },
   continueText: {
     color: '#FFFFFF',

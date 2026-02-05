@@ -288,7 +288,7 @@ const MoodQuestionsScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5FF',
+    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -342,13 +342,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 20,
     marginHorizontal: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E6D6FF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    // Enhanced shadow for iOS
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Enhanced elevation for Android
+    elevation: 6,
   },
   questionHeader: {
     flexDirection: 'row',
@@ -374,8 +377,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E6D6FF',
-    paddingHorizontal: 20,
+    padding: 16,
     paddingBottom: 20,
+    // Make it responsive
+    width: '100%',
+    maxWidth: 600, // Max width for larger screens
+    alignSelf: 'center',
   },
   savedAnswer: {
     marginBottom: 16,
@@ -416,25 +423,45 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   answerInputContainer: {
+    width: '100%',
     marginBottom: 16,
+    position: 'relative',
   },
   answerInput: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#2F2752',
+    minHeight: 120,
+    maxHeight: 200,
     borderWidth: 1,
     borderColor: '#E6D6FF',
-    minHeight: 80,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#2F2752',
+    backgroundColor: '#FFFFFF',
+    textAlignVertical: 'top',
+    // Make it responsive
+    width: '100%',
+    // Better text alignment and spacing
+    lineHeight: 24,
+    // Shadow for better visual hierarchy
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   submitButton: {
-    backgroundColor: '#8343b1ff',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    backgroundColor: '#8A2BE2', // Purple color
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 8,
+    width: '100%',
+    // Shadow for better visibility
+    shadowColor: '#8A2BE2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitButtonText: {
     color: '#FFFFFF',

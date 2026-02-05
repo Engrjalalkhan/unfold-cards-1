@@ -534,15 +534,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(10),
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     borderRadius: scale(20),
     padding: scale(25),
     justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E6D6FF',
+    // Enhanced shadow for iOS
+    shadowColor: '#7A6FA3',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    // Enhanced elevation for Android
+    elevation: 8,
     width: '100%',
   },
   moodIndicator: {

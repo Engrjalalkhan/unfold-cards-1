@@ -70,9 +70,9 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
   }, [items]);
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
       <Header title="Favorites" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: '#FFFFFF' }]}>
         {individualQuestions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="heart-outline" size={60} color="#E6D6FF" />
@@ -83,7 +83,7 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
           </View>
         ) : (
           individualQuestions.map((item) => (
-            <View key={item.id} style={[styles.questionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View key={item.id} style={[styles.questionCard, { backgroundColor: '#FFFFFF', borderColor: '#E6D6FF' }]}>
               {/* Zone Header */}
               <View style={styles.cardHeader}>
                 <View style={[styles.zoneIndicator, { backgroundColor: item.color }]} />
@@ -189,11 +189,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    // Enhanced shadow for iOS
+    shadowColor: '#5E4B8B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    // Shadow for Android
+    elevation: 8,
   },
   cardHeader: {
     flexDirection: 'row',
