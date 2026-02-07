@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 const { width } = Dimensions.get('window');
 
 export function CarouselOnboardingScreen({ onContinue }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const scrollRef = React.useRef(null);
 
@@ -56,24 +56,24 @@ export function CarouselOnboardingScreen({ onContinue }) {
 
   const renderItem = ({ item, index }) => (
     <View style={[styles.slide, { width }]}>
-      <View style={styles.cardContainer}>
+      <View style={[styles.cardContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
         <LinearGradient
-          colors={[item.color + '15', item.color + '05']}
+          colors={isDark ? [item.color + '08', item.color + '03'] : [item.color + '15', item.color + '05']}
           style={styles.cardGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         
         <View style={styles.cardContent}>
-          <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
+          <View style={[styles.iconContainer, { backgroundColor: isDark ? item.color + '15' : item.color + '20' }]}>
             <Ionicons name={item.icon} size={48} color={item.color} />
           </View>
           
-          <Text style={[styles.slideTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.slideTitle, { color: isDark ? '#FFFFFF' : theme.colors.text }]}>
             {item.title}
           </Text>
           
-          <Text style={[styles.slideSubtitle, { color: theme.colors.textMuted }]}>
+          <Text style={[styles.slideSubtitle, { color: isDark ? '#A0A0A0' : theme.colors.textMuted }]}>
             {item.subtitle}
           </Text>
         </View>
@@ -87,13 +87,14 @@ export function CarouselOnboardingScreen({ onContinue }) {
       onPress={() => scrollToIndex(index)}
       style={[
         styles.dot,
-        currentIndex === index && [styles.activeDot, { backgroundColor: theme.colors.primary }]
+        currentIndex === index && [styles.activeDot, { backgroundColor: theme.colors.primary }],
+        { backgroundColor: isDark ? '#333' : '#E0E0E0' }
       ]}
     />
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -126,7 +127,7 @@ export function CarouselOnboardingScreen({ onContinue }) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={onContinue} style={styles.skipButton}>
-          <Text style={[styles.skipText, { color: theme.colors.textMuted }]}>
+          <Text style={[styles.skipText, { color: isDark ? '#A0A0A0' : theme.colors.textMuted }]}>
             Skip
           </Text>
         </TouchableOpacity>

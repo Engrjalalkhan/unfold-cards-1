@@ -45,7 +45,7 @@ const CHART_COLORS = {
 
 const ProgressScreen = ({ onBack }) => {
   const navigation = useNavigation();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
   const [streakData, setStreakData] = useState({
@@ -395,8 +395,8 @@ const ProgressScreen = ({ onBack }) => {
     if (!data || data.length === 0) {
       console.log('No data available for chart');
       return (
-        <View style={styles.chartContainer}>
-          <Text style={{ color: theme.colors.textMuted, textAlign: 'center', padding: 20 }}>
+        <View style={[styles.chartContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+          <Text style={{ color: isDark ? '#A0A0A0' : theme.colors.textMuted, textAlign: 'center', padding: 20 }}>
             No data available for {selectedPeriod} view
           </Text>
         </View>
@@ -410,12 +410,12 @@ const ProgressScreen = ({ onBack }) => {
       chartTitle: {
         fontSize: windowWidth > 380 ? 20 : 18,
         fontWeight: '600',
-        color: theme.colors.text
+        color: isDark ? '#FFFFFF' : theme.colors.text
       },
       chartSubtitle: {
         fontSize: windowWidth > 380 ? 16 : 14,
         marginTop: 4,
-        color: theme.colors.textMuted
+        color: isDark ? '#A0A0A0' : theme.colors.textMuted
       },
       legendContainer: {
         flexDirection: 'row',
@@ -438,12 +438,12 @@ const ProgressScreen = ({ onBack }) => {
       legendText: {
         fontSize: windowWidth > 380 ? 12 : 10,
         fontWeight: '500',
-        color: theme.colors.textMuted
+        color: isDark ? '#A0A0A0' : theme.colors.textMuted
       }
     };
 
     return (
-      <View style={styles.chartContainer}>
+      <View style={[styles.chartContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
         <View style={styles.chartHeader}>
           <Text style={dynamicStyles.chartTitle}>
             {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} Progress
@@ -1487,7 +1487,7 @@ const renderMonthlyPieChartFallback = (data) => {
 
   const renderPieChart = (data, maxValue) => {
     return (
-      <View style={styles.pieChartContainer}>
+      <View style={[styles.pieChartContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
         <ScrollView 
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1542,7 +1542,7 @@ const renderMonthlyPieChartFallback = (data) => {
                           width: innerRadius * 2,
                           height: innerRadius * 2,
                           borderRadius: innerRadius,
-                          backgroundColor: theme.colors.surface,
+                          backgroundColor: isDark ? '#000000' : theme.colors.surface,
                           position: 'absolute',
                           top: radius - innerRadius,
                           left: radius - innerRadius
@@ -1584,15 +1584,20 @@ const renderMonthlyPieChartFallback = (data) => {
     const periods = ['daily', 'weekly', 'monthly', 'yearly'];
     
     return (
-      <View style={styles.periodSelector}>
+      <View style={[styles.periodSelector, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
         {periods.map((period) => (
           <TouchableOpacity
             key={period}
             style={[
               styles.periodButton,
               {
-                backgroundColor: selectedPeriod === period ? theme.colors.primary : theme.colors.surface,
-                borderColor: theme.colors.border
+                backgroundColor: selectedPeriod === period ? (isDark ? '#8B5CF6' : theme.colors.primary) : (isDark ? '#1E1E1E' : theme.colors.surface),
+                borderColor: isDark ? '#333' : theme.colors.border,
+                shadowColor: '#7A6FA3',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.2,
+                shadowRadius: 20,
+                elevation: 12,
               }
             ]}
             onPress={() => setSelectedPeriod(period)}
@@ -1601,7 +1606,7 @@ const renderMonthlyPieChartFallback = (data) => {
               style={[
                 styles.periodButtonText,
                 {
-                  color: selectedPeriod === period ? '#FFFFFF' : theme.colors.text,
+                  color: selectedPeriod === period ? '#FFFFFF' : (isDark ? '#FFFFFF' : theme.colors.text),
                   fontSize: windowWidth > 380 ? 12 : 10
                 }
               ]}
@@ -1625,24 +1630,29 @@ const renderMonthlyPieChartFallback = (data) => {
         marginHorizontal: '1%',
         borderRadius: 12,
         borderWidth: 1,
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.border,
+        backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface,
+        borderColor: isDark ? '#333' : theme.colors.border,
         minHeight: 100,
         maxWidth: '30%',
+        shadowColor: '#7A6FA3',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 12,
       },
       statIcon: {
         marginBottom: '4%',
       },
       statValue: {
         fontWeight: '700',
-        color: theme.colors.text,
+        color: isDark ? '#FFFFFF' : theme.colors.text,
         fontSize: 24,
         lineHeight: 32,
         textAlign: 'center',
       },
       statLabel: {
         marginTop: '4%',
-        color: theme.colors.textMuted,
+        color: isDark ? '#A0A0A0' : theme.colors.textMuted,
         fontSize: 12,
         lineHeight: 16,
         textAlign: 'center',
@@ -2423,27 +2433,27 @@ const renderMonthlyPieChartFallback = (data) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#000000" : "#FFFFFF"} />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: isDark ? '#000000' : '#FFFFFF', borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          <TouchableOpacity style={[styles.backButton, { backgroundColor: isDark ? '#000000' : '#F5F5F5' }]} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : theme.colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : theme.colors.text }]}>
             Progress
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerButton} onPress={loadProgressData}>
-            <Ionicons name="refresh" size={24} color={theme.colors.text} />
+          <TouchableOpacity style={[styles.headerButton, { backgroundColor: isDark ? '#000000' : '#F5F5F5' }]} onPress={loadProgressData}>
+            <Ionicons name="refresh" size={24} color={isDark ? '#FFFFFF' : theme.colors.text} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.scrollView, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]} showsVerticalScrollIndicator={false}>
         {/* Stats Cards */}
         {renderStatsCards()}
         
@@ -2457,9 +2467,13 @@ const renderMonthlyPieChartFallback = (data) => {
         <View style={[
           styles.insightsContainer, 
           { 
-            backgroundColor: theme.colors.surface, 
-            borderColor: theme.colors.border,
-            padding: windowWidth > 380 ? 20 : 16
+            backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface, 
+            borderColor: isDark ? '#333' : theme.colors.border,
+            shadowColor: '#7A6FA3',
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.2,
+            shadowRadius: 20,
+            elevation: 12,
           }
         ]}>
           <Text style={[

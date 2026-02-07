@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Responsive scaling function
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -38,6 +39,7 @@ const responsiveFontSize = (size) => {
 
 const DiscoverScreen = ({ route, onBack }) => {
   const navigation = useNavigation();
+  const { isDark } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
@@ -213,17 +215,21 @@ const DiscoverScreen = ({ route, onBack }) => {
     
     return (
       <View style={[styles.slide, { width: cardWidth }]}>
-        <View style={[styles.card, { minHeight: cardHeight }]}>
+        <View style={[styles.card, { 
+            minHeight: cardHeight,
+            backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+            borderColor: isDark ? '#333' : '#E6D6FF'
+          }]}>
           {/* Mood indicator for mood submissions */}
           {isMoodSubmission && (
-            <View style={styles.moodIndicator}>
+            <View style={[styles.moodIndicator, { backgroundColor: isDark ? '#2A2A2A' : '#F9F5FF' }]}>
               <Text style={styles.moodEmoji}>{item.moodEmoji}</Text>
-              <Text style={styles.moodLabel}>{item.mood}</Text>
+              <Text style={[styles.moodLabel, { color: isDark ? '#FFFFFF' : '#4B0082' }]}>{item.mood}</Text>
             </View>
           )}
           
           <Text 
-            style={styles.questionText} 
+            style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}
             numberOfLines={3} 
             adjustsFontSizeToFit
             minimumFontScale={0.8}
@@ -231,10 +237,10 @@ const DiscoverScreen = ({ route, onBack }) => {
             {item.question}
           </Text>
           
-          <View style={styles.answerContainer}>
-            <Text style={styles.answerLabel}>Your Answer:</Text>
+          <View style={[styles.answerContainer, { backgroundColor: isDark ? '#2A2A2A' : '#F9F5FF' }]}>
+            <Text style={[styles.answerLabel, { color: isDark ? '#A0A0A0' : '#666' }]}>Your Answer:</Text>
             <Text 
-              style={styles.answerText}
+              style={[styles.answerText, { color: isDark ? '#FFFFFF' : '#333' }]}
               numberOfLines={5}
               adjustsFontSizeToFit
               minimumFontScale={0.8}
@@ -302,23 +308,25 @@ const DiscoverScreen = ({ route, onBack }) => {
   const Header = React.useMemo(() => (
     <View style={[styles.header, { 
       paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-      paddingHorizontal: scale(20)
+      paddingHorizontal: scale(20),
+      backgroundColor: isDark ? '#000000' : '#F5F0FF'
     }]} >
       <TouchableOpacity 
         onPress={handleBack}
         style={[styles.backButton, {
           width: scale(40),
           height: scale(40),
-          borderRadius: scale(20)
+          borderRadius: scale(20),
+          backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5'
         }]}
       >
         <Ionicons 
           name="arrow-back" 
           size={scale(24)} 
-          color="#4B0082" 
+          color={isDark ? '#FFFFFF' : '#4B0082'} 
         />
       </TouchableOpacity>
-      <Text style={[styles.headerTitle, { fontSize: responsiveFontSize(18) }]}>
+      <Text style={[styles.headerTitle, { fontSize: responsiveFontSize(18), color: isDark ? '#FFFFFF' : '#4B0082' }]}>
         Your Journey
       </Text>
       <View style={{ width: scale(40) }} />
@@ -326,12 +334,15 @@ const DiscoverScreen = ({ route, onBack }) => {
   ), [handleBack, responsiveFontSize]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F0FF" />
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000000' : '#F5F0FF' }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={isDark ? "#000000" : "#F5F0FF"} />
       {Header}
       
       {/* Progress Bar */}
-      <View style={[styles.progressContainer, { marginVertical: verticalScale(10) }]}>
+      <View style={[styles.progressContainer, { 
+        marginVertical: verticalScale(10),
+        backgroundColor: isDark ? '#1E1E1E' : '#E6D7FF'
+      }]}>
         {submittedQuestions.length > 0 && (
           <View style={[
             styles.progressBar, 
@@ -350,12 +361,12 @@ const DiscoverScreen = ({ route, onBack }) => {
             <Ionicons 
               name="document-text-outline" 
               size={scale(80)} 
-              color="#E6D7FF" 
+              color={isDark ? '#FFFFFF' : '#E6D7FF'} 
             />
-            <Text style={[styles.emptyStateTitle, { fontSize: responsiveFontSize(20) }]}>
+            <Text style={[styles.emptyStateTitle, { fontSize: responsiveFontSize(20), color: isDark ? '#FFFFFF' : '#2F2752' }]}>
               No Questions Added Yet
             </Text>
-            <Text style={[styles.emptyStateSubtitle, { fontSize: responsiveFontSize(16) }]}>
+            <Text style={[styles.emptyStateSubtitle, { fontSize: responsiveFontSize(16), color: isDark ? '#A0A0A0' : '#666' }]}>
               Start answering questions from the home screen to see them here!
             </Text>
           </View>

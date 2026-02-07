@@ -4,12 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StreakManager } from '../../utils/streakManager';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 const MoodQuestionsScreen = ({ route }) => {
   const { mood } = route.params;
   const navigation = useNavigation();
+  const { isDark } = useTheme();
   
   const handleShareQuestion = async (question, mood) => {
     try {
@@ -186,56 +188,66 @@ const MoodQuestionsScreen = ({ route }) => {
     return (
       <View style={styles.questionContainer}>
         <TouchableOpacity 
-          style={styles.questionCard}
+          style={[styles.questionCard, {
+            backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+            borderColor: isDark ? '#333' : '#E6D6FF'
+          }]}
           onPress={() => handleQuestionPress(item)}
         >
           <View style={styles.questionHeader}>
-            <Text style={styles.questionText}>{item}</Text>
+            <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{item}</Text>
             <View style={styles.questionStatus}>
               {hasAnswer && (
                 <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
               )}
               <TouchableOpacity 
                 onPress={() => handleShareQuestion(item, mood)}
-                style={styles.shareIconButton}
+                style={[styles.shareIconButton, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}
               >
                 <Ionicons 
                   name="share-outline" 
                   size={20} 
-                  color="#8343b1ff" 
+                  color="#000000" 
                 />
               </TouchableOpacity>
               <Ionicons 
                 name={isExpanded ? "chevron-up" : "chevron-down"} 
                 size={20} 
-                color="#8343b1ff" 
+                color={isDark ? '#FFFFFF' : '#8343b1ff'} 
               />
             </View>
           </View>
         </TouchableOpacity>
         
         {isExpanded && (
-          <View style={styles.answerSection}>
+          <View style={[styles.answerSection, { 
+            backgroundColor: isDark ? '#000000' : '#FFFFFF',
+            borderColor: isDark ? '#333' : '#E6D6FF'
+          }]}>
             {hasAnswer && !answerText && (
-              <View style={styles.savedAnswer}>
-                <Text style={styles.savedAnswerLabel}>Your answer:</Text>
-                <Text style={styles.savedAnswerText}>{answers[item]}</Text>
+              <View style={[styles.savedAnswer, { backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5' }]}>
+                <Text style={[styles.savedAnswerLabel, { color: isDark ? '#A0A0A0' : '#666' }]}>Your answer:</Text>
+                <Text style={[styles.savedAnswerText, { color: isDark ? '#FFFFFF' : '#333' }]}>{answers[item]}</Text>
                 <TouchableOpacity 
-                  style={styles.deleteButton}
+                  style={[styles.deleteButton, { backgroundColor: isDark ? '#2A2A2A' : '#FFF5F5' }]}
                   onPress={() => handleDeleteAnswer(item)}
                 >
                   <Ionicons name="trash-outline" size={16} color="#FF5252" />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
+                  <Text style={[styles.deleteButtonText, { color: isDark ? '#FF5252' : '#FF5252' }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             )}
             
             <View style={styles.answerInputContainer}>
               <TextInput
-                style={styles.answerInput}
+                style={[styles.answerInput, {
+                  backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                  color: isDark ? '#FFFFFF' : '#333',
+                  borderColor: isDark ? '#444' : '#E0E0E0'
+                }]}
                 multiline
                 placeholder="Share your thoughts..."
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? '#999' : '#999'}
                 value={answerText}
                 onChangeText={setAnswerText}
                 textAlignVertical="top"
@@ -258,17 +270,20 @@ const MoodQuestionsScreen = ({ route }) => {
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#6B4EFF" />
+      <View style={[styles.header, { 
+        backgroundColor: isDark ? '#000000' : '#FFFFFF',
+        borderBottomColor: isDark ? '#333' : '#E6D6FF'
+      }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : '#6B4EFF'} />
         </TouchableOpacity>
         {/* <Text style={styles.title}>Questions for when you're feeling</Text> */}
         <View style={styles.moodContainer}>
           <Text style={styles.moodEmoji}>{selectedMood.emoji}</Text>
-          <Text style={styles.moodLabel}>{selectedMood.label}</Text>
+          <Text style={[styles.moodLabel, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{selectedMood.label}</Text>
         </View>
       </View>
       

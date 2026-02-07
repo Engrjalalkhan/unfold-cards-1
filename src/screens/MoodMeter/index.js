@@ -1,8 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export function MoodMeter({ onSelect }) {
+  const { isDark } = useTheme();
+  
   const handleMoodSelect = (mood) => {
     if (onSelect) {
       onSelect(mood);
@@ -23,24 +26,30 @@ export function MoodMeter({ onSelect }) {
     <BlurView 
       intensity={120} 
       style={styles.moodOverlay}
-      tint="light"
+      tint={isDark ? "dark" : "light"}
     >
-      <View style={styles.moodCard}>
-        <Text style={styles.moodTitle}>How are you feeling today?</Text>
-        <Text style={styles.moodSubtitle}>Select one to set your vibe</Text>
+      <View style={[styles.moodCard, { 
+        backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+        borderColor: isDark ? '#333' : '#E6D6FF'
+      }]}>
+        <Text style={[styles.moodTitle, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>How are you feeling today?</Text>
+        <Text style={[styles.moodSubtitle, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>Select one to set your vibe</Text>
         <View style={styles.moodGrid}>
           {options.map((o) => (
             <TouchableOpacity 
               key={o.id} 
-              style={styles.moodItem} 
+              style={[styles.moodItem, {
+                backgroundColor: isDark ? '#2A2A2A' : '#F5EEFF',
+                borderColor: isDark ? '#444' : '#E6D6FF'
+              }]}
               onPress={() => handleMoodSelect(o.id)}
             >
               <Text style={styles.moodEmoji}>{o.emoji}</Text>
-              <Text style={styles.moodLabel}>{o.label}</Text>
+              <Text style={[styles.moodLabel, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{o.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Text style={styles.moodHint}>You can change this anytime from the home screen later.</Text>
+        <Text style={[styles.moodHint, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>You can change this anytime from the home screen later.</Text>
       </View>
     </BlurView>
   );

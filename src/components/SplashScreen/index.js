@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, Image, Dimensions } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 const SplashScreen = ({ onAnimationComplete }) => {
+  const { isDark } = useTheme();
   const scaleValue = useRef(new Animated.Value(0.8)).current;
   const waveScale1 = useRef(new Animated.Value(1)).current;
   const waveOpacity1 = useRef(new Animated.Value(1)).current;
@@ -111,7 +113,7 @@ const SplashScreen = ({ onAnimationComplete }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffff' }]}>
       <View style={styles.waveContainer}>
         {renderWave(waveScale1, waveOpacity1)}
         {renderWave(waveScale2, waveOpacity2)}

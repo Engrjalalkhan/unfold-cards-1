@@ -269,7 +269,7 @@ function DailyQuestion({ onAnswer, theme, isDark, onNavigateToDiscover, setStrea
             style={[styles.dailyQuestionShareButton, { backgroundColor: theme.colors.secondary }]}
             onPress={handleShareQuestion}
           >
-            <Ionicons name="share-outline" size={16} color="#FFFFFF" />
+            <Ionicons name="share-outline" size={16} color={isDark ? '#FFFFFF' : '#000000'} />
           </TouchableOpacity>
         </View>
         
@@ -537,7 +537,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                       <View style={styles.zoneInfo}>
                         <Text style={[styles.zoneName, dynamicStyles.textPrimary]}>{zone.name}</Text>
                         <Text style={[styles.zoneCount, dynamicStyles.textMuted]}>
-                          {zone.subcategories.length} subcategories
+                          Explore Questions
                         </Text>
                       </View>
                       {isRecommended && (
