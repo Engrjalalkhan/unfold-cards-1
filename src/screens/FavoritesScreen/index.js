@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion, onToggleRead }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   
   const handleShareQuestion = async (question, category) => {
     try {
@@ -70,9 +70,9 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
   }, [items]);
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
       <Header title="Favorites" onBack={onBack} />
-      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: '#FFFFFF' }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
         {individualQuestions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="heart-outline" size={60} color="#E6D6FF" />
@@ -83,9 +83,11 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
           </View>
         ) : (
           individualQuestions.map((item) => (
-            <View key={item.id} style={[styles.questionCard, { backgroundColor: '#FFFFFF', borderColor: '#E6D6FF' }]}>
+            <View key={item.id} style={[styles.questionCard, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF', borderColor: isDark ? '#333' : '#E6D6FF' }]}>
               {/* Zone Header */}
-              <View style={styles.cardHeader}>
+              <View style={[styles.cardHeader, {
+                borderBottomColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              }]}>
                 <View style={[styles.zoneIndicator, { backgroundColor: item.color }]} />
                 <Text style={[styles.zoneTitle, { color: theme.colors.text }]}>{item.zone}</Text>
                 <View style={[styles.readStatusBadge, { 
@@ -127,8 +129,8 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
                 
                 <TouchableOpacity 
                   style={[styles.actionButton, styles.shareButton, { 
-                    backgroundColor: theme.colors.surfaceTint,
-                    borderColor: theme.colors.border 
+                    backgroundColor: isDark ? '#000000' : theme.colors.surfaceTint,
+                    borderColor: isDark ? '#000000' : theme.colors.border 
                   }]} 
                   onPress={() => handleShareQuestion(item.question, item.zone)}
                 >
@@ -203,7 +205,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   zoneIndicator: {
     width: 4,

@@ -5,8 +5,8 @@ const getDynamicStyles = (theme, isDark) => ({
   textPrimary: { color: isDark ? '#FFFFFF' : theme.colors.text },
   tile: { 
     backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5',
-    borderColor: isDark ? '#333' : '#E0E0E0',
-    shadowColor: isDark ? '#000' : '#BDBDBD',
+    borderColor: isDark ? '#333' : '#E6D6FF',
+    shadowColor: '#7A6FA3',
   },
   label: { color: isDark ? '#A0A0A0' : '#7A6FA3' },
   value: { color: isDark ? '#FFFFFF' : '#3B245A' }
@@ -43,10 +43,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     paddingVertical: 12, 
     paddingHorizontal: 12, 
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#7A6FA3',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 12,
   },
   statTileHeader: { 
     flexDirection: 'row', 

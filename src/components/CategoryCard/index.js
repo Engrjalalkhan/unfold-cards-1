@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, Animated, View } from 'react-native
 import { LinearGradient } from 'expo-linear-gradient';
 import { hexToRgba } from '../../utils/helpers';
 
-export function CategoryCard({ category, onPress, theme }) {
+export function CategoryCard({ category, onPress, theme, isDark }) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
@@ -34,20 +34,23 @@ export function CategoryCard({ category, onPress, theme }) {
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         activeOpacity={0.9}
-        style={[styles.categoryCard, { borderColor: categoryColor || theme.colors.border }]}
+        style={[styles.categoryCard, { 
+          backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+          borderColor: isDark ? '#333' : categoryColor || theme.colors.border 
+        }]}
       >
         <LinearGradient
           style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
-          colors={[tint, '#FFFFFF']}
+          colors={[tint, isDark ? '#1E1E1E' : '#FFFFFF']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         <View style={[styles.deckBadge, { backgroundColor: categoryColor }]} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.deckTitle}>{categoryName}</Text>
-          <Text style={styles.deckSubtitle}>{categoryQuestions.length} questions</Text>
+          <Text style={[styles.deckTitle, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{categoryName}</Text>
+          <Text style={[styles.deckSubtitle, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>{categoryQuestions.length} questions</Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <Text style={[styles.chevron, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>›</Text>
       </TouchableOpacity>
     </Animated.View>
   );

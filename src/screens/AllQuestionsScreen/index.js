@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../../contexts/ThemeContext';
 import { zones } from '../../data/decks';
 
 const { width } = Dimensions.get('window');
 
 function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQuestion, favorites: appFavorites }) {
+  const { theme, isDark } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef(null);
   
@@ -142,16 +144,16 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
     
     return (
       <View style={[styles.slide, { width }]} >
-        <View style={styles.cardContainer}>
+        <View style={[styles.cardContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
           <LinearGradient
-            colors={[item.color + '15', item.color + '05']}
+            colors={isDark ? [item.color + '25', item.color + '10'] : [item.color + '15', item.color + '05']}
             style={styles.cardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           />
           
           <View style={styles.cardContent}>
-            <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
+            <View style={[styles.iconContainer, { backgroundColor: isDark ? item.color + '30' : item.color + '20' }]}>
               <Ionicons name="help-circle-outline" size={48} color={item.color} />
             </View>
             
@@ -159,17 +161,17 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
               <Text style={styles.categoryText}>{item.category}</Text>
             </View>
             
-            <Text style={styles.questionText}>{item.question}</Text>
+            <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{item.question}</Text>
             
             <View style={styles.questionNumber}>
-              <Text style={styles.numberText}>Question {index + 1} of {allQuestions.length}</Text>
+              <Text style={[styles.numberText, { color: isDark ? '#A0A0A0' : '#666' }]}>Question {index + 1} of {allQuestions.length}</Text>
             </View>
             
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
               {/* Favorite Icon */}
               <TouchableOpacity 
-                style={styles.favoriteButton}
+                style={[styles.favoriteButton, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }]}
                 onPress={() => handleToggleFavorite(item, item.question)}
               >
                 <Ionicons 
@@ -181,7 +183,7 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
               
               {/* Share Icon */}
               <TouchableOpacity 
-                style={styles.shareButton}
+                style={[styles.shareButton, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }]}
                 onPress={() => handleShareQuestion(item.question, item.category)}
               >
                 <Ionicons 
@@ -212,13 +214,13 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
   );
 
   return (
-    <View style={styles.container} >
-      <View style={styles.header} >
+    <View style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]} >
+      <View style={[styles.header, { backgroundColor: isDark ? '#000000' : '#FFFFFF', borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#4B0082" />
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : '#4B0082'} />
         </TouchableOpacity>
         <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle} > All Questions ({allQuestions.length}) </Text >
+        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#8343b1ff' }]} > All Questions ({allQuestions.length}) </Text >
         {/* <View style={{ width: 40 }} /> */}
       </View >
 

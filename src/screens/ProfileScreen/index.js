@@ -93,12 +93,12 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           backgroundColor: surfaceColor,
           borderColor: isDark ? '#333' : theme.colors.border,
           // Enhanced shadow for iOS
-          shadowColor: isDark ? '#000' : theme.colors.shadow,
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.8 : 0.15,
-          shadowRadius: 12,
+          shadowColor: '#7A6FA3',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 20,
           // Shadow for Android
-          elevation: 8,
+          elevation: 12,
         }]}>
           <View style={styles.emojiCircle}>
             <Text style={styles.emojiIcon}>👤</Text>
@@ -107,7 +107,9 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text>
         </View>
 
-        <View style={[styles.progressSection, { backgroundColor }]}>
+        <View style={[styles.progressSection, { 
+          backgroundColor: isDark ? '#000000' : '#FFFFFF',
+        }]}>
           <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Your Progress</Text>
           <ProgressRing 
             size={200} 

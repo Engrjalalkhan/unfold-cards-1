@@ -32,18 +32,18 @@ const getZoneIcon = (zoneId) => {
   return iconMap[zoneId] || 'albums-outline';
 };
 
-const getDynamicStyles = (theme) => ({
-  bgBackground: { backgroundColor: '#FFFFFF' }, // Force white background
-  bgSurface: { backgroundColor: '#FFFFFF' }, // Force white surface
-  bgSurfaceTint: { backgroundColor: '#FFFFFF' }, // Force white surface tint
-  borderColor: { borderColor: '#E6D6FF' }, // Use consistent border color
-  shadowColor: { shadowColor: '#7A6FA3' }, // Use consistent shadow color
+const getDynamicStyles = (theme, isDark) => ({
+  bgBackground: { backgroundColor: isDark ? '#000000' : '#FFFFFF' },
+  bgSurface: { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' },
+  bgSurfaceTint: { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' },
+  borderColor: { borderColor: isDark ? '#333' : '#E6D6FF' },
+  shadowColor: { shadowColor: isDark ? '#000' : '#7A6FA3' },
   textPrimary: { color: theme.colors.text },
   textMuted: { color: theme.colors.textMuted },
 });
 
-function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays }) {
-  const dynamicStyles = getDynamicStyles(theme);
+function DailyQuestion({ onAnswer, theme, isDark, onNavigateToDiscover, setStreakDays }) {
+  const dynamicStyles = getDynamicStyles(theme, isDark);
   const [expandedAnswer, setExpandedAnswer] = React.useState(false);
   const [answerText, setAnswerText] = React.useState('');
   const [savedAnswer, setSavedAnswer] = React.useState('');
@@ -224,7 +224,7 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
   }
 
   return (
-    <View style={[styles.dailyQuestionCard, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: theme.colors.border }]}>
+    <View style={[styles.dailyQuestionCard, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF', borderWidth: 1, borderColor: isDark ? '#333' : theme.colors.border }]}>
       <LinearGradient
         style={[styles.dailyQuestionGradient, { borderRadius: 20 }]}
         colors={[theme.colors.primary + '10', 'transparent']}
@@ -284,10 +284,14 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
             )}
             
             <TextInput
-              style={[styles.answerInput, { textAlign: 'center' }]}
+              style={[styles.answerInput, { 
+                textAlign: 'center',
+                backgroundColor: isDark ? '#000000' : '#FFFFFF',
+                color: isDark ? '#FFFFFF' : theme.colors.text
+              }]}
               multiline
               placeholder="Share your thoughts..."
-              placeholderTextColor="#999"
+              placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
               value={answerText}
               onChangeText={setAnswerText}
               textAlignVertical="center"
@@ -308,7 +312,7 @@ function DailyQuestion({ onAnswer, theme, onNavigateToDiscover, setStreakDays })
   );
 }
 
-function MoodRecommendations({ currentMood, theme }) {
+function MoodRecommendations({ currentMood, theme, isDark }) {
   if (!currentMood || typeof currentMood !== 'string') return null;
   
   const moodData = getMoodRecommendations(currentMood);
@@ -319,7 +323,7 @@ function MoodRecommendations({ currentMood, theme }) {
   }
   
   return (
-    <View style={[styles.moodCard, { borderColor: theme.colors.primary }]}>
+    <View style={[styles.moodCard, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF', borderColor: isDark ? '#333' : theme.colors.primary }]}>
       <View style={styles.moodHeader}>
         <Text style={[styles.moodTitle, { color: theme.colors.text }]}>
           Based on your mood: {currentMood.charAt(0).toUpperCase() + currentMood.slice(1)}
@@ -345,7 +349,7 @@ function MoodRecommendations({ currentMood, theme }) {
 }
 
 export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover, onNavigateToFavorites, onNavigateToProgress }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
@@ -399,19 +403,19 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     setExpandedZoneId((prev) => (prev === id ? null : id));
   };
 
-  const dynamicStyles = getDynamicStyles(theme);
+  const dynamicStyles = getDynamicStyles(theme, isDark);
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: '#FFFFFF' }]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
       <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { backgroundColor: '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[styles.scrollContent, { backgroundColor: isDark ? '#000000' : '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header with Profile - Responsive with SafeArea */}
         <View style={[
           styles.headerContainer, 
           { 
-            backgroundColor: '#FFFFFF',
+            backgroundColor: isDark ? '#000000' : '#FFFFFF',
             paddingTop: insets.top + 16 
           }
         ]}>
@@ -437,13 +441,14 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             key={todayKey} 
             onAnswer={onAnswerDaily} 
             theme={theme} 
+            isDark={isDark}
             onNavigateToDiscover={onNavigateToDiscover}
             setStreakDays={setStreakDays}
           />
         </View>
 
         {/* Mood Recommendations */}
-        <MoodRecommendations currentMood={currentMood} theme={theme} />
+        <MoodRecommendations currentMood={currentMood} theme={theme} isDark={isDark} />
 
         {/* Quick Actions */}
         <View style={styles.quickActionsContainer}>
@@ -469,7 +474,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: '#FFFFFF' }, dynamicStyles.borderColor]}>
+          <View style={[styles.searchBar, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }, dynamicStyles.borderColor]}>
             <Ionicons name="search-outline" size={20} color={theme.colors.textMuted} style={styles.searchIcon} />
             <TextInput
               value={query}
@@ -568,6 +573,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                         category={subcategory}
                         onPress={() => onSelectCategory(subcategory)}
                         theme={theme}
+                        isDark={isDark}
                       />
                     ))}
                   </View>

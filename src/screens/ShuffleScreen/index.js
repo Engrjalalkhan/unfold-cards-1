@@ -353,6 +353,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowRadius: 20,
     elevation: 8,
+    alignSelf:'center',
   },
   dotsPatternContainer: {
     position: 'absolute',

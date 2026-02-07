@@ -2,17 +2,20 @@ import React from 'react';
 import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../../navigation/Header';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const getDynamicStyles = (theme) => ({
-  bgBackground: { backgroundColor: theme.colors.background },
-  bgSurface: { backgroundColor: theme.colors.surface },
-  borderColor: { borderColor: theme.colors.border },
-  shadowColor: { shadowColor: theme.colors.shadow },
+const getDynamicStyles = (theme, isDark) => ({
+  bgBackground: { backgroundColor: isDark ? '#000000' : theme.colors.background },
+  bgSurface: { backgroundColor: isDark ? '#1E1E1E' : theme.colors.surface },
+  borderColor: { borderColor: isDark ? '#333' : theme.colors.border },
+  shadowColor: { shadowColor: isDark ? '#000' : theme.colors.shadow },
   textPrimary: { color: theme.colors.text },
   textMuted: { color: theme.colors.textMuted },
 });
 
 export function NotificationsScreen({ onBack }) {
+  const { theme, isDark } = useTheme();
+  const dynamicStyles = getDynamicStyles(theme, isDark);
   const todayNotifications = [
     {
       id: 'today-1',
@@ -54,36 +57,36 @@ export function NotificationsScreen({ onBack }) {
   ];
 
   const renderNotification = (item, variant = 'default') => (
-    <View key={item.id} style={[styles.notificationCard, variant === 'compact' && styles.notificationCardCompact]}>
+    <View key={item.id} style={[styles.notificationCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor, variant === 'compact' && { backgroundColor: isDark ? '#1A1A1A' : '#F5ECFE' }]}>
       <View style={styles.notificationContent}>
-        <View style={[styles.notificationIcon, variant === 'compact' && styles.notificationIconCompact]}>
+        <View style={[styles.notificationIcon, { backgroundColor: isDark ? '#8B5CF6' : (variant === 'compact' ? '#9B6BFF' : '#8B5CF6') }]}>
           <Ionicons name={item.icon} size={18} color="#FFFFFF" />
         </View>
         <View style={styles.notificationText}>
-          <Text style={styles.notificationTitle}>{item.title}</Text>
-          {item.subtitle ? <Text style={styles.notificationSubtitle}>{item.subtitle}</Text> : null}
+          <Text style={[styles.notificationTitle, { color: isDark ? '#FFFFFF' : '#4A3A75' }]}>{item.title}</Text>
+          {item.subtitle ? <Text style={[styles.notificationSubtitle, { color: isDark ? '#A0A0A0' : '#7D6BA6' }]}>{item.subtitle}</Text> : null}
         </View>
-        <Text style={styles.notificationTime}>{item.time}</Text>
+        <Text style={[styles.notificationTime, { color: isDark ? '#A0A0A0' : '#7D6BA6' }]}>{item.time}</Text>
       </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="arrow-back" size={20} color="#2F2752" />
+    <SafeAreaView style={[styles.screen, dynamicStyles.bgBackground]}>
+      <View style={[styles.headerRow, dynamicStyles.bgBackground]}>
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]} onPress={onBack}>
+          <Ionicons name="arrow-back" size={20} color={isDark ? '#FFFFFF' : '#2F2752'} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#3E2C6E' }]}>Notifications</Text>
       </View>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Today</Text>
+      <ScrollView style={[styles.container, dynamicStyles.bgBackground]} showsVerticalScrollIndicator={false}>
+        <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>Today</Text>
         {todayNotifications.map((item) => renderNotification(item))}
 
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Earlier</Text>
-          <Text style={styles.viewAllText}>View all</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>Earlier</Text>
+          <Text style={[styles.viewAllText, { color: isDark ? '#8B5CF6' : '#2E6BFF' }]}>View all</Text>
         </View>
         {earlierNotifications.map((item) => renderNotification(item, 'compact'))}
       </ScrollView>

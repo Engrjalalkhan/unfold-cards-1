@@ -58,11 +58,11 @@ export function ProgressRing({ size = 200, thickness = 14, progress = 0, trackCo
         borderWidth: thickness,
         borderColor: trackColor,
         backgroundColor: theme?.isDark ? '#000000' : '#FFFFFF',
-        shadowColor: theme?.isDark ? '#000' : '#7A6FA3',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: theme?.isDark ? 0.3 : 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowColor: '#7A6FA3',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 12,
       }} />
       {/* Right half progress */}
       <View style={{ position: 'absolute', left: half, top: 0, width: half, height: size, overflow: 'hidden' }}>

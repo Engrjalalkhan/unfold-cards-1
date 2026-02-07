@@ -8,7 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 const { width } = Dimensions.get('window');
 
 export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion, favorites }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef(null);
   const scrollPositionRef = useRef(0); // Track scroll position to prevent loops
@@ -244,7 +244,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   };
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : theme.colors.background }]}>
       <Header title={category.name || 'Questions'} onBack={onBack} />
       
       {/* Category Header */}
@@ -281,16 +281,16 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
           
           return (
             <View key={questionId} style={[styles.slide, { width }]}>
-              <View style={styles.cardContainer}>
+              <View style={[styles.cardContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
                 <LinearGradient
-                  colors={[categoryColor + '15', categoryColor + '05']}
+                  colors={isDark ? [categoryColor + '25', categoryColor + '10'] : [categoryColor + '15', categoryColor + '05']}
                   style={styles.cardGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 />
                 
                 <View style={styles.cardContent}>
-                  <View style={[styles.iconContainer, { backgroundColor: categoryColor + '20' }]}>
+                  <View style={[styles.iconContainer, { backgroundColor: isDark ? categoryColor + '30' : categoryColor + '20' }]}>
                     <Ionicons name="help-circle-outline" size={48} color={categoryColor} />
                   </View>
                   
@@ -298,10 +298,10 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
                     <Text style={styles.categoryText}>{category.name}</Text>
                   </View>
                   
-                  <Text style={styles.questionText}>{question}</Text>
+                  <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{question}</Text>
                   
                   <View style={styles.questionNumber}>
-                    <Text style={styles.numberText}>Question {index + 1} of {category.questions.length}</Text>
+                    <Text style={[styles.numberText, { color: isDark ? '#A0A0A0' : '#8A4FFF' }]}>Question {index + 1} of {category.questions.length}</Text>
                   </View>
                   
                   {/* Action Buttons */}
@@ -311,7 +311,8 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
                       onPress={() => handleToggleFavorite(category, question)}
                       style={[
                         styles.favoriteButton,
-                        isFav && styles.favoriteButtonActive
+                        isFav && styles.favoriteButtonActive,
+                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }
                       ]}
                     >
                       <Ionicons 
@@ -324,7 +325,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
                     {/* Share Button */}
                     <TouchableOpacity 
                       onPress={() => handleShareQuestion(question, category.name)}
-                      style={styles.shareButton}
+                      style={[styles.shareButton, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }]}
                     >
                       <Ionicons 
                         name="share-outline" 
@@ -341,7 +342,10 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
       </ScrollView>
       
       {/* Navigation Controls */}
-      <View style={styles.navigationContainer}>
+      <View style={[styles.navigationContainer, { 
+        backgroundColor: isDark ? '#000000' : '#FFFFFF', 
+        borderTopColor: isDark ? '#333' : '#E6D6FF' 
+      }]}>
         {/* Previous Button */}
         <TouchableOpacity
           style={[
@@ -357,8 +361,11 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
         </TouchableOpacity>
         
         {/* Question Counter */}
-        <View style={styles.counterContainer}>
-          <Text style={styles.counterText}>
+        <View style={[styles.counterContainer, { 
+          backgroundColor: isDark ? '#1E1E1E' : '#F8F4FF',
+          borderColor: isDark ? '#333' : '#8343b1ff'
+        }]}>
+          <Text style={[styles.counterText, { color: isDark ? '#FFFFFF' : '#8343b1ff' }]}>
             {currentIndex + 1} / {category.questions.length}
           </Text>
         </View>
