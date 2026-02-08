@@ -153,10 +153,6 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
           />
           
           <View style={styles.cardContent}>
-            <View style={[styles.iconContainer, { backgroundColor: isDark ? item.color + '30' : item.color + '20' }]}>
-              <Ionicons name="help-circle-outline" size={48} color={item.color} />
-            </View>
-            
             <View style={styles.categoryTag}>
               <Text style={styles.categoryText}>{item.category}</Text>
             </View>
