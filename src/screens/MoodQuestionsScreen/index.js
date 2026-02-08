@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
@@ -18,6 +19,9 @@ const MoodQuestionsScreen = ({ route }) => {
       // Update streak when sharing question
       const newStreak = await StreakManager.updateStreak();
       console.log('✅ Streak updated to:', newStreak, 'after sharing mood question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
       
       const shareContent = `Question for ${mood} mood:\n\n${question}\n\n- Unfold Cards App`;
       
@@ -119,6 +123,9 @@ const MoodQuestionsScreen = ({ route }) => {
         // Clear input immediately for better UX
         const currentAnswer = answerText.trim();
         setAnswerText('');
+        
+        // Increment questions read stat
+        await StatsManager.incrementQuestionsRead(selectedMood.id); // Pass mood zone ID
         
         // Save to mood answers
         const newAnswers = { ...answers, [expandedQuestion]: currentAnswer };

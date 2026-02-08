@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import theme and context
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
+import { StatsManager } from './src/utils/statsManager';
 
 // Import screens
 import SplashScreen from './src/components/SplashScreen';
@@ -37,6 +38,7 @@ const AppContent = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [unreadFavoritesCount, setUnreadFavoritesCount] = useState(0);
+  const [stats, setStats] = useState({});
 
   const handleNavigateToFavorites = () => {
     // Navigate to Favorites screen
@@ -176,6 +178,7 @@ const AppContent = () => {
 
     checkOnboarding();
     loadFavorites();
+    loadStats();
   }, []);
 
   useEffect(() => {
@@ -183,6 +186,16 @@ const AppContent = () => {
       loadFavorites();
     }
   }, [activeTab]);
+
+  const loadStats = async () => {
+    try {
+      const currentStats = await StatsManager.getStats();
+      setStats(currentStats);
+      console.log('Stats loaded:', currentStats);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
 
   const loadFavorites = async () => {
     try {
@@ -347,10 +360,10 @@ const AppContent = () => {
     Profile: () => <ProfileScreen 
       profile={{}}
       setProfile={() => console.log('Set profile')}
-      favoritesCount={0}
-      stats={{}}
-      favorites={[]}
-      onViewAllFavorites={() => console.log('View all favorites')}
+      favoritesCount={favorites.length}
+      stats={stats}
+      favorites={favorites}
+      onViewAllFavorites={handleNavigateToFavorites}
       onEnableNotifications={() => console.log('Enable notifications')}
       onSignOut={() => console.log('Sign out')}
       onBack={handleBackToHome}

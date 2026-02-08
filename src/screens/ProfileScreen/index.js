@@ -52,6 +52,75 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const [weeklyHighlights, setWeeklyHighlights] = React.useState(false);
   const [newCategoryAlert, setNewCategoryAlert] = React.useState(false);
 
+  // Calculate multi-zone progress with colors for all viewed zones
+  const calculateOverallProgress = (stats, favoritesCount) => {
+    const questionsRead = stats?.questionsRead || 0;
+    const timesShared = stats?.timesShared || 0;
+    const favorites = favoritesCount || 0;
+    
+    // Simple sum: each activity = 1 point toward progress
+    const totalActivities = questionsRead + timesShared + favorites;
+    
+    // Zone-specific colors and progress tracking
+    const zoneConfig = {
+      'relationship-zone': { 
+        color: '#FF6B9B', // Red/Pink
+        label: 'Relationship',
+        maxActivities: 30 // Lower threshold for intimate zone
+      },
+      'friendship-zone': { 
+        color: '#4ECDC4', // Blue/Cyan  
+        label: 'Friendship',
+        maxActivities: 40 // Medium threshold for social zone
+      },
+      'family-zone': { 
+        color: '#10B981', // Green
+        label: 'Family',
+        maxActivities: 50 // Higher threshold for family zone
+      },
+      'emotional-zone': { 
+        color: '#8B5CF6', // Purple
+        label: 'Emotional',
+        maxActivities: 45 // Medium-high threshold for emotional zone
+      },
+      'fun-zone': { 
+        color: '#F59E0B', // Amber/Yellow
+        label: 'Fun',
+        maxActivities: 60 // Highest threshold for fun zone
+      }
+    };
+    
+    // Get all zones the user has interacted with (from stats or default to all zones)
+    const viewedZones = stats?.viewedZones || ['relationship-zone', 'friendship-zone', 'family-zone', 'emotional-zone', 'fun-zone'];
+    
+    // Calculate progress for each viewed zone
+    const zoneProgress = viewedZones.map(zoneId => {
+      const config = zoneConfig[zoneId] || { color: theme.colors.primary, label: 'Overall', maxActivities: 100 };
+      const zoneActivities = Math.min(totalActivities, config.maxActivities);
+      const zonePercentage = Math.min((zoneActivities / config.maxActivities) * 100, 100);
+      
+      return {
+        zoneId,
+        color: config.color,
+        label: config.label,
+        percentage: zonePercentage,
+        activities: zoneActivities
+      };
+    });
+    
+    // Calculate overall progress (average of all zone progresses)
+    const overallPercentage = zoneProgress.length > 0 
+      ? Math.round(zoneProgress.reduce((sum, zone) => sum + zone.percentage, 0) / zoneProgress.length)
+      : 0;
+    
+    return {
+      zoneProgress,
+      overallPercentage,
+      totalActivities,
+      viewedZones
+    };
+  };
+
   // Load notification settings
   React.useEffect(() => {
     (async () => {
@@ -82,6 +151,10 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const backgroundColor = isDark ? '#000000' : theme.colors.background;
   const surfaceColor = isDark ? '#1E1E1E' : theme.colors.surface;
   
+  // Get current zone from stats or default to null
+  const currentZone = stats?.currentZone || null;
+  const progressData = calculateOverallProgress(stats, favoritesCount, currentZone);
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor }]}>
       <Header title="Profile" onBack={onBack} />
@@ -110,19 +183,90 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         <View style={[styles.progressSection, { 
           backgroundColor: isDark ? '#000000' : '#FFFFFF',
         }]}>
-          <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Your Progress</Text>
-          <ProgressRing 
-            size={200} 
-            thickness={14} 
-            progress={(stats?.questionsRead ?? 0) / TOTAL_QUESTIONS} 
-            trackColor={isDark ? '#333' : theme.colors.border} 
-            progressColor={theme.colors.primary} 
-            theme={{ ...theme, isDark }}
-          >
-            <Text style={[styles.progressRingValue, dynamicStyles.textPrimary]}>{stats?.questionsRead ?? 0}</Text>
-            <Text style={[styles.progressRingSub, dynamicStyles.textMuted]}>of {TOTAL_QUESTIONS} goal</Text>
-          </ProgressRing>
-          <Text style={[styles.progressLabel, dynamicStyles.textMuted]}>Questions Read</Text>
+          <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Zone Progress</Text>
+          
+          {/* Modern gradient progress circle */}
+          <View style={styles.progressCircleContainer}>
+            <View style={styles.progressCircle}>
+              {/* Background ring */}
+              <View style={[
+                styles.backgroundRing,
+                {
+                  backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5',
+                }
+              ]} />
+              
+              {/* Multi-colored circular segments */}
+              <View style={styles.circularSegmentsContainer}>
+                {progressData.zoneProgress.map((zone, index) => {
+                  const rotation = (index * 360) / progressData.zoneProgress.length;
+                  const segmentAngle = 360 / progressData.zoneProgress.length;
+                  
+                  return (
+                    <View
+                      key={zone.zoneId}
+                      style={[
+                        styles.circularSegment,
+                        {
+                          backgroundColor: zone.color,
+                          transform: [
+                            { rotate: `${rotation}deg` }
+                          ],
+                          borderTopLeftRadius: index === 0 ? 90 : 0,
+                          borderTopRightRadius: index === progressData.zoneProgress.length - 1 ? 90 : 0,
+                        }
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+              
+              {/* Inner circle with gradient effect */}
+              <View style={[
+                styles.innerCircle,
+                {
+                  backgroundColor: isDark ? '#000000' : '#FFFFFF',
+                }
+              ]}>
+                <View style={[
+                  styles.gradientOverlay,
+                  {
+                    borderColor: isDark ? '#333' : '#F0F0F0',
+                  }
+                ]} />
+                <View style={styles.progressTextContainer}>
+                  <Text style={[styles.progressPercentage, dynamicStyles.textPrimary]}>
+                    {progressData.overallPercentage}%
+                  </Text>
+                  <Text style={[styles.progressSubtext, dynamicStyles.textMuted]}>
+                    Complete
+                  </Text>
+                </View>
+              </View>
+            </View>
+            
+            {/* Zone indicators */}
+            <View style={styles.zoneIndicatorsContainer}>
+              {progressData.zoneProgress.map((zone, index) => (
+                <View key={zone.zoneId} style={styles.zoneIndicator}>
+                  <View style={[styles.zoneDot, { backgroundColor: zone.color }]} />
+                  <Text style={[styles.zoneName, dynamicStyles.textMuted]}>
+                    {zone.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          
+          {/* Stats summary */}
+          <View style={styles.statsSummary}>
+            <Text style={[styles.statsText, dynamicStyles.textPrimary]}>
+              {progressData.totalActivities} Activities
+            </Text>
+            <Text style={[styles.statsSubtext, dynamicStyles.textMuted]}>
+              {progressData.zoneProgress.length} Zones Explored
+            </Text>
+          </View>
         </View>
 
         <View style={styles.tileRow}>
@@ -303,9 +447,149 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   progressHeader: { color: '#5A3785', fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  progressRingValue: { color: '#5A3785', fontSize: 24, fontWeight: '800' },
-  progressRingSub: { color: '#8B6FB1', fontSize: 13, marginTop: 4 },
-  progressLabel: { color: '#8B6FB1', fontSize: 16, marginTop: 12 },
+  progressCircleContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  progressCircle: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  backgroundRing: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 90,
+    overflow: 'hidden',
+  },
+  circularSegmentsContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 90,
+    overflow: 'hidden',
+  },
+  circularSegment: {
+    position: 'absolute',
+    width: '50%',
+    height: '50%',
+    left: '50%',
+    top: 0,
+    transformOrigin: 'left bottom',
+    opacity: 0.9,
+  },
+  multiColorRing: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 90,
+    overflow: 'hidden',
+  },
+  colorRing: {
+    position: 'absolute',
+    width: '100%',
+    height: 20,
+    top: '50%',
+    marginTop: -10,
+    left: 0,
+    transformOrigin: 'center',
+    borderRadius: 10,
+  },
+  progressSegment: {
+    position: 'absolute',
+    width: '50%',
+    height: '50%',
+    left: '50%',
+    top: 0,
+    transformOrigin: 'left bottom',
+    borderRadius: 90,
+    opacity: 0.9,
+  },
+  innerCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 60,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+  progressTextContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressPercentage: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#5A3785',
+    lineHeight: 36,
+  },
+  progressSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8B6FB1',
+    marginTop: 2,
+  },
+  zoneIndicatorsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+  },
+  zoneIndicator: {
+    alignItems: 'center',
+    marginHorizontal: 8,
+    marginVertical: 4,
+  },
+  zoneDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  zoneName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
+  },
+  statsSummary: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  statsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#5A3785',
+    marginBottom: 4,
+  },
+  statsSubtext: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#8B6FB1',
+  },
   tileRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, marginBottom: 12 },
   statTileIconI: { marginRight: 8 },
   sectionTitle: {

@@ -11,6 +11,7 @@ import { CategoryCard } from '../../components/CategoryCard';
 import { getMoodRecommendations, getRecommendedZones, isZoneRecommended } from '../../utils/moodRecommendations';
 import { useTheme } from '../../contexts/ThemeContext';
 import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 // Helper function to get time of day
 const getTimeOfDay = () => {
@@ -110,6 +111,9 @@ function DailyQuestion({ onAnswer, theme, isDark, onNavigateToDiscover, setStrea
         const currentAnswer = answerText.trim();
         setAnswerText('');
         
+        // Increment questions read stat
+        await StatsManager.incrementQuestionsRead('daily'); // Pass zone as 'daily'
+        
         // Save to Discover screen submissions
         const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
         const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
@@ -176,6 +180,9 @@ function DailyQuestion({ onAnswer, theme, isDark, onNavigateToDiscover, setStrea
       // Update streak when sharing question
       const newStreak = await StreakManager.updateStreak();
       setStreakDays(newStreak);
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
       
       console.log('✅ Streak updated to:', newStreak, 'after sharing question');
       
