@@ -13,6 +13,7 @@ import {
   StatusBar,
   ImageBackground
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 import { allSubcategories } from '../../data/decks';
@@ -23,6 +24,7 @@ const CARD_HEIGHT = height * 0.6;
 
 export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   const { theme, isDark } = useTheme();
+  const navigation = useNavigation();
   
   // Theme-based styles
   const dynamicStyles = {
@@ -159,6 +161,13 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
         flipCard(); // Flip back to question if it was showing answer
       }
     }, 200);
+  };
+
+  // Handle opening category - navigate to HomeScreen
+  const handleOpenCategory = () => {
+    if (pick.category) {
+      navigation.navigate('Home');
+    }
   };
 
   // Handle sharing the current question
@@ -299,7 +308,7 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
           
           <TouchableOpacity 
             style={styles.openCategoryButton}
-            onPress={() => onOpen && onOpen(pick.category, pick.index)}
+            onPress={handleOpenCategory}
           >
             <View style={styles.categoryIconContainer}>
               <View style={[styles.categoryIconShape, styles.triangle]} />
