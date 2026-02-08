@@ -73,96 +73,19 @@ const ProgressScreen = ({ onBack }) => {
       const streakInfo = await StreakManager.getStreakData();
       console.log('Current streak info:', streakInfo);
       
-      // Generate mock data for demonstration based on current streak
-      // In real implementation, this would track actual share events
-      const generateShareData = (today) => {
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const weekData = [];
-        
-        // Get the start of the current week (Monday)
-        const currentDay = today.getDay();
-        const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
-        const monday = new Date(today);
-        monday.setDate(today.getDate() + mondayOffset);
-        
-        // Generate data for each day based on current streak
-        for (let i = 0; i < 7; i++) {
-          const currentDate = new Date(monday);
-          currentDate.setDate(monday.getDate() + i);
-          const dateKey = currentDate.toISOString().split('T')[0];
-          const dayName = days[i];
-          
-          // Simulate share data - in real app, track actual share events
-          const isToday = currentDate.toDateString() === today.toDateString();
-          const baseShares = Math.max(0, streakInfo.streakDays - (6 - i));
-          const randomShares = isToday ? Math.floor(Math.random() * 3) : Math.floor(Math.random() * 2);
-          
-          const dailyShares = baseShares > 0 ? baseShares + randomShares : 0;
-          const moodShares = Math.floor(dailyShares * 0.3); // 30% of daily
-          const discoverShares = Math.floor(dailyShares * 0.2); // 20% of daily
-          
-          const dayData = {
-            day: dayName,
-            daily: dailyShares,
-            mood: moodShares,
-            discover: discoverShares,
-            total: dailyShares + moodShares + discoverShares,
-            date: dateKey
-          };
-          
-          console.log(`Share Day ${dayName} (${dateKey}):`, dayData);
-          weekData.push(dayData);
-        }
-        
-        return weekData;
-      };
+      // Load actual submission data from AsyncStorage
+      const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
+      const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+      console.log('Total submissions found:', submissions.length);
       
-      // Generate share-based data for all periods
-      const dailyData = generateShareData(today);
+      // Process real submission data for different time periods
+      const dailyData = processDailyStreakData(submissions);
+      const weeklyData = processWeeklyStreakData(submissions);
+      const monthlyData = processMonthlyStreakData(submissions);
+      const yearlyData = processYearlyStreakData(submissions);
       
-      // Generate weekly data (mock for now)
-      const weeklyData = [];
-      for (let i = 7; i >= 0; i--) {
-        const weekKey = `Week ${8 - i}`;
-        const baseWeeklyShares = Math.max(1, streakInfo.streakDays - i);
-        weeklyData.push({
-          week: weekKey,
-          daily: baseWeeklyShares,
-          mood: Math.floor(baseWeeklyShares * 0.3),
-          discover: Math.floor(baseWeeklyShares * 0.2),
-          total: baseWeeklyShares + Math.floor(baseWeeklyShares * 0.3) + Math.floor(baseWeeklyShares * 0.2)
-        });
-      }
-      
-      // Generate monthly data (mock for now)
-      const monthlyData = [];
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      for (let i = 11; i >= 0; i--) {
-        const monthKey = months[(today.getMonth() - i + 12) % 12];
-        const baseMonthlyShares = Math.max(1, streakInfo.streakDays - i * 4);
-        monthlyData.push({
-          month: monthKey,
-          daily: baseMonthlyShares,
-          mood: Math.floor(baseMonthlyShares * 0.3),
-          discover: Math.floor(baseMonthlyShares * 0.2),
-          total: baseMonthlyShares + Math.floor(baseMonthlyShares * 0.3) + Math.floor(baseMonthlyShares * 0.2)
-        });
-      }
-      
-      // Generate yearly data (mock for now)
-      const yearlyData = [];
-      for (let i = 4; i >= 0; i--) {
-        const year = today.getFullYear() - i;
-        const yearKey = year.toString();
-        const baseYearlyShares = Math.max(1, streakInfo.streakDays - i * 50);
-        yearlyData.push({
-          year: yearKey,
-          daily: baseYearlyShares,
-          mood: Math.floor(baseYearlyShares * 0.3),
-          discover: Math.floor(baseYearlyShares * 0.2),
-          total: baseYearlyShares + Math.floor(baseYearlyShares * 0.3) + Math.floor(baseYearlyShares * 0.2)
-        });
-      }
+      // Calculate longest streak from actual data
+      const longestStreak = calculateLongestStreak(submissions);
       
       console.log('Generated daily data length:', dailyData.length);
       console.log('Generated weekly data length:', weeklyData.length);
@@ -171,8 +94,8 @@ const ProgressScreen = ({ onBack }) => {
       
       setStreakData({
         currentStreak: streakInfo.streakDays,
-        longestStreak: streakInfo.streakDays, // For now, same as current
-        totalDays: dailyData.reduce((sum, day) => sum + day.total, 0),
+        longestStreak: longestStreak,
+        totalDays: submissions.length,
         dailyData,
         weeklyData,
         monthlyData,
@@ -211,6 +134,7 @@ const ProgressScreen = ({ onBack }) => {
       const dateKey = currentDate.toISOString().split('T')[0];
       const dayName = days[i];
       
+      // Count answer submissions for this date
       const dailyQuestions = submissions.filter(sub => {
         const submissionDate = sub.timestamp ? sub.timestamp.split('T')[0] : null;
         return submissionDate === dateKey && sub.type === 'daily';
@@ -224,12 +148,22 @@ const ProgressScreen = ({ onBack }) => {
         return submissionDate === dateKey && sub.type === 'discover';
       }).length;
       
+      // Get share streak data for this date
+      const lastShareDate = currentDate.toDateString();
+      const isToday = lastShareDate === today.toDateString();
+      
+      // Calculate share activity (this represents the streak contribution)
+      // For simplicity, we'll count 1 share per day as the streak contribution
+      // In a real implementation, you might want to track actual share events per day
+      const sharesOnThisDay = isToday ? 1 : 0; // Simplified - assumes 1 share on current day if streak > 0
+      
       const dayData = {
         day: dayName,
         daily: dailyQuestions,
         mood: moodQuestions,
         discover: discoverQuestions,
-        total: dailyQuestions + moodQuestions + discoverQuestions,
+        shares: sharesOnThisDay, // New field to track share activity
+        total: dailyQuestions + moodQuestions + discoverQuestions + sharesOnThisDay,
         date: dateKey
       };
       
@@ -268,12 +202,17 @@ const ProgressScreen = ({ onBack }) => {
         return submissionDate >= weekStart && submissionDate <= weekEnd && sub.type === 'discover';
       }).length;
       
+      // Calculate share activity for this week (simplified)
+      // In a real implementation, you'd track actual share events per week
+      const sharesThisWeek = i === 0 ? 1 : 0; // Current week has 1 share if streak > 0
+      
       weeklyData.push({
         week: weekKey,
         daily: dailyQuestions,
         mood: moodQuestions,
         discover: discoverQuestions,
-        total: dailyQuestions + moodQuestions + discoverQuestions
+        shares: sharesThisWeek, // New field to track share activity
+        total: dailyQuestions + moodQuestions + discoverQuestions + sharesThisWeek
       });
     }
     
@@ -306,12 +245,16 @@ const ProgressScreen = ({ onBack }) => {
         return submissionDate >= monthStart && submissionDate <= monthEnd && sub.type === 'discover';
       }).length;
       
+      // Calculate share activity for this month (simplified)
+      const sharesThisMonth = i === 0 ? 1 : 0; // Current month has 1 share if streak > 0
+      
       monthlyData.push({
         month: monthKey,
         daily: dailyQuestions,
         mood: moodQuestions,
         discover: discoverQuestions,
-        total: dailyQuestions + moodQuestions + discoverQuestions
+        shares: sharesThisMonth, // New field to track share activity
+        total: dailyQuestions + moodQuestions + discoverQuestions + sharesThisMonth
       });
     }
     
@@ -339,12 +282,16 @@ const ProgressScreen = ({ onBack }) => {
         return sub.timestamp.startsWith(yearKey) && sub.type === 'discover';
       }).length;
       
+      // Calculate share activity for this year (simplified)
+      const sharesThisYear = i === 0 ? 1 : 0; // Current year has 1 share if streak > 0
+      
       yearlyData.push({
         year: yearKey,
         daily: dailyQuestions,
         mood: moodQuestions,
         discover: discoverQuestions,
-        total: dailyQuestions + moodQuestions + discoverQuestions
+        shares: sharesThisYear, // New field to track share activity
+        total: dailyQuestions + moodQuestions + discoverQuestions + sharesThisYear
       });
     }
     
@@ -464,6 +411,10 @@ const ProgressScreen = ({ onBack }) => {
           <View style={dynamicStyles.legendItem}>
             <View style={[dynamicStyles.legendColor, { backgroundColor: CHART_COLORS.tertiary }]} />
             <Text style={dynamicStyles.legendText}>Discover</Text>
+          </View>
+          <View style={dynamicStyles.legendItem}>
+            <View style={[dynamicStyles.legendColor, { backgroundColor: CHART_COLORS.septenary }]} />
+            <Text style={dynamicStyles.legendText}>Shares</Text>
           </View>
         </View>
         
@@ -692,12 +643,14 @@ const renderWeeklySemiCircleChartFallback = (data) => {
   const totalDaily = data.reduce((sum, item) => sum + (item.daily || 0), 0);
   const totalMood = data.reduce((sum, item) => sum + (item.mood || 0), 0);
   const totalDiscover = data.reduce((sum, item) => sum + (item.discover || 0), 0);
-  const totalAll = totalDaily + totalMood + totalDiscover;
+  const totalShares = data.reduce((sum, item) => sum + (item.shares || 0), 0);
+  const totalAll = totalDaily + totalMood + totalDiscover + totalShares;
   
   const segments = [
     { key: 'Daily', value: totalDaily, color: CHART_COLORS.primary },
     { key: 'Mood', value: totalMood, color: CHART_COLORS.secondary },
-    { key: 'Discover', value: totalDiscover, color: CHART_COLORS.tertiary }
+    { key: 'Discover', value: totalDiscover, color: CHART_COLORS.tertiary },
+    { key: 'Shares', value: totalShares, color: CHART_COLORS.septenary }
   ];
   
   const circleSize = windowWidth > 380 ? 160 : 140;
@@ -1034,7 +987,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1060,7 +1013,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1085,7 +1038,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1217,7 +1170,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1243,7 +1196,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1268,7 +1221,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.dailyBarHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1410,7 +1363,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.areaChartHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1437,7 +1390,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.areaChartHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1463,7 +1416,7 @@ const renderMonthlyPieChartFallback = (data) => {
                         <View style={[
                           styles.areaChartHighlight,
                           {
-                            backgroundColor: '#FFFFFF',
+                            backgroundColor: isDark ? '#000000' : '#FFFFFF',
                             opacity: 0.3
                           }
                         ]} />
@@ -1702,9 +1655,9 @@ const renderMonthlyPieChartFallback = (data) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000000' : theme.colors.background }]}>
+        <View style={[styles.loadingContainer, { backgroundColor: isDark ? '#000000' : theme.colors.background }]}>
+          <Text style={[styles.loadingText, { color: isDark ? '#FFFFFF' : theme.colors.text }]}>
             Loading progress data...
           </Text>
         </View>
@@ -2439,15 +2392,15 @@ const renderMonthlyPieChartFallback = (data) => {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: isDark ? '#000000' : '#FFFFFF', borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={[styles.backButton, { backgroundColor: isDark ? '#000000' : '#F5F5F5' }]} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color={isDark ? '#FFFFFF' : theme.colors.text} />
+          <TouchableOpacity style={[styles.backButton, { backgroundColor: isDark ? '#000000' : '#ffffff' }]} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color={isDark ? '#ffffffff' : theme.colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : theme.colors.text }]}>
             Progress
           </Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={[styles.headerButton, { backgroundColor: isDark ? '#000000' : '#F5F5F5' }]} onPress={loadProgressData}>
+          <TouchableOpacity style={[styles.headerButton, { backgroundColor: isDark ? '#000000' : '#F5F5F5#ffffff' }]} onPress={loadProgressData}>
             <Ionicons name="refresh" size={24} color={isDark ? '#FFFFFF' : theme.colors.text} />
           </TouchableOpacity>
         </View>
@@ -2535,13 +2488,11 @@ const renderMonthlyPieChartFallback = (data) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     fontSize: 16,
@@ -2554,7 +2505,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
     paddingTop:50
   },
   headerLeft: {

@@ -15,6 +15,10 @@ const MoodQuestionsScreen = ({ route }) => {
   
   const handleShareQuestion = async (question, mood) => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing mood question');
+      
       const shareContent = `Question for ${mood} mood:\n\n${question}\n\n- Unfold Cards App`;
       
       await Share.share({
@@ -124,14 +128,10 @@ const MoodQuestionsScreen = ({ route }) => {
         // Also save to discover screen submissions
         await saveToDiscoverScreen(expandedQuestion, currentAnswer, selectedMood);
         
-        // Update streak after successful submission
-        const newStreak = await StreakManager.updateStreak();
-        
         // Close the expanded question
         setExpandedQuestion(null);
         
         console.log('Mood answer saved successfully:', currentAnswer);
-        console.log('Streak updated to:', newStreak);
         
         // Navigate to Discover screen after successful submission
         navigation.navigate('Discover');
@@ -207,7 +207,7 @@ const MoodQuestionsScreen = ({ route }) => {
                 <Ionicons 
                   name="share-outline" 
                   size={20} 
-                  color="#000000" 
+                  color={isDark ? '#FFFFFF' : '#8343b1ff'} 
                 />
               </TouchableOpacity>
               <Ionicons 

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export class StreakManager {
   static STREAK_KEY = 'userStreak';
   static LAST_SUBMISSION_KEY = 'lastSubmissionTime';
+  static LAST_SHARE_DATE_KEY = 'lastShareDate';
 
   // Get current streak data
   static async getStreakData() {
@@ -20,37 +21,53 @@ export class StreakManager {
     }
   }
 
-  // Update streak when user submits any question
+  // Check if user has already shared today
+  static async hasSharedToday() {
+    try {
+      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      if (!lastShareDate) return false;
+      
+      const today = new Date().toDateString();
+      return lastShareDate === today;
+    } catch (error) {
+      console.error('Error checking if shared today:', error);
+      return false;
+    }
+  }
+
+  // Update streak when user SHARES a question (not when submitting answers)
+  // IMPORTANT: This should only be called when sharing questions, not when submitting answers
   static async updateStreak() {
     try {
       const currentTime = Date.now();
-      const { streakDays, lastSubmissionTime } = await this.getStreakData();
+      const { streakDays } = await this.getStreakData();
+      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      const hasSharedToday = await this.hasSharedToday();
 
       let newStreak = streakDays;
-      
-      if (lastSubmissionTime) {
-        const hoursSinceLastSubmission = (currentTime - lastSubmissionTime) / (1000 * 60 * 60);
-        
-        if (hoursSinceLastSubmission < 24) {
-          // Submitted within 24 hours, increment streak
-          newStreak = streakDays + 1;
-          console.log(`Submitted within ${hoursSinceLastSubmission.toFixed(1)} hours, incrementing streak to:`, newStreak);
-        } else {
-          // More than 24 hours since last submission, reset streak
-          newStreak = 1;
-          console.log(`More than 24 hours since last submission (${hoursSinceLastSubmission.toFixed(1)} hours), starting new streak at:`, newStreak);
+
+      if (lastShareDate) {
+        const lastShareDateTime = new Date(lastShareDate).getTime();
+        const hoursSinceLastShare = (currentTime - lastShareDateTime) / (1000 * 60 * 60);
+
+        // If more than 24 hours passed since last share, reset streak to 0
+        if (hoursSinceLastShare >= 24) {
+          await this.resetStreak();
+          console.log('More than 24 hours since last share, streak reset to 0');
+          return 0;
         }
-      } else {
-        // First time submitting
-        newStreak = 1;
-        console.log('First submission, starting streak at:', newStreak);
       }
 
-      // Save new streak data
-      await AsyncStorage.setItem(this.STREAK_KEY, newStreak.toString());
-      await AsyncStorage.setItem(this.LAST_SUBMISSION_KEY, currentTime.toString());
+      // If sharing within 24 hours and haven't shared today, increment streak
+      if (!hasSharedToday) {
+        newStreak = streakDays + 1;
+        await AsyncStorage.setItem(this.STREAK_KEY, newStreak.toString());
+        await AsyncStorage.setItem(this.LAST_SHARE_DATE_KEY, new Date().toDateString());
+        console.log('Shared within 24 hours, streak updated to:', newStreak);
+      } else {
+        console.log('Already shared today, streak not updated');
+      }
 
-      console.log('Streak updated:', { streakDays: newStreak, lastSubmissionTime: currentTime });
       return newStreak;
     } catch (error) {
       console.error('Error updating streak:', error);
@@ -91,12 +108,36 @@ export class StreakManager {
     }
   }
 
+  // Check and reset streak if more than 24 hours have passed
+  static async checkAndResetStreakIfNeeded() {
+    try {
+      const currentTime = Date.now();
+      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      
+      if (lastShareDate) {
+        const lastShareDateTime = new Date(lastShareDate).getTime();
+        const hoursSinceLastShare = (currentTime - lastShareDateTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastShare >= 24) {
+          await this.resetStreak();
+          console.log('Auto-reset streak: More than 24 hours since last share');
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking streak reset:', error);
+      return false;
+    }
+  }
+
   // Reset streak (for testing or if needed)
   static async resetStreak() {
     try {
-      await AsyncStorage.removeItem(this.STREAK_KEY);
+      await AsyncStorage.setItem(this.STREAK_KEY, '0');
       await AsyncStorage.removeItem(this.LAST_SUBMISSION_KEY);
-      console.log('Streak reset');
+      await AsyncStorage.removeItem(this.LAST_SHARE_DATE_KEY);
+      console.log('Streak reset to 0');
     } catch (error) {
       console.error('Error resetting streak:', error);
     }

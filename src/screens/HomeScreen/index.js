@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones, allSubcategories } from '../../data/decks';
@@ -180,45 +180,24 @@ function DailyQuestion({ onAnswer, theme, isDark, onNavigateToDiscover, setStrea
       console.log('✅ Streak updated to:', newStreak, 'after sharing question');
       
       // Share the question text
-      const shareText = `🤔 Question of the Day: ${currentQuestion.question}`;
+      const shareText = `🤔 Question of the Day: ${currentQuestion.question}\n\n- Unfold Cards App`;
       
-      // Use React Native's Share functionality if available, or fallback to clipboard
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Question of the Day',
-            text: shareText,
-          });
-          console.log('Question shared successfully');
-        } catch (shareError) {
-          console.log('Share cancelled or failed:', shareError);
-          // Fallback to clipboard
-          await copyToClipboard(shareText);
-        }
-      } else {
-        // Fallback to clipboard
-        await copyToClipboard(shareText);
-      }
+      // Use React Native's Share functionality
+      await Share.share({
+        message: shareText,
+        title: 'Question of the Day - Unfold Cards',
+        url: 'https://unfold-cards.app'
+      });
+      
+      console.log('Question shared successfully');
+      
+      // Reload streak data to ensure UI is in sync
+      await loadStreakData();
     } catch (error) {
       console.error('Error sharing question:', error);
     }
   };
 
-  // Helper function to copy to clipboard
-  const copyToClipboard = async (text) => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
-        console.log('Question copied to clipboard');
-        // You could show a toast message here
-      } else {
-        console.log('Clipboard not available');
-      }
-    } catch (error) {
-      console.error('Error copying to clipboard:', error);
-    }
-  };
-  
   if (!currentQuestion) {
     return null; // Fallback if no questions available
   }
@@ -362,8 +341,19 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     loadStreakData();
   }, []);
 
+  // Refresh streak data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadStreakData();
+    }, [])
+  );
+
   const loadStreakData = async () => {
     try {
+      // Check if streak needs to be reset first
+      await StreakManager.checkAndResetStreakIfNeeded();
+      
+      // Then load the current streak data
       const { streakDays } = await StreakManager.getStreakData();
       setStreakDays(streakDays);
     } catch (error) {
