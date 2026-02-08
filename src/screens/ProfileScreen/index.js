@@ -45,7 +45,7 @@ const getDynamicStyles = (theme, isDark) => ({
   },
 });
 
-export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack }) {
+export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favorites = [], onViewAllFavorites, onEnableNotifications, onSignOut, onBack, onNavigateToDarkMode }) {
   const { theme, isDark, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [dailyReminder, setDailyReminder] = React.useState(false);
@@ -361,18 +361,21 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             shadowRadius: 8,
             elevation: 6,
           }]}>
-          <View style={styles.settingRow}>
+          <TouchableOpacity 
+            style={styles.settingRow}
+            onPress={onNavigateToDarkMode}
+          >
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, dynamicStyles.textPrimary]}>Dark Mode</Text>
               <Text style={[styles.settingDesc, dynamicStyles.textMuted]}>Toggle dark theme</Text>
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-              thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
+            <Ionicons 
+              name="chevron-forward" 
+              size={20} 
+              color={isDark ? '#A0A0A0' : theme.colors.textMuted} 
+              style={styles.chevronIcon}
             />
-          </View>
+          </TouchableOpacity>
         </View>
 
         {favorites.length > 0 && (
@@ -639,6 +642,8 @@ const styles = StyleSheet.create({
   settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, elevation: 3 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12 },
   settingInfo: { flex: 1, marginRight: 16 },
+  settingRight: { flexDirection: 'row', alignItems: 'center' },
+  chevronIcon: { marginLeft: 8 },
   settingLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },
   settingDesc: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
   favoritesSection: { marginTop: 8, marginBottom: 20 },

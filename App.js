@@ -25,6 +25,7 @@ import { SubcategoryQuestionsScreen } from './src/screens/SubcategoryQuestionsSc
 import DiscoverScreen from './src/screens/DiscoverScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
+import { DarkModeScreen } from './src/screens/DarkModeScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -65,6 +66,13 @@ const AppContent = () => {
     // Navigate to Progress screen
     if (navigationRef.current) {
       navigationRef.current.navigate('Progress');
+    }
+  };
+
+  const handleNavigateToDarkMode = () => {
+    // Navigate to DarkMode screen
+    if (navigationRef.current) {
+      navigationRef.current.navigate('DarkMode');
     }
   };
 
@@ -367,6 +375,7 @@ const AppContent = () => {
       onEnableNotifications={() => console.log('Enable notifications')}
       onSignOut={() => console.log('Sign out')}
       onBack={handleBackToHome}
+      onNavigateToDarkMode={handleNavigateToDarkMode}
     />,
     Discover: ({ navigation, route }) => {
       return <DiscoverScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
@@ -376,6 +385,9 @@ const AppContent = () => {
     },
     Progress: ({ navigation, route }) => {
       return <ProgressScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
+    },
+    DarkMode: ({ navigation, route }) => {
+      return <DarkModeScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
     },
   };
 
@@ -426,8 +438,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' ? { display: 'none' } : undefined
               }}
             />
           ))}

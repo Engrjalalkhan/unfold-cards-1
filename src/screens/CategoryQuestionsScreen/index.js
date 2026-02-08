@@ -197,14 +197,6 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
           />
           
           <View style={styles.cardContent}>
-            <View style={[styles.iconContainer, { backgroundColor: categoryColor + '20' }]}>
-              <Ionicons name="help-circle-outline" size={48} color={categoryColor} />
-            </View>
-            
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryText}>{category.name}</Text>
-            </View>
-            
             <Text style={styles.questionText}>{item}</Text>
             
             <View style={styles.questionNumber}>
@@ -290,14 +282,6 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
                 />
                 
                 <View style={styles.cardContent}>
-                  <View style={[styles.iconContainer, { backgroundColor: isDark ? categoryColor + '30' : categoryColor + '20' }]}>
-                    <Ionicons name="help-circle-outline" size={48} color={categoryColor} />
-                  </View>
-                  
-                  <View style={styles.categoryTag}>
-                    <Text style={styles.categoryText}>{category.name}</Text>
-                  </View>
-                  
                   <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{question}</Text>
                   
                   <View style={styles.questionNumber}>
