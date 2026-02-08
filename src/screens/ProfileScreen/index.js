@@ -177,7 +177,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             <Text style={styles.emojiIcon}>👤</Text>
           </View>
           <Text style={[styles.profileTitle, dynamicStyles.textPrimary]}>{profile?.name || 'Friend'}</Text>
-          <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text>
+          {/* <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text> */}
         </View>
 
         <View style={[styles.progressSection, { 
