@@ -342,6 +342,39 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [todayKey, setTodayKey] = React.useState(getDateKey());
   const [query, setQuery] = React.useState('');
   const [streakDays, setStreakDays] = React.useState(0);
+  const [currentProfile, setCurrentProfile] = React.useState(profile);
+
+  // Load profile data directly from AsyncStorage for latest data
+  React.useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        console.log('=== HOME SCREEN LOADING PROFILE DATA ===');
+        const savedProfileData = await AsyncStorage.getItem('USER_PROFILE_DATA');
+        console.log('Raw savedProfileData in HomeScreen:', savedProfileData);
+        if (savedProfileData) {
+          const profileData = JSON.parse(savedProfileData);
+          console.log('Parsed profileData in HomeScreen:', profileData);
+          setCurrentProfile(profileData);
+          console.log('Set currentProfile in HomeScreen to:', profileData);
+        } else {
+          console.log('No saved profile data found in HomeScreen, using prop');
+          setCurrentProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading profile data in HomeScreen:', error);
+      }
+    };
+    loadProfileData();
+  }, []);
+
+  // Update local profile state when prop changes
+  React.useEffect(() => {
+    console.log('=== HOME SCREEN PROFILE UPDATE ===');
+    console.log('Profile prop changed:', profile);
+    console.log('Current profile.name:', profile?.name);
+    setCurrentProfile(profile);
+    console.log('Set currentProfile to:', profile);
+  }, [profile]);
 
   // Load streak data on mount
   React.useEffect(() => {
@@ -420,7 +453,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             {/* Removed avatar container with purple background circle as requested */}
             <View style={styles.profileInfo}>
               <Text style={[styles.userName, dynamicStyles.textPrimary]}>
-                Hi Friend
+                Hi {currentProfile?.name || 'Friend'}
               </Text>
               <Text style={[styles.userStatus, dynamicStyles.textMuted]}>
                 🔥 {streakDays} day streak

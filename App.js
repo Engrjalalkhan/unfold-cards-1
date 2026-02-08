@@ -37,9 +37,32 @@ const AppContent = () => {
   const [activeTab, setActiveTab] = useState('Home');
   const navigationRef = React.useRef(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [profile, setProfile] = useState({});
   const [favorites, setFavorites] = useState([]);
   const [unreadFavoritesCount, setUnreadFavoritesCount] = useState(0);
   const [stats, setStats] = useState({});
+
+  // Load profile data on mount
+  useEffect(() => {
+    const loadProfileData = async () => {
+      try {
+        console.log('=== LOADING PROFILE DATA ===');
+        const savedProfileData = await AsyncStorage.getItem('USER_PROFILE_DATA');
+        console.log('Raw savedProfileData:', savedProfileData);
+        if (savedProfileData) {
+          const profileData = JSON.parse(savedProfileData);
+          console.log('Parsed profileData:', profileData);
+          setProfile(profileData);
+          console.log('Profile state set to:', profileData);
+        } else {
+          console.log('No saved profile data found, using default');
+        }
+      } catch (error) {
+        console.error('Error loading profile data:', error);
+      }
+    };
+    loadProfileData();
+  }, []);
 
   const handleNavigateToFavorites = () => {
     // Navigate to Favorites screen
@@ -366,8 +389,8 @@ const AppContent = () => {
       onShareQuestion={(question) => console.log('Share question:', question)}
     />,
     Profile: () => <ProfileScreen 
-      profile={{}}
-      setProfile={() => console.log('Set profile')}
+      profile={profile}
+      setProfile={setProfile}
       favoritesCount={favorites.length}
       stats={stats}
       favorites={favorites}

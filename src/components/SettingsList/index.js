@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const getDynamicStyles = (theme, isDark) => ({
@@ -25,11 +25,39 @@ const getDynamicStyles = (theme, isDark) => ({
 export const SettingsList = React.memo(function SettingsList({ 
   onEditProfile, 
   onEnableNotifications, 
-  onSignOut, 
   theme,
   isDark = false 
 }) {
   const dynamicStyles = getDynamicStyles(theme, isDark);
+
+  const handlePrivacyPolicy = async () => {
+    const privacyUrl = 'https://www.freeprivacypolicy.com/live/6c104258-199a-4e6f-80d5-991c930862a4';
+    
+    try {
+      // Check if the URL can be opened
+      const supported = await Linking.canOpenURL(privacyUrl);
+      
+      if (supported) {
+        await Linking.openURL(privacyUrl);
+        console.log('Opening privacy policy:', privacyUrl);
+        Alert.alert(
+          'Privacy Policy',
+          'Opening privacy policy in your browser...',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(
+          'Cannot Open Link',
+          'Unable to open the privacy policy URL. Please try again later.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening privacy policy:', error);
+      Alert.alert('Error', 'Failed to open privacy policy. Please try again later.');
+    }
+  };
+
   return (
     <View style={[styles.listCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}>
       <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onEditProfile}>
@@ -42,18 +70,11 @@ export const SettingsList = React.memo(function SettingsList({
         <Text style={[styles.listItemText, dynamicStyles.textPrimary]}>Notifications</Text>
         <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]}>
+      <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={handlePrivacyPolicy}>
         <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
         <Text style={[styles.listItemText, dynamicStyles.textPrimary]}>Privacy & Support</Text>
         <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
       </TouchableOpacity>
-      {onSignOut && (
-        <TouchableOpacity style={[styles.listItemRow, dynamicStyles.borderColor]} onPress={onSignOut}>
-          <Ionicons name="log-out-outline" size={20} color={theme.colors.primaryText} style={styles.listIconI} />
-          <Text style={[styles.listItemText, dynamicStyles.textPrimaryText]}>Sign Out</Text>
-          <Text style={[styles.listChevron, dynamicStyles.textMuted]}>›</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 });

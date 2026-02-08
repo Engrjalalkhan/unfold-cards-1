@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Switch, Alert, Platform, Modal, Dimensions, ActionSheetIOS, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../../navigation/Header';
 import { ProgressRing } from '../../components/ProgressRing';
@@ -19,6 +20,19 @@ import {
   scheduleWeeklyHighlights,
   scheduleNewCategoryAlert
 } from '../../services/notificationService';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// Avatar options
+const AVATAR_OPTIONS = [
+  '👤', '👨', '👩', '🧑', '👶', '👴', '👵', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱',
+  '👨‍🦳', '👩‍🦳', '👨‍🦲', '👩‍🦲', '🦸', '🦸‍♀️', '🦹', '🦹‍♀️', '🧙', '🧙‍♀️',
+  '🧚', '🧚‍♀️', '🧛', '🧛‍♀️', '🧜', '🧜‍♀️', '🧞', '🧞‍♀️', '🧟', '🧟‍♀️',
+  '🤖', '👽', '🎭', '🤡', '🦄', '🦋', '🐶', '🐱', '🐭', '🐹', '🐰',
+  '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔',
+  '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴',
+  '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️'
+];
 
 const getDynamicStyles = (theme, isDark) => ({
   bgBackground: { backgroundColor: isDark ? '#000000' : theme.colors.background },
@@ -51,6 +65,153 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const [dailyReminder, setDailyReminder] = React.useState(false);
   const [weeklyHighlights, setWeeklyHighlights] = React.useState(false);
   const [newCategoryAlert, setNewCategoryAlert] = React.useState(false);
+  const [showAvatarModal, setShowAvatarModal] = React.useState(false);
+  const [selectedAvatar, setSelectedAvatar] = React.useState('👤');
+  const [profileImage, setProfileImage] = React.useState(null);
+  const [showEditProfileModal, setShowEditProfileModal] = React.useState(false);
+  const [editProfile, setEditProfile] = React.useState({
+    name: '',
+    gender: '',
+    bio: '',
+    location: '',
+    age: ''
+  });
+
+  // Load avatar and profile image from storage on mount
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const savedAvatar = await AsyncStorage.getItem('USER_AVATAR');
+        const savedProfileImage = await AsyncStorage.getItem('PROFILE_IMAGE');
+        const savedProfileData = await AsyncStorage.getItem('USER_PROFILE_DATA');
+        
+        if (savedAvatar) {
+          setSelectedAvatar(savedAvatar);
+        }
+        if (savedProfileImage) {
+          setProfileImage(savedProfileImage);
+        }
+        if (savedProfileData) {
+          const profileData = JSON.parse(savedProfileData);
+          setEditProfile(profileData);
+        } else {
+          // Initialize with current profile data
+          setEditProfile({
+            name: profile?.name || 'Friend',
+            gender: profile?.gender || '',
+            bio: profile?.bio || '',
+            location: profile?.location || '',
+            age: profile?.age || ''
+          });
+        }
+      } catch (error) {
+        console.log('Error loading profile data:', error);
+      }
+    })();
+  }, [profile]);
+
+  // Save profile data
+  const saveProfileData = async (profileData) => {
+    try {
+      await AsyncStorage.setItem('USER_PROFILE_DATA', JSON.stringify(profileData));
+      setEditProfile(profileData);
+      // Update the profile prop if setProfile function is provided
+      if (setProfile) {
+        setProfile(profileData);
+      }
+    } catch (error) {
+      console.log('Error saving profile data:', error);
+    }
+  };
+
+  // Handle profile update
+  const handleProfileUpdate = () => {
+    console.log('=== PROFILE UPDATE DEBUG ===');
+    console.log('Current editProfile.name:', editProfile.name);
+    
+    if (!editProfile.name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    saveProfileData(editProfile);
+    setShowEditProfileModal(false);
+    Alert.alert('Success', 'Profile updated successfully!');
+  };
+  const saveAvatar = async (avatar) => {
+    try {
+      await AsyncStorage.setItem('USER_AVATAR', avatar);
+      setSelectedAvatar(avatar);
+      // Clear profile image when emoji avatar is selected
+      await AsyncStorage.removeItem('PROFILE_IMAGE');
+      setProfileImage(null);
+    } catch (error) {
+      console.log('Error saving avatar:', error);
+    }
+  };
+
+  // Handle gallery image selection
+  const pickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions to select an image.');
+        return;
+      }
+
+      // Pick image
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        await AsyncStorage.setItem('PROFILE_IMAGE', imageUri);
+        setProfileImage(imageUri);
+        // Clear emoji avatar when gallery image is selected
+        await AsyncStorage.removeItem('USER_AVATAR');
+        setSelectedAvatar('👤');
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image from gallery.');
+    }
+  };
+
+  // Show options when user icon is clicked
+  const handleProfileIconPress = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Select Avatar', 'Select from Gallery'],
+          cancelButtonIndex: 0,
+          userInterfaceStyle: isDark ? 'dark' : 'light',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            setShowAvatarModal(true);
+          } else if (buttonIndex === 2) {
+            pickImage();
+          }
+        }
+      );
+    } else {
+      // For Android, show a simple alert with options
+      Alert.alert(
+        'Profile Picture',
+        'Choose an option for your profile picture',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Select Avatar', onPress: () => setShowAvatarModal(true) },
+          { text: 'Select from Gallery', onPress: () => pickImage() },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
 
   // Calculate multi-zone progress with colors for all viewed zones
   const calculateOverallProgress = (stats, favoritesCount) => {
@@ -173,10 +334,21 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           // Shadow for Android
           elevation: 12,
         }]}>
-          <View style={styles.emojiCircle}>
-            <Text style={styles.emojiIcon}>👤</Text>
-          </View>
-          <Text style={[styles.profileTitle, dynamicStyles.textPrimary]}>{profile?.name || 'Friend'}</Text>
+          <TouchableOpacity 
+            style={styles.emojiCircle}
+            onPress={handleProfileIconPress}
+            activeOpacity={0.7}
+          >
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : (
+              <Text style={styles.emojiIcon}>{selectedAvatar}</Text>
+            )}
+            <View style={styles.editIconOverlay}>
+              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <Text style={[styles.profileTitle, dynamicStyles.textPrimary]}>{editProfile.name || 'Friend'}</Text>
           {/* <Text style={[styles.profileTagline, dynamicStyles.textMuted]}>Building connections one question at a time</Text> */}
         </View>
 
@@ -346,9 +518,8 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           </View>
         ) : (
           <SettingsList
-            onEditProfile={() => Alert.alert('Edit Profile', 'Profile editing coming soon!')}
+            onEditProfile={() => setShowEditProfileModal(true)}
             onEnableNotifications={() => setShowNotifications(true)}
-            onSignOut={onSignOut}
             theme={theme}
             isDark={isDark}
           />
@@ -397,6 +568,207 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Avatar Selection Modal */}
+        <Modal
+          visible={showAvatarModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowAvatarModal(false)}
+        >
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
+              <TouchableOpacity onPress={() => setShowAvatarModal(false)} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Choose Avatar</Text>
+              <View style={styles.modalSpacer} />
+            </View>
+            
+            <ScrollView 
+              style={styles.avatarScroll}
+              contentContainerStyle={styles.avatarGrid}
+              showsVerticalScrollIndicator={false}
+            >
+              {AVATAR_OPTIONS.map((avatar, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.avatarItem,
+                    { 
+                      backgroundColor: isDark ? '#1E1E1E' : '#F8F8F8',
+                      borderColor: selectedAvatar === avatar ? theme.colors.primary : (isDark ? '#333' : '#E6D6FF'),
+                      borderWidth: selectedAvatar === avatar ? 2 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    saveAvatar(avatar);
+                    setShowAvatarModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.avatarEmoji}>{avatar}</Text>
+                  {selectedAvatar === avatar && (
+                    <View style={[styles.selectedIndicator, { backgroundColor: theme.colors.primary }]}>
+                      <Ionicons name="check" size={12} color="#FFFFFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={showEditProfileModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowEditProfileModal(false)}
+        >
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
+              <TouchableOpacity onPress={() => setShowEditProfileModal(false)} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Edit Profile</Text>
+              <TouchableOpacity onPress={handleProfileUpdate} style={styles.modalSaveButton}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.profileScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.profileForm}>
+                {/* Profile Picture Section */}
+                <View style={styles.profilePictureSection}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.profilePictureButton,
+                      { 
+                        backgroundColor: isDark ? '#1E1E1E' : '#F8F8F8',
+                        borderColor: isDark ? '#333' : '#E6D6FF'
+                      }
+                    ]}
+                    onPress={handleProfileIconPress}
+                    activeOpacity={0.7}
+                  >
+                    {profileImage ? (
+                      <Image source={{ uri: profileImage }} style={styles.modalProfileImage} />
+                    ) : (
+                      <Text style={styles.modalEmojiIcon}>{selectedAvatar}</Text>
+                    )}
+                    <View style={styles.modalEditIconOverlay}>
+                      <Ionicons name="camera" size={16} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={[styles.profilePictureText, dynamicStyles.textMuted]}>Tap to change profile picture</Text>
+                </View>
+
+                {/* Name Input */}
+                <View style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Name *</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      dynamicStyles.bgSurface,
+                      dynamicStyles.borderColor,
+                      dynamicStyles.textPrimary
+                    ]}
+                    value={editProfile.name}
+                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, name: text }))}
+                    placeholder="Enter your name"
+                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                    maxLength={50}
+                  />
+                </View>
+
+                {/* Gender Selection */}
+                <View style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Gender</Text>
+                  <View style={styles.genderOptions}>
+                    {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
+                      <TouchableOpacity
+                        key={gender}
+                        style={[
+                          styles.genderOption,
+                          { 
+                            backgroundColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#1E1E1E' : '#F8F8F8'),
+                            borderColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#333' : '#E6D6FF')
+                          }
+                        ]}
+                        onPress={() => setEditProfile(prev => ({ ...prev, gender }))}
+                      >
+                        <Text style={[
+                          styles.genderText,
+                          { color: editProfile.gender === gender ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#666') }
+                        ]}>{gender}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Age Input */}
+                <View style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Age</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      dynamicStyles.bgSurface,
+                      dynamicStyles.borderColor,
+                      dynamicStyles.textPrimary
+                    ]}
+                    value={editProfile.age}
+                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, age: text }))}
+                    placeholder="Enter your age"
+                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                    keyboardType="numeric"
+                    maxLength={3}
+                  />
+                </View>
+
+                {/* Location Input */}
+                <View style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Location</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      dynamicStyles.bgSurface,
+                      dynamicStyles.borderColor,
+                      dynamicStyles.textPrimary
+                    ]}
+                    value={editProfile.location}
+                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, location: text }))}
+                    placeholder="Enter your location"
+                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                    maxLength={100}
+                  />
+                </View>
+
+                {/* Bio Input */}
+                <View style={styles.inputSection}>
+                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Bio</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      styles.bioInput,
+                      dynamicStyles.bgSurface,
+                      dynamicStyles.borderColor,
+                      dynamicStyles.textPrimary
+                    ]}
+                    value={editProfile.bio}
+                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, bio: text }))}
+                    placeholder="Tell us about yourself..."
+                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                    multiline
+                    numberOfLines={4}
+                    maxLength={200}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -439,8 +811,35 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 6,
+    position: 'relative',
   },
-  emojiIcon: { fontSize: 40 },
+  editIconOverlay: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#5E4B8B',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  emojiIcon: { 
+    fontSize: 85,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 85,
+  },
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+  },
   profileTitle: { color: '#6B3AA0', fontSize: 28, fontWeight: '800', marginTop: 12 },
   profileTagline: { color: '#8B6FB1', fontSize: 14, marginTop: 6 },
   progressSection: { 
@@ -649,4 +1048,164 @@ const styles = StyleSheet.create({
   favoritesSection: { marginTop: 8, marginBottom: 20 },
   viewAllButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12 },
   viewAllText: { color: '#5A3785', fontSize: 16, fontWeight: '600', marginRight: 8 },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  modalCloseButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#5A3785',
+  },
+  modalSpacer: {
+    width: 40,
+  },
+  avatarScroll: {
+    flex: 1,
+  },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 12,
+  },
+  avatarItem: {
+    width: (screenWidth - 64) / 6,
+    height: (screenWidth - 64) / 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  avatarEmoji: {
+    fontSize: 28,
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Edit Profile Modal styles
+  profileScroll: {
+    flex: 1,
+  },
+  profileForm: {
+    padding: 16,
+  },
+  profilePictureSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profilePictureButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#F8F8F8',
+    borderWidth: 2,
+    borderColor: '#E6D6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  modalProfileImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+  },
+  modalEmojiIcon: {
+    fontSize: 70,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 70,
+  },
+  modalEditIconOverlay: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: '#5E4B8B',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  profilePictureText: {
+    fontSize: 12,
+    color: '#8B6FB1',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  inputSection: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#5A3785',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E6D6FF',
+    color: '#2F2752',
+  },
+  bioInput: {
+    height: 100,
+    paddingTop: 12,
+  },
+  genderOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  genderOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E6D6FF',
+    backgroundColor: '#FFFFFF',
+  },
+  genderText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  modalSaveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#5E4B8B',
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
