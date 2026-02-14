@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar, View, StyleSheet, Text } from 'react-native';
+import { Platform, StatusBar, View, StyleSheet, Text } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
 import { StatsManager } from './src/utils/statsManager';
+import { initializeFirebaseMessaging, setNavigationRef } from './src/services/notificationService';
 
 // Import screens
 import SplashScreen from './src/components/SplashScreen';
@@ -210,6 +211,24 @@ const AppContent = () => {
     checkOnboarding();
     loadFavorites();
     loadStats();
+    
+    // Initialize Firebase Messaging safely
+    if (Platform.OS !== 'web') {
+      initializeFirebaseMessaging().then(unsubscribe => {
+        console.log('Firebase Messaging initialized successfully');
+        
+        // Set navigation reference for notification handling
+        if (navigationRef.current) {
+          setNavigationRef(navigationRef.current); // Fix typo here
+          console.log('🧭 Navigation ref set for notifications');
+        }
+        
+        return unsubscribe;
+      }).catch(error => {
+        console.error('Error initializing Firebase Messaging:', error);
+        // App continues to work without Firebase
+      });
+    }
   }, []);
 
   useEffect(() => {

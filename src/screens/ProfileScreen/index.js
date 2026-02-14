@@ -10,15 +10,21 @@ import { StatTile } from '../../components/StatTile';
 import { SettingsList } from '../../components/SettingsList';
 import { useTheme } from '../../contexts/ThemeContext';
 import { 
-  DAILY_REMINDER_KEY,
-  WEEKLY_HIGHLIGHTS_KEY,
-  NEW_CATEGORY_ALERT_KEY,
-  TOTAL_QUESTIONS
+  FAVORITES_STORAGE_KEY, 
+  PROFILE_STORAGE_KEY, 
+  DAILY_REMINDER_KEY, 
+  WEEKLY_HIGHLIGHTS_KEY, 
+  NEW_CATEGORY_ALERT_KEY
 } from '../../constants/storageKeys';
 import {
   scheduleDailyQuestionReminder,
   scheduleWeeklyHighlights,
-  scheduleNewCategoryAlert
+  scheduleNewCategoryAlert,
+  enableDailyRemindersWithFirebase,
+  enableWeeklyHighlightsWithFirebase,
+  enableNewCategoryAlertsWithFirebase,
+  subscribeToTopic,
+  unsubscribeFromTopic
 } from '../../services/notificationService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -308,6 +314,48 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     } catch {}
   };
 
+  // Enhanced Firebase notification handlers
+  const handleDailyReminderToggle = async (value) => {
+    setDailyReminder(value);
+    
+    if (value) {
+      const success = await enableDailyRemindersWithFirebase();
+      if (!success) {
+        setDailyReminder(false); // Revert on failure
+      }
+    } else {
+      await unsubscribeFromTopic('daily_reminders');
+      await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'false');
+    }
+  };
+
+  const handleWeeklyHighlightToggle = async (value) => {
+    setWeeklyHighlights(value);
+    
+    if (value) {
+      const success = await enableWeeklyHighlightsWithFirebase();
+      if (!success) {
+        setWeeklyHighlights(false); // Revert on failure
+      }
+    } else {
+      await unsubscribeFromTopic('weekly_highlights');
+      await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'false');
+    }
+  };
+
+  const handleNewCategoryAlertToggle = async (value) => {
+    setNewCategoryAlert(value);
+    
+    if (value) {
+      const success = await enableNewCategoryAlertsWithFirebase();
+      if (!success) {
+        setNewCategoryAlert(false); // Revert on failure
+      }
+    } else {
+      await unsubscribeFromTopic('new_category_alerts');
+    }
+  };
+
   const dynamicStyles = getDynamicStyles(theme, isDark);
   const backgroundColor = isDark ? '#000000' : theme.colors.background;
   const surfaceColor = isDark ? '#1E1E1E' : theme.colors.surface;
@@ -486,7 +534,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               </View>
               <Switch
                 value={dailyReminder}
-                onValueChange={(v) => handleNotificationToggle(DAILY_REMINDER_KEY, v, scheduleDailyQuestionReminder)}
+                onValueChange={handleDailyReminderToggle}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
               />
@@ -498,7 +546,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               </View>
               <Switch
                 value={weeklyHighlights}
-                onValueChange={(v) => handleNotificationToggle(WEEKLY_HIGHLIGHTS_KEY, v, scheduleWeeklyHighlights)}
+                onValueChange={handleWeeklyHighlightToggle}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
               />
@@ -510,7 +558,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               </View>
               <Switch
                 value={newCategoryAlert}
-                onValueChange={(v) => handleNotificationToggle(NEW_CATEGORY_ALERT_KEY, v, scheduleNewCategoryAlert)}
+                onValueChange={handleNewCategoryAlertToggle}
                 trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                 thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
               />
@@ -1038,6 +1086,20 @@ const styles = StyleSheet.create({
   notificationInfo: { flex: 1, marginRight: 16 },
   notificationLabel: { color: '#5A3785', fontSize: 16, fontWeight: '600' },
   notificationDesc: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
+  // Test Button Styles
+  testButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, elevation: 3 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12 },
   settingInfo: { flex: 1, marginRight: 16 },
@@ -1198,12 +1260,12 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   modalSaveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#5E4B8B',
+    borderWidth: 1,
+    borderColor: '#E6D6FF',
+    backgroundColor: '#FFFFFF',
   },
-  modalSaveText: {
+  genmodalSaveText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
