@@ -159,8 +159,20 @@ export function DarkModeScreen({ navigation, onBack }) {
             <Text style={[styles.previewStatus, dynamicStyles.textMuted]}>
               Current mode: {themeMode === 'system' ? 'System Default' : (themeMode === 'dark' ? 'Dark Mode' : 'Light Mode')}
             </Text>
+            <Text style={[styles.previewStatus, dynamicStyles.textMuted]}>
+              Theme mode: {themeMode}
+            </Text>
+            <Text style={[styles.previewStatus, dynamicStyles.textMuted]}>
+              isDark: {isDark ? 'true' : 'false'}
+            </Text>
+            {themeMode === 'system' && (
+              <Text style={[styles.previewStatus, dynamicStyles.textMuted]}>
+                System would show: {isDark ? 'Dark' : 'Light'} theme
+              </Text>
+            )}
           </View>
-        </View>
+          
+                  </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -352,5 +364,16 @@ const styles = StyleSheet.create({
     color: '#7A6FA3',
     fontSize: 13,
     fontStyle: 'italic',
+  },
+  refreshButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
