@@ -13,5 +13,6 @@ export const TWO_SECOND_NOTIF_KEY = '@unflod_cards:two_second_notif_enabled:v1';
 export const DAILY_TWO_SECOND_KEY = '@unflod_cards:daily_two_second_enabled:v1';
 export const WEEKLY_TWO_SECOND_KEY = '@unflod_cards:weekly_two_second_enabled:v1';
 export const CATEGORY_TWO_SECOND_KEY = '@unflod_cards:category_two_second_enabled:v1';
+export const DAILY_QUESTION_INDEX_KEY = '@unflod_cards:daily_question_index:v1';
 
 export const TOTAL_QUESTIONS = 600;

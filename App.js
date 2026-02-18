@@ -9,7 +9,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
 import { StatsManager } from './src/utils/statsManager';
-import { initializeFirebaseMessaging, setNavigationRef } from './src/services/notificationService';
+import { getFCMToken, setNavigationRef } from './src/services/notificationService';
+import { initializePushNotifications } from './src/config/pushNotifications';
+import { debugNotifications } from './src/config/notificationDebug';
 
 // Import screens
 import SplashScreen from './src/components/SplashScreen';
@@ -27,6 +29,7 @@ import DiscoverScreen from './src/screens/DiscoverScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
 import { DarkModeScreen } from './src/screens/DarkModeScreen';
+import { SubmittedAnswersScreen } from './src/screens/SubmittedAnswersScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -190,6 +193,22 @@ const AppContent = () => {
     );
   };
 
+  // Log FCM token for Firebase console testing
+  const logFCMToken = async () => {
+    try {
+      const token = await getFCMToken();
+      if (token) {
+        console.log(' FCM Token for Firebase Console:');
+        console.log(token);
+        console.log(' Copy this token and paste it in Firebase Console → Messaging → Test on device');
+      } else {
+        console.log(' No FCM token available - make sure app is running on real device');
+      }
+    } catch (error) {
+      console.error(' Error getting FCM token:', error);
+    }
+  };
+
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
@@ -212,22 +231,18 @@ const AppContent = () => {
     loadFavorites();
     loadStats();
     
-    // Initialize Firebase Messaging safely
+    // Initialize Firebase Push Notifications
     if (Platform.OS !== 'web') {
-      initializeFirebaseMessaging().then(unsubscribe => {
-        console.log('Firebase Messaging initialized successfully');
-        
-        // Set navigation reference for notification handling
-        if (navigationRef.current) {
-          setNavigationRef(navigationRef.current); // Fix typo here
-          console.log('🧭 Navigation ref set for notifications');
-        }
-        
-        return unsubscribe;
-      }).catch(error => {
-        console.error('Error initializing Firebase Messaging:', error);
-        // App continues to work without Firebase
-      });
+      console.log(' Initializing Firebase Push Notifications...');
+      
+      // Set navigation reference for notification handling
+      setNavigationRef(navigationRef);
+      
+      // Initialize push notifications
+      initializePushNotifications(navigationRef);
+      
+      // Log FCM token for Firebase console testing
+      logFCMToken();
     }
   }, []);
 
@@ -431,6 +446,9 @@ const AppContent = () => {
     DarkMode: ({ navigation, route }) => {
       return <DarkModeScreen navigation={navigation} route={route} onBack={handleBackToHome} />;
     },
+    SubmittedAnswers: ({ navigation, route }) => {
+      return <SubmittedAnswersScreen navigation={navigation} route={route} />;
+    },
   };
 
   return (
@@ -480,8 +498,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' ? { display: 'none' } : undefined
               }}
             />
           ))}

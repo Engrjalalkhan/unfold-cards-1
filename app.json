@@ -7,6 +7,16 @@
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#8B5CF6",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -47,15 +57,27 @@
       }
     },
     "android": {
+      "package": "com.rafeeque2.unfoldcards",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#E8D5F7"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.rafeeque2.unfoldcards"
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/logo.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "572808569364"
+      },
+      "firebase": {
+        "projectId": "unfold-cards-8f621",
+        "apiKey": "AIzaSyCNECdSoMOcmMseymPO6f1HJ6OeSTuQCGg",
+        "messagingSenderId": "572808569364",
+        "appId": "1:572808569364:android:d42c51ca0ac93dd070fd01"
+      }
     }
   }
 }

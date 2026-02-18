@@ -2,23 +2,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export class StreakManager {
   static STREAK_KEY = 'userStreak';
-  static LAST_SUBMISSION_KEY = 'lastSubmissionTime';
   static LAST_SHARE_DATE_KEY = 'lastShareDate';
+  static STREAK_START_DATE_KEY = 'streakStartDate';
 
   // Get current streak data
   static async getStreakData() {
     try {
       const streakData = await AsyncStorage.getItem(this.STREAK_KEY);
-      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
+      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      const streakStartDate = await AsyncStorage.getItem(this.STREAK_START_DATE_KEY);
       
       return {
         streakDays: streakData ? parseInt(streakData) : 0,
-        lastSubmissionTime: lastSubmissionTime ? parseInt(lastSubmissionTime) : null
+        lastShareDate: lastShareDate || null,
+        streakStartDate: streakStartDate || null
       };
     } catch (error) {
       console.error('Error getting streak data:', error);
-      return { streakDays: 0, lastSubmissionTime: null };
+      return { streakDays: 0, lastShareDate: null, streakStartDate: null };
     }
+  }
+
+  // Get today's date string (YYYY-MM-DD format)
+  static getTodayString() {
+    return new Date().toISOString().split('T')[0];
   }
 
   // Check if user has already shared today
@@ -27,7 +34,7 @@ export class StreakManager {
       const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
       if (!lastShareDate) return false;
       
-      const today = new Date().toDateString();
+      const today = this.getTodayString();
       return lastShareDate === today;
     } catch (error) {
       console.error('Error checking if shared today:', error);
@@ -35,75 +42,58 @@ export class StreakManager {
     }
   }
 
-  // Update streak when user SHARES a question (not when submitting answers)
-  // IMPORTANT: This should only be called when sharing questions, not when submitting answers
+  // Update streak when user SHARES a question
   static async updateStreak() {
     try {
-      const currentTime = Date.now();
-      const { streakDays } = await this.getStreakData();
-      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      const today = this.getTodayString();
+      const { streakDays, lastShareDate, streakStartDate } = await this.getStreakData();
       const hasSharedToday = await this.hasSharedToday();
 
       let newStreak = streakDays;
+      let newStartDate = streakStartDate;
 
+      // Check if streak should be continued or reset
       if (lastShareDate) {
-        const lastShareDateTime = new Date(lastShareDate).getTime();
-        const hoursSinceLastShare = (currentTime - lastShareDateTime) / (1000 * 60 * 60);
-
-        // If more than 24 hours passed since last share, reset streak to 0
-        if (hoursSinceLastShare >= 24) {
-          await this.resetStreak();
-          console.log('More than 24 hours since last share, streak reset to 0');
-          return 0;
+        const lastShareDateObj = new Date(lastShareDate);
+        const todayDateObj = new Date(today);
+        const daysDiff = Math.floor((todayDateObj - lastShareDateObj) / (1000 * 60 * 60 * 24));
+        
+        console.log('Days since last share:', daysDiff);
+        
+        if (daysDiff > 1) {
+          // More than 1 day gap, reset streak
+          newStreak = 1;
+          newStartDate = today;
+          console.log('Streak reset due to gap, starting new streak at 1');
+        } else if (daysDiff === 1) {
+          // Exactly 1 day gap, continue streak
+          newStreak = streakDays + 1;
+          console.log('Continuing streak, new streak:', newStreak);
         }
+        // If daysDiff === 0, same day, handled below
+      } else {
+        // First time sharing
+        newStreak = 1;
+        newStartDate = today;
+        console.log('First share, starting streak at 1');
       }
 
-      // If sharing within 24 hours and haven't shared today, increment streak
+      // Only update if haven't shared today
       if (!hasSharedToday) {
-        newStreak = streakDays + 1;
         await AsyncStorage.setItem(this.STREAK_KEY, newStreak.toString());
-        await AsyncStorage.setItem(this.LAST_SHARE_DATE_KEY, new Date().toDateString());
-        console.log('Shared within 24 hours, streak updated to:', newStreak);
+        await AsyncStorage.setItem(this.LAST_SHARE_DATE_KEY, today);
+        if (newStartDate) {
+          await AsyncStorage.setItem(this.STREAK_START_DATE_KEY, newStartDate);
+        }
+        console.log('Streak updated successfully to:', newStreak);
       } else {
-        console.log('Already shared today, streak not updated');
+        console.log('Already shared today, streak remains:', streakDays);
+        newStreak = streakDays;
       }
 
       return newStreak;
     } catch (error) {
       console.error('Error updating streak:', error);
-      return streakDays;
-    }
-  }
-
-  // Check if user has submitted in the last 24 hours
-  static async hasSubmittedInLast24Hours() {
-    try {
-      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
-      if (!lastSubmissionTime) return false;
-      
-      const currentTime = Date.now();
-      const hoursSinceLastSubmission = (currentTime - parseInt(lastSubmissionTime)) / (1000 * 60 * 60);
-      
-      return hoursSinceLastSubmission < 24;
-    } catch (error) {
-      console.error('Error checking 24-hour submission status:', error);
-      return false;
-    }
-  }
-
-  // Get hours until streak expires
-  static async getHoursUntilStreakExpires() {
-    try {
-      const lastSubmissionTime = await AsyncStorage.getItem(this.LAST_SUBMISSION_KEY);
-      if (!lastSubmissionTime) return 0;
-      
-      const currentTime = Date.now();
-      const hoursSinceLastSubmission = (currentTime - parseInt(lastSubmissionTime)) / (1000 * 60 * 60);
-      const hoursUntilExpire = 24 - hoursSinceLastSubmission;
-      
-      return Math.max(0, hoursUntilExpire);
-    } catch (error) {
-      console.error('Error calculating hours until streak expires:', error);
       return 0;
     }
   }
@@ -111,16 +101,17 @@ export class StreakManager {
   // Check and reset streak if more than 24 hours have passed
   static async checkAndResetStreakIfNeeded() {
     try {
-      const currentTime = Date.now();
-      const lastShareDate = await AsyncStorage.getItem(this.LAST_SHARE_DATE_KEY);
+      const { lastShareDate } = await this.getStreakData();
       
       if (lastShareDate) {
-        const lastShareDateTime = new Date(lastShareDate).getTime();
-        const hoursSinceLastShare = (currentTime - lastShareDateTime) / (1000 * 60 * 60);
+        const today = this.getTodayString();
+        const lastShareDateObj = new Date(lastShareDate);
+        const todayDateObj = new Date(today);
+        const daysDiff = Math.floor((todayDateObj - lastShareDateObj) / (1000 * 60 * 60 * 24));
         
-        if (hoursSinceLastShare >= 24) {
+        if (daysDiff > 1) {
           await this.resetStreak();
-          console.log('Auto-reset streak: More than 24 hours since last share');
+          console.log('Auto-reset streak: More than 1 day gap since last share');
           return true;
         }
       }
@@ -135,11 +126,36 @@ export class StreakManager {
   static async resetStreak() {
     try {
       await AsyncStorage.setItem(this.STREAK_KEY, '0');
-      await AsyncStorage.removeItem(this.LAST_SUBMISSION_KEY);
       await AsyncStorage.removeItem(this.LAST_SHARE_DATE_KEY);
+      await AsyncStorage.removeItem(this.STREAK_START_DATE_KEY);
       console.log('Streak reset to 0');
     } catch (error) {
       console.error('Error resetting streak:', error);
+    }
+  }
+
+  // Get streak info for display
+  static async getStreakInfo() {
+    try {
+      const { streakDays, lastShareDate, streakStartDate } = await this.getStreakData();
+      const hasSharedToday = await this.hasSharedToday();
+      
+      return {
+        streakDays,
+        lastShareDate,
+        streakStartDate,
+        hasSharedToday,
+        canShareToday: !hasSharedToday
+      };
+    } catch (error) {
+      console.error('Error getting streak info:', error);
+      return {
+        streakDays: 0,
+        lastShareDate: null,
+        streakStartDate: null,
+        hasSharedToday: false,
+        canShareToday: true
+      };
     }
   }
 }

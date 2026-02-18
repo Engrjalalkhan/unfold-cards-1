@@ -9,6 +9,8 @@ import { ProgressRing } from '../../components/ProgressRing';
 import { StatTile } from '../../components/StatTile';
 import { SettingsList } from '../../components/SettingsList';
 import { useTheme } from '../../contexts/ThemeContext';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 import { 
   FAVORITES_STORAGE_KEY, 
   PROFILE_STORAGE_KEY, 
@@ -17,14 +19,15 @@ import {
   NEW_CATEGORY_ALERT_KEY
 } from '../../constants/storageKeys';
 import {
-  scheduleDailyQuestionReminder,
+  scheduleDailyReminder,
   scheduleWeeklyHighlights,
   scheduleNewCategoryAlert,
   enableDailyRemindersWithFirebase,
   enableWeeklyHighlightsWithFirebase,
   enableNewCategoryAlertsWithFirebase,
   subscribeToTopic,
-  unsubscribeFromTopic
+  unsubscribeFromTopic,
+  sendFirebasePushNotification
 } from '../../services/notificationService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -82,6 +85,33 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     location: '',
     age: ''
   });
+  const [currentStats, setCurrentStats] = React.useState({});
+  const [currentStreak, setCurrentStreak] = React.useState(0);
+
+  // Load stats and streak data
+  React.useEffect(() => {
+    const loadStatsAndStreak = async () => {
+      try {
+        // Load stats from StatsManager
+        const statsData = await StatsManager.getStats();
+        setCurrentStats(statsData);
+        
+        // Load streak from StreakManager
+        const streakData = await StreakManager.getStreakData();
+        setCurrentStreak(streakData.streakDays);
+        
+        console.log('Profile screen - Stats loaded:', statsData);
+        console.log('Profile screen - Streak loaded:', streakData);
+      } catch (error) {
+        console.error('Error loading stats and streak:', error);
+        // Fallback to provided props
+        setCurrentStats(stats || {});
+        setCurrentStreak(0);
+      }
+    };
+    
+    loadStatsAndStreak();
+  }, [stats]);
 
   // Load avatar and profile image from storage on mount
   React.useEffect(() => {
@@ -220,50 +250,57 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   };
 
   // Calculate multi-zone progress with colors for all viewed zones
-  const calculateOverallProgress = (stats, favoritesCount) => {
-    const questionsRead = stats?.questionsRead || 0;
-    const timesShared = stats?.timesShared || 0;
+  const calculateOverallProgress = (statsData, favoritesCount, streakDays) => {
+    const questionsRead = statsData?.questionsRead || 0;
+    const timesShared = statsData?.timesShared || 0;
     const favorites = favoritesCount || 0;
+    const streak = streakDays || 0;
     
-    // Simple sum: each activity = 1 point toward progress
-    const totalActivities = questionsRead + timesShared + favorites;
+    // Calculate total activity score (weighted activities)
+    const totalActivities = questionsRead + timesShared + favorites + (streak * 2);
     
     // Zone-specific colors and progress tracking
     const zoneConfig = {
       'relationship-zone': { 
         color: '#FF6B9B', // Red/Pink
         label: 'Relationship',
-        maxActivities: 30 // Lower threshold for intimate zone
+        maxActivities: 25
       },
       'friendship-zone': { 
         color: '#4ECDC4', // Blue/Cyan  
         label: 'Friendship',
-        maxActivities: 40 // Medium threshold for social zone
+        maxActivities: 30
       },
       'family-zone': { 
         color: '#10B981', // Green
         label: 'Family',
-        maxActivities: 50 // Higher threshold for family zone
+        maxActivities: 35
       },
       'emotional-zone': { 
         color: '#8B5CF6', // Purple
         label: 'Emotional',
-        maxActivities: 45 // Medium-high threshold for emotional zone
+        maxActivities: 40
       },
       'fun-zone': { 
         color: '#F59E0B', // Amber/Yellow
         label: 'Fun',
-        maxActivities: 60 // Highest threshold for fun zone
+        maxActivities: 45
       }
     };
     
-    // Get all zones the user has interacted with (from stats or default to all zones)
-    const viewedZones = stats?.viewedZones || ['relationship-zone', 'friendship-zone', 'family-zone', 'emotional-zone', 'fun-zone'];
+    // Get all zones the user has actually interacted with
+    const viewedZones = statsData?.viewedZones || [];
+    
+    // If no zones viewed yet, show all zones with minimal progress
+    const zonesToDisplay = viewedZones.length > 0 ? viewedZones : Object.keys(zoneConfig);
     
     // Calculate progress for each viewed zone
-    const zoneProgress = viewedZones.map(zoneId => {
+    const zoneProgress = zonesToDisplay.map((zoneId, index) => {
       const config = zoneConfig[zoneId] || { color: theme.colors.primary, label: 'Overall', maxActivities: 100 };
-      const zoneActivities = Math.min(totalActivities, config.maxActivities);
+      
+      // Distribute activities across zones based on their max capacity
+      const zoneWeight = config.maxActivities / Object.values(zoneConfig).reduce((sum, z) => sum + z.maxActivities, 0);
+      const zoneActivities = Math.min(totalActivities * zoneWeight, config.maxActivities);
       const zonePercentage = Math.min((zoneActivities / config.maxActivities) * 100, 100);
       
       return {
@@ -271,20 +308,23 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         color: config.color,
         label: config.label,
         percentage: zonePercentage,
-        activities: zoneActivities
+        activities: zoneActivities,
+        isViewed: viewedZones.includes(zoneId)
       };
     });
     
-    // Calculate overall progress (average of all zone progresses)
-    const overallPercentage = zoneProgress.length > 0 
-      ? Math.round(zoneProgress.reduce((sum, zone) => sum + zone.percentage, 0) / zoneProgress.length)
+    // Calculate overall progress (weighted average based on max activities)
+    const totalMaxActivities = zoneProgress.reduce((sum, zone) => sum + (zoneConfig[zone.zoneId]?.maxActivities || 100), 0);
+    const overallPercentage = totalMaxActivities > 0 
+      ? Math.round((totalActivities / totalMaxActivities) * 100)
       : 0;
     
     return {
       zoneProgress,
-      overallPercentage,
+      overallPercentage: Math.min(overallPercentage, 100),
       totalActivities,
-      viewedZones
+      viewedZones,
+      zonesToDisplay
     };
   };
 
@@ -316,16 +356,54 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
   // Enhanced Firebase notification handlers
   const handleDailyReminderToggle = async (value) => {
+    console.log('🔄 Daily reminder toggle:', value);
     setDailyReminder(value);
     
-    if (value) {
-      const success = await enableDailyRemindersWithFirebase();
-      if (!success) {
-        setDailyReminder(false); // Revert on failure
+    try {
+      if (value) {
+        console.log('🔔 Enabling daily reminders with Firebase...');
+        
+        // First try to enable with Firebase (real push notifications)
+        const success = await enableDailyRemindersWithFirebase();
+        
+        if (success) {
+          console.log('✅ Daily reminders enabled with Firebase');
+          // No alert - just enable silently
+        } else {
+          console.log('⚠️ Firebase failed, trying local notifications...');
+          
+          // Fallback to local notifications
+          const localSuccess = await scheduleDailyReminder();
+          if (localSuccess) {
+            await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
+            console.log('✅ Daily reminders enabled with local notifications');
+            // No alert - just enable silently
+          } else {
+            console.log('❌ Both Firebase and local notifications failed');
+            setDailyReminder(false); // Revert on failure
+            // No alert - just revert silently
+          }
+        }
+      } else {
+        console.log('🔕 Disabling daily reminders...');
+        
+        // Unsubscribe from Firebase topic
+        await unsubscribeFromTopic('daily_reminders');
+        
+        // Cancel local notifications
+        const existingId = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+        if (existingId) {
+          await Notifications.cancelScheduledNotificationAsync(existingId);
+        }
+        
+        // Update preference
+        await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'false');
+        console.log('✅ Daily reminders disabled');
       }
-    } else {
-      await unsubscribeFromTopic('daily_reminders');
-      await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'false');
+    } catch (error) {
+      console.error('❌ Error in daily reminder toggle:', error);
+      setDailyReminder(false); // Revert on error
+      // No alert - just revert silently
     }
   };
 
@@ -361,8 +439,8 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const surfaceColor = isDark ? '#1E1E1E' : theme.colors.surface;
   
   // Get current zone from stats or default to null
-  const currentZone = stats?.currentZone || null;
-  const progressData = calculateOverallProgress(stats, favoritesCount, currentZone);
+  const currentZone = currentStats?.currentZone || null;
+  const progressData = calculateOverallProgress(currentStats, favoritesCount, currentStreak);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor }]}>
@@ -405,7 +483,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         }]}>
           <Text style={[styles.progressHeader, dynamicStyles.textPrimary]}>Zone Progress</Text>
           
-          {/* Modern gradient progress circle */}
+          {/* Modern gradient progress circle with dynamic arcs */}
           <View style={styles.progressCircleContainer}>
             <View style={styles.progressCircle}>
               {/* Background ring */}
@@ -416,11 +494,12 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 }
               ]} />
               
-              {/* Multi-colored circular segments */}
+              {/* Dynamic progress arcs based on actual percentages */}
               <View style={styles.circularSegmentsContainer}>
                 {progressData.zoneProgress.map((zone, index) => {
-                  const rotation = (index * 360) / progressData.zoneProgress.length;
-                  const segmentAngle = 360 / progressData.zoneProgress.length;
+                  const startAngle = index === 0 ? -90 : 
+                    progressData.zoneProgress.slice(0, index).reduce((sum, z) => sum + (z.percentage * 3.6), -90);
+                  const sweepAngle = zone.percentage * 3.6; // Convert percentage to degrees
                   
                   return (
                     <View
@@ -429,11 +508,14 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                         styles.circularSegment,
                         {
                           backgroundColor: zone.color,
+                          opacity: zone.isViewed ? 1 : 0.3, // Dim unviewed zones
                           transform: [
-                            { rotate: `${rotation}deg` }
+                            { rotate: `${startAngle}deg` },
+                            { scale: zone.percentage > 0 ? 1 : 0 }
                           ],
-                          borderTopLeftRadius: index === 0 ? 90 : 0,
-                          borderTopRightRadius: index === progressData.zoneProgress.length - 1 ? 90 : 0,
+                          width: sweepAngle > 0 ? '100%' : 0,
+                          borderTopLeftRadius: sweepAngle > 180 ? 90 : 0,
+                          borderTopRightRadius: sweepAngle > 180 ? 90 : 0,
                         }
                       ]}
                     />
@@ -465,15 +547,17 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               </View>
             </View>
             
-            {/* Zone indicators */}
+            {/* Zone indicators - only show viewed zones */}
             <View style={styles.zoneIndicatorsContainer}>
               {progressData.zoneProgress.map((zone, index) => (
-                <View key={zone.zoneId} style={styles.zoneIndicator}>
-                  <View style={[styles.zoneDot, { backgroundColor: zone.color }]} />
-                  <Text style={[styles.zoneName, dynamicStyles.textMuted]}>
-                    {zone.label}
-                  </Text>
-                </View>
+                zone.isViewed && (
+                  <View key={zone.zoneId} style={styles.zoneIndicator}>
+                    <View style={[styles.zoneDot, { backgroundColor: zone.color }]} />
+                    <Text style={[styles.zoneName, dynamicStyles.textMuted]}>
+                      {zone.label}
+                    </Text>
+                  </View>
+                )
               ))}
             </View>
           </View>
@@ -481,10 +565,10 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           {/* Stats summary */}
           <View style={styles.statsSummary}>
             <Text style={[styles.statsText, dynamicStyles.textPrimary]}>
-              {progressData.totalActivities} Activities
+              {progressData.totalActivities} Total Points
             </Text>
             <Text style={[styles.statsSubtext, dynamicStyles.textMuted]}>
-              {progressData.zoneProgress.length} Zones Explored
+              {progressData.zoneProgress.filter(z => z.isViewed).length} Zones Explored
             </Text>
           </View>
         </View>
@@ -502,14 +586,14 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             isDark={isDark}
             icon={<Ionicons name="share-social-outline" size={20} color={theme.colors.primaryText} />} 
             label="Shared" 
-            value={stats?.timesShared ?? 0} 
+            value={currentStats?.timesShared ?? 0} 
           />
           <StatTile 
             theme={theme} 
             isDark={isDark}
             icon={<Ionicons name="flame-outline" size={20} color={theme.colors.primaryText} />} 
             label="Streak" 
-            value={stats?.streakDays ?? 1} 
+            value={currentStreak ?? 0} 
           />
         </View>
 
@@ -680,7 +764,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Edit Profile</Text>
-              <TouchableOpacity onPress={handleProfileUpdate} style={styles.modalSaveButton}>
+              <TouchableOpacity onPress={handleProfileUpdate} style={[styles.modalSaveButton, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.modalSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -1113,6 +1197,7 @@ const styles = StyleSheet.create({
   // Modal styles
   modalContainer: {
     flex: 1,
+    paddingTop:50
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1261,11 +1346,13 @@ const styles = StyleSheet.create({
   },
   modalSaveButton: {
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E6D6FF',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  genmodalSaveText: {
+  modalSaveText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',

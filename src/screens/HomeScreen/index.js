@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { zones, allSubcategories } from '../../data/decks';
+import { zones, allSubcategories, createSubmittedAnswersZone } from '../../data/decks';
 import { getDateKey } from '../../utils/helpers';
 import { CategoryCard } from '../../components/CategoryCard';
 import { getMoodRecommendations, getRecommendedZones, isZoneRecommended } from '../../utils/moodRecommendations';
@@ -28,7 +28,8 @@ const getZoneIcon = (zoneId) => {
     'friendship-zone': 'people',
     'family-zone': 'home',
     'emotional-zone': 'water',
-    'fun-zone': 'game-controller'
+    'fun-zone': 'game-controller',
+    'submitted-answers-zone': 'checkmark-circle'
   };
   return iconMap[zoneId] || 'albums-outline';
 };
@@ -343,6 +344,55 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [query, setQuery] = React.useState('');
   const [streakDays, setStreakDays] = React.useState(0);
   const [currentProfile, setCurrentProfile] = React.useState(profile);
+  const [submittedAnswersZone, setSubmittedAnswersZone] = React.useState(null);
+  const [allZones, setAllZones] = React.useState(zones);
+
+  // Load submitted answers zone and streak data
+  React.useEffect(() => {
+    const loadSubmittedAnswersZone = async () => {
+      try {
+        const zone = await createSubmittedAnswersZone();
+        setSubmittedAnswersZone(zone);
+        
+        // Update all zones to include submitted answers zone
+        if (zone) {
+          setAllZones([...zones, zone]);
+        } else {
+          setAllZones(zones);
+        }
+      } catch (error) {
+        console.error('Error loading submitted answers zone:', error);
+        setAllZones(zones);
+      }
+    };
+    
+    loadSubmittedAnswersZone();
+    loadStreakData(); // Load streak data immediately
+  }, []);
+
+  // Refresh submitted answers zone and streak data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadSubmittedAnswersZone = async () => {
+        try {
+          const zone = await createSubmittedAnswersZone();
+          setSubmittedAnswersZone(zone);
+          
+          // Update all zones to include submitted answers zone
+          if (zone) {
+            setAllZones([...zones, zone]);
+          } else {
+            setAllZones(zones);
+          }
+        } catch (error) {
+          console.error('Error refreshing submitted answers zone:', error);
+          setAllZones(zones);
+        }
+      };
+      
+      loadSubmittedAnswersZone();
+    }, [])
+  );
 
   // Load profile data directly from AsyncStorage for latest data
   React.useEffect(() => {
@@ -456,7 +506,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                 Hi {currentProfile?.name || 'Friend'}
               </Text>
               <Text style={[styles.userStatus, dynamicStyles.textMuted]}>
-                🔥 {streakDays} day streak
+                🔥 {streakDays} {streakDays === 1 ? 'day' : 'day'} streak
               </Text>
             </View>
             <TouchableOpacity style={[styles.settingsButton, dynamicStyles.bgSurface]} onPress={onNavigateToNotifications}>
@@ -527,7 +577,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
           {(function() {
             const q = query.trim().toLowerCase();
-            const displayed = zones.map((zone) => {
+            const displayed = allZones.map((zone) => {
               const filteredSubcategories = q
                 ? zone.subcategories.filter((c) =>
                     (c.name || '').toLowerCase().includes(q) || (zone.name || '').toLowerCase().includes(q)
@@ -598,13 +648,17 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                 {expanded && (
                   <View style={styles.subcategoriesContainer}>
                     {zone.subcategories.map((subcategory) => (
-                      <CategoryCard
-                        key={subcategory.id}
-                        category={subcategory}
-                        onPress={() => onSelectCategory(subcategory)}
-                        theme={theme}
-                        isDark={isDark}
-                      />
+                      <View key={subcategory.id}>
+                        <CategoryCard
+                          category={subcategory}
+                          onPress={() => {
+                            // Handle submitted answers the same way as regular categories
+                            onSelectCategory(subcategory);
+                          }}  
+                          theme={theme}
+                          isDark={isDark}
+                        />
+                      </View>
                     ))}
                   </View>
                 )}

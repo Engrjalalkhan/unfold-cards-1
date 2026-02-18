@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 import { getDateKey } from '../../utils/helpers';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -67,13 +68,15 @@ const ProgressScreen = ({ onBack }) => {
     try {
       setLoading(true);
       
-      const today = new Date();
-      
-      // Load share streak data from StreakManager
+      // Load current streak data from StreakManager
       const streakInfo = await StreakManager.getStreakData();
       console.log('Current streak info:', streakInfo);
       
-      // Load actual submission data from AsyncStorage
+      // Load stats data from StatsManager for accurate metrics
+      const statsData = await StatsManager.getStats();
+      console.log('Stats data:', statsData);
+      
+      // Load actual submission data from AsyncStorage for historical analysis
       const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
       const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
       console.log('Total submissions found:', submissions.length);
@@ -96,20 +99,21 @@ const ProgressScreen = ({ onBack }) => {
         currentStreak: streakInfo.streakDays,
         longestStreak: longestStreak,
         totalDays: submissions.length,
+        totalSubmissions: statsData.timesShared || 0, // Use StatsManager for accurate share count
+        questionsRead: statsData.questionsRead || 0, // Use StatsManager for accurate read count
+        favoritesCount: statsData.favoritesCount || 0, // Use StatsManager for accurate favorites count
         dailyData,
         weeklyData,
         monthlyData,
         yearlyData
       });
       
+      setLoading(false);
     } catch (error) {
       console.error('Error loading progress data:', error);
-    } finally {
       setLoading(false);
     }
   };
-
- 
 
   const processDailyStreakData = (submissions) => {
     console.log('Processing daily data with submissions:', submissions.length);

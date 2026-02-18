@@ -13,6 +13,24 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   const scrollViewRef = useRef(null);
   const scrollPositionRef = useRef(0); // Track scroll position to prevent loops
   
+  // Check if this is a submitted answers category
+  const isSubmittedAnswers = category.id && category.id.includes('submitted-');
+  
+  // Get questions array - either regular questions or submitted answers
+  const questions = isSubmittedAnswers && category.submittedAnswers 
+    ? category.submittedAnswers.map(answer => ({
+        question: answer.question,
+        answer: answer.answer,
+        id: answer.id,
+        metadata: {
+          category: answer.category,
+          zone: answer.zone,
+          subcategory: answer.subcategory,
+          timestamp: answer.timestamp
+        }
+      }))
+    : category.questions || [];
+  
   // Handle scroll end to update current index
   const handleScrollEnd = (event) => {
     const contentOffset = event.nativeEvent.contentOffset;
@@ -121,9 +139,12 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
     const currentScrollPosition = currentIndex;
     scrollPositionRef.current = currentScrollPosition;
     
-    // Call parent function
+    // For submitted answers, extract the question text from the answer object
+    const questionText = isSubmittedAnswers && typeof question === 'object' ? question.question : question;
+    
+    // Call parent function with the correct question text
     if (onToggleFavorite) {
-      onToggleFavorite(category, question);
+      onToggleFavorite(category, questionText);
     }
     
     // Immediate restoration attempt
@@ -171,7 +192,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
     );
   }
 
-  if (!Array.isArray(category.questions) || category.questions.length === 0) {
+  if (!Array.isArray(questions) || questions.length === 0) {
     return (
       <SafeAreaView style={[styles.screen, { backgroundColor: theme.colors.background }]}>
         <Header title={category.name || 'Questions'} onBack={onBack} />
@@ -184,11 +205,12 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
 
   const renderQuestionItem = ({ item, index }) => {
     const questionId = `${category.id}-${index}`;
-    const isFav = isFavorite(category.id, item);
+    const questionText = isSubmittedAnswers && typeof item === 'object' ? item.question : item;
+    const isFav = isFavorite(category.id, questionText);
     
     return (
       <View style={[styles.slide, { width }]}>
-        <View style={styles.cardContainer}>
+        <View style={[styles.cardContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
           <LinearGradient
             colors={[categoryColor + '15', categoryColor + '05']}
             style={styles.cardGradient}
@@ -197,17 +219,39 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
           />
           
           <View style={styles.cardContent}>
-            <Text style={styles.questionText}>{item}</Text>
+            <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{isSubmittedAnswers ? item.question : item}</Text>
+            
+            {/* Show answer for submitted answers */}
+            {isSubmittedAnswers && item.answer && (
+              <View style={[styles.answerContainer, { backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)' }]}>
+                <Text style={[styles.answerLabel, { color: isDark ? '#A78BFA' : '#8B5CF6' }]}>Your Answer:</Text>
+                <Text style={[styles.answerText, { color: isDark ? '#E5E7EB' : '#2F2752' }]}>{item.answer}</Text>
+              </View>
+            )}
+            
+            {/* Show metadata for submitted answers */}
+            {isSubmittedAnswers && item.metadata && (
+              <View style={[styles.metadataContainer, { borderTopColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.2)' }]}>
+                <Text style={[styles.metadataText, { color: isDark ? '#9CA3AF' : '#7D6BA6' }]}>
+                  {item.metadata.category} • {item.metadata.timestamp ? 
+                    new Date(item.metadata.timestamp).toLocaleDateString() : 
+                    'Unknown date'
+                  }
+                </Text>
+              </View>
+            )}
             
             <View style={styles.questionNumber}>
-              <Text style={styles.numberText}>Question {index + 1} of {category.questions.length}</Text>
+              <Text style={styles.numberText}>
+                {isSubmittedAnswers ? 'Answer' : 'Question'} {index + 1} of {questions.length}
+              </Text>
             </View>
             
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
               {/* Favorite Button */}
               <TouchableOpacity 
-                onPress={() => handleToggleFavorite(category, item)}
+                onPress={() => handleToggleFavorite(category, questionText)}
                 style={styles.favoriteButton}
               >
                 <Ionicons 
@@ -219,7 +263,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
               
               {/* Share Button */}
               <TouchableOpacity 
-                onPress={() => handleShareQuestion(item, category.name)}
+                onPress={() => handleShareQuestion(questionText, category.name)}
                 style={styles.shareButton}
               >
                 <Ionicons 
@@ -261,67 +305,12 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
         snapToAlignment="center"
         onMomentumScrollEnd={handleScrollEnd}
         contentContainerStyle={{
-          width: width * category.questions.length,
+          width: width * questions.length,
         }}
       >
-        {category.questions.map((question, index) => {
-          const questionId = `${category.id}-${index}`;
-          // Check if this question is favorited by looking in the favorites array
-          const isFav = favorites && favorites.some(fav => 
-            fav.categoryId === category.id && fav.question === question
-          );
-          
-          return (
-            <View key={questionId} style={[styles.slide, { width }]}>
-              <View style={[styles.cardContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
-                <LinearGradient
-                  colors={isDark ? [categoryColor + '25', categoryColor + '10'] : [categoryColor + '15', categoryColor + '05']}
-                  style={styles.cardGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                />
-                
-                <View style={styles.cardContent}>
-                  <Text style={[styles.questionText, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{question}</Text>
-                  
-                  <View style={styles.questionNumber}>
-                    <Text style={[styles.numberText, { color: isDark ? '#A0A0A0' : '#8A4FFF' }]}>Question {index + 1} of {category.questions.length}</Text>
-                  </View>
-                  
-                  {/* Action Buttons */}
-                  <View style={styles.actionButtons}>
-                    {/* Favorite Button */}
-                    <TouchableOpacity 
-                      onPress={() => handleToggleFavorite(category, question)}
-                      style={[
-                        styles.favoriteButton,
-                        isFav && styles.favoriteButtonActive,
-                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }
-                      ]}
-                    >
-                      <Ionicons 
-                        name={isFav ? 'heart' : 'heart-outline'} 
-                        size={24} 
-                        color={isFav ? '#FF1493' : categoryColor} 
-                      />
-                    </TouchableOpacity>
-                    
-                    {/* Share Button */}
-                    <TouchableOpacity 
-                      onPress={() => handleShareQuestion(question, category.name)}
-                      style={[styles.shareButton, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)' }]}
-                    >
-                      <Ionicons 
-                        name="share-outline" 
-                        size={24} 
-                        color={categoryColor} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
-          );
+        {questions.map((question, index) => {
+          const item = isSubmittedAnswers ? question : question;
+          return renderQuestionItem({ item, index });
         })}
       </ScrollView>
       
@@ -566,5 +555,36 @@ const styles = StyleSheet.create({
     color: '#8343b1ff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Styles for submitted answers
+  answerContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#8B5CF6',
+  },
+  answerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    marginBottom: 4,
+  },
+  answerText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#2F2752',
+  },
+  metadataContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  metadataText: {
+    fontSize: 12,
+    color: '#7D6BA6',
+    fontStyle: 'italic',
   },
 });

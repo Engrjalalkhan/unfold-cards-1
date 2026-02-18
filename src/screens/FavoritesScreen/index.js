@@ -9,7 +9,11 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
   
   const handleShareQuestion = async (question, category) => {
     try {
-      const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
+      // Handle both string and object question formats
+      const questionText = typeof question === 'string' ? question : 
+        (question && question.question) ? question.question : 'Unknown question';
+      
+      const shareContent = `Question from ${category}:\n\n${questionText}\n\n- Unfold Cards App`;
       
       await Share.share({
         message: shareContent,
@@ -17,17 +21,39 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
         url: 'https://unfold-cards.app'
       });
       
-      console.log('Shared favorite question:', question);
+      console.log('Shared favorite question:', questionText);
       
       // Also call the original onShareQuestion if provided
       if (onShareQuestion) {
-        onShareQuestion(`${category}: ${question}`);
+        onShareQuestion(`${category}: ${questionText}`);
       }
     } catch (error) {
       console.error('Error sharing favorite question:', error);
     }
   };
-  // Helper function to get zone name from category ID or category name
+  // Helper function to extract question text and answer from different data formats
+  const extractQuestionData = (item) => {
+    if (typeof item.question === 'string') {
+      return {
+        questionText: item.question,
+        answerText: null,
+        isSubmittedAnswer: false
+      };
+    } else if (typeof item.question === 'object' && item.question !== null) {
+      return {
+        questionText: item.question.question || 'Unknown question',
+        answerText: item.question.answer || null,
+        isSubmittedAnswer: true,
+        metadata: item.question.metadata || null
+      };
+    } else {
+      return {
+        questionText: 'Unknown question',
+        answerText: null,
+        isSubmittedAnswer: false
+      };
+    }
+  };
   const getZoneName = (categoryId, categoryName) => {
     // First try to extract from category name
     if (categoryName) {
@@ -101,7 +127,30 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
               
               {/* Question Content */}
               <View style={styles.questionContent}>
-                <Text style={[styles.questionText, { color: theme.colors.text }]}>{item.question}</Text>
+                <Text style={[styles.questionText, { color: theme.colors.text }]}>
+                  {extractQuestionData(item).questionText}
+                </Text>
+                
+                {/* Show answer for submitted answers */}
+                {extractQuestionData(item).isSubmittedAnswer && extractQuestionData(item).answerText && (
+                  <View style={styles.answerContainer}>
+                    <Text style={styles.answerLabel}>Your Answer:</Text>
+                    <Text style={styles.answerText}>{extractQuestionData(item).answerText}</Text>
+                  </View>
+                )}
+                
+                {/* Show metadata for submitted answers */}
+                {extractQuestionData(item).isSubmittedAnswer && extractQuestionData(item).metadata && (
+                  <View style={styles.metadataContainer}>
+                    <Text style={styles.metadataText}>
+                      {extractQuestionData(item).metadata.category} • 
+                      {extractQuestionData(item).metadata.timestamp ? 
+                        new Date(extractQuestionData(item).metadata.timestamp).toLocaleDateString() : 
+                        'Unknown date'
+                      }
+                    </Text>
+                  </View>
+                )}
               </View>
               
               {/* Action Buttons */}
@@ -132,7 +181,7 @@ export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuesti
                     backgroundColor: isDark ? '#000000' : theme.colors.surfaceTint,
                     borderColor: isDark ? '#000000' : theme.colors.border 
                   }]} 
-                  onPress={() => handleShareQuestion(item.question, item.zone)}
+                  onPress={() => handleShareQuestion(extractQuestionData(item).questionText, item.categoryName || item.zone)}
                 >
                   <Ionicons name="share-outline" size={16} color={theme.colors.text} />
                   <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
@@ -238,6 +287,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '500',
+  },
+  
+  // Answer and Metadata Styles for Submitted Answers
+  answerContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#8B5CF6',
+  },
+  answerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    marginBottom: 4,
+  },
+  answerText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#2F2752',
+  },
+  metadataContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  metadataText: {
+    fontSize: 12,
+    color: '#7D6BA6',
+    fontStyle: 'italic',
   },
   
   // Action Buttons Styles
