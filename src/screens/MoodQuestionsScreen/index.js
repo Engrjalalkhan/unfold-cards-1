@@ -180,13 +180,99 @@ const MoodQuestionsScreen = ({ route }) => {
   const moodLabel = selectedMood.label.toLowerCase();
 
   // Mood-specific questions
-  const questions = [
-    `How does being ${moodLabel} affect your day?`,
-    `What helps you when you feel ${moodLabel}?`,
-    `Who do you talk to when you feel ${moodLabel}?`,
-    `What's one thing you'd like to do when you feel ${moodLabel}?`,
-    `How do you want others to support you when you're ${moodLabel}?`
-  ];
+  const getQuestionsForMood = (moodId) => {
+    if (moodId === 'excited') {
+      return [
+        "What's making you feel this excited right now?",
+        "How can you use this energy to make today unforgettable?",
+        "Who deserves to share this moment with you?",
+        "What's one bold thing you'd try while feeling this excited?",
+        "How can you keep this excitement alive longer?"
+      ];
+    }
+    
+    if (moodId === 'happy') {
+      return [
+        "What happened today that made you smile the most?",
+        "Who contributed to your happiness today?",
+        "How can you create more moments like this?",
+        "What's one small thing you're grateful for right now?",
+        "How does happiness change the way you see your day?"
+      ];
+    }
+    
+    if (moodId === 'calm') {
+      return [
+        "What helped you feel calm today?",
+        "What usually disturbs your peace?",
+        "How can you protect this calm feeling?",
+        "What does your ideal peaceful day look like?",
+        "When was the last time you felt this centered?"
+      ];
+    }
+    
+    if (moodId === 'neutral') {
+      return [
+        "Is there something you're avoiding thinking about?",
+        "What could make this day slightly better?",
+        "Are you feeling balanced or just disconnected?",
+        "What small action could shift your mood positively?",
+        "Do you prefer staying neutral or feeling something stronger?"
+      ];
+    }
+    
+    if (moodId === 'sad') {
+      return [
+        "What's weighing on your heart right now?",
+        "Do you want comfort or solutions at this moment?",
+        "What usually helps you feel a little better?",
+        "Who understands your sadness the most?",
+        "What would you say to yourself if you were your best friend?"
+      ];
+    }
+    
+    if (moodId === 'angry') {
+      return [
+        "What triggered this anger?",
+        "Is your anger protecting you or hurting you?",
+        "What would calm you down right now?",
+        "Is there something you need to say but haven't?",
+        "After this passes, what lesson might remain?"
+      ];
+    }
+    
+    if (moodId === 'tired') {
+      return [
+        "Is your tiredness physical, mental, or emotional?",
+        "What drained your energy today?",
+        "What would truly recharge you right now?",
+        "Are you resting enough or just surviving?",
+        "What can you postpone to protect your energy?"
+      ];
+    }
+    
+    if (moodId === 'overwhelmed') {
+      return [
+        "What feels like 'too much' right now?",
+        "If you could remove one pressure, what would it be?",
+        "Are you trying to control everything at once?",
+        "Who can help lighten your load?",
+        "What's one small step you can take to regain control?"
+      ];
+    }
+    
+    // Default questions for other moods (fallback)
+    const moodLabel = moodId || 'neutral';
+    return [
+      `How does being ${moodLabel} affect your day?`,
+      `What helps you when you feel ${moodLabel}?`,
+      `Who do you talk to when you feel ${moodLabel}?`,
+      `What's one thing you'd like to do when you feel ${moodLabel}?`,
+      `How do you want others to support you when you're ${moodLabel}?`
+    ];
+  };
+
+  const questions = getQuestionsForMood(mood);
 
   const renderQuestion = ({ item }) => {
     const isExpanded = expandedQuestion === item;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Switch, Alert, Platform, Modal, Dimensions, ActionSheetIOS, Image } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Switch, Alert, Platform, Modal, Dimensions, ActionSheetIOS, Image, KeyboardAvoidingView, KeyboardAvoidingViewBehavior } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,6 +8,7 @@ import { Header } from '../../navigation/Header';
 import { ProgressRing } from '../../components/ProgressRing';
 import { StatTile } from '../../components/StatTile';
 import { SettingsList } from '../../components/SettingsList';
+import { GlobalSuccessAlert, showGlobalSuccessAlert } from '../../components/GlobalSuccessAlert';
 import { useTheme } from '../../contexts/ThemeContext';
 import { StreakManager } from '../../utils/streakManager';
 import { StatsManager } from '../../utils/statsManager';
@@ -78,6 +79,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const [selectedAvatar, setSelectedAvatar] = React.useState('👤');
   const [profileImage, setProfileImage] = React.useState(null);
   const [showEditProfileModal, setShowEditProfileModal] = React.useState(false);
+  const [showCustomAlert, setShowCustomAlert] = React.useState(false);
   const [editProfile, setEditProfile] = React.useState({
     name: '',
     gender: '',
@@ -171,7 +173,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     }
     saveProfileData(editProfile);
     setShowEditProfileModal(false);
-    Alert.alert('Success', 'Profile updated successfully!');
+    showGlobalSuccessAlert('Profile updated successfully!');
   };
   const saveAvatar = async (avatar) => {
     try {
@@ -219,33 +221,13 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
   // Show options when user icon is clicked
   const handleProfileIconPress = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Select Avatar', 'Select from Gallery'],
-          cancelButtonIndex: 0,
-          userInterfaceStyle: isDark ? 'dark' : 'light',
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            setShowAvatarModal(true);
-          } else if (buttonIndex === 2) {
-            pickImage();
-          }
-        }
-      );
-    } else {
-      // For Android, show a simple alert with options
-      Alert.alert(
-        'Profile Picture',
-        'Choose an option for your profile picture',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Select Avatar', onPress: () => setShowAvatarModal(true) },
-          { text: 'Select from Gallery', onPress: () => pickImage() },
-        ],
-        { cancelable: true }
-      );
+    setShowCustomAlert(true);
+  };
+
+  const handleCustomAlertOption = (option) => {
+    setShowCustomAlert(false);
+    if (option === 'gallery') {
+      pickImage();
     }
   };
 
@@ -361,27 +343,27 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     
     try {
       if (value) {
-        console.log('🔔 Enabling daily reminders with Firebase...');
+        console.log('🔔 Enabling daily reminders...');
         
         // First try to enable with Firebase (real push notifications)
         const success = await enableDailyRemindersWithFirebase();
         
         if (success) {
           console.log('✅ Daily reminders enabled with Firebase');
-          // No alert - just enable silently
+          // Firebase already sends immediate notification in enableDailyRemindersWithFirebase
         } else {
-          console.log('⚠️ Firebase failed, trying local notifications...');
+          console.log('⚠️ Firebase failed, using local notifications only...');
           
           // Fallback to local notifications
           const localSuccess = await scheduleDailyReminder();
           if (localSuccess) {
+            // Send immediate test notification so user sees it works
+            await sendImmediateDailyNotification();
             await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
             console.log('✅ Daily reminders enabled with local notifications');
-            // No alert - just enable silently
           } else {
-            console.log('❌ Both Firebase and local notifications failed');
+            console.log('❌ Local notifications failed');
             setDailyReminder(false); // Revert on failure
-            // No alert - just revert silently
           }
         }
       } else {
@@ -403,7 +385,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     } catch (error) {
       console.error('❌ Error in daily reminder toggle:', error);
       setDailyReminder(false); // Revert on error
-      // No alert - just revert silently
     }
   };
 
@@ -446,8 +427,9 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     <SafeAreaView style={[styles.screen, { backgroundColor }]}>
       <Header title="Profile" onBack={onBack} />
       <ScrollView 
-        style={{ backgroundColor }}
-        contentContainerStyle={[styles.scrollContainer, { backgroundColor }]}
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         <View style={[styles.profileCard, { 
           backgroundColor: surfaceColor,
@@ -759,148 +741,208 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           onRequestClose={() => setShowEditProfileModal(false)}
         >
           <SafeAreaView style={[styles.modalContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
-              <TouchableOpacity onPress={() => setShowEditProfileModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Edit Profile</Text>
-              <TouchableOpacity onPress={handleProfileUpdate} style={[styles.modalSaveButton, { backgroundColor: theme.colors.primary }]}>
-                <Text style={styles.modalSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.profileScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.profileForm}>
-                {/* Profile Picture Section */}
-                <View style={styles.profilePictureSection}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.profilePictureButton,
-                      { 
-                        backgroundColor: isDark ? '#1E1E1E' : '#F8F8F8',
-                        borderColor: isDark ? '#333' : '#E6D6FF'
-                      }
-                    ]}
-                    onPress={handleProfileIconPress}
-                    activeOpacity={0.7}
-                  >
-                    {profileImage ? (
-                      <Image source={{ uri: profileImage }} style={styles.modalProfileImage} />
-                    ) : (
-                      <Text style={styles.modalEmojiIcon}>{selectedAvatar}</Text>
-                    )}
-                    <View style={styles.modalEditIconOverlay}>
-                      <Ionicons name="camera" size={16} color="#FFFFFF" />
+            <KeyboardAvoidingView 
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+              <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
+                <TouchableOpacity onPress={() => setShowEditProfileModal(false)} style={styles.modalCloseButton}>
+                  <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
+                </TouchableOpacity>
+                <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Edit Profile</Text>
+                <TouchableOpacity onPress={handleProfileUpdate} style={[styles.modalSaveButton, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={styles.modalSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView 
+                style={styles.profileScroll} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.profileScrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.profileForm}>
+                  {/* Profile Picture Section */}
+                  <View style={styles.profilePictureSection}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.profilePictureButton,
+                        { 
+                          backgroundColor: isDark ? '#1E1E1E' : '#F8F8F8',
+                          borderColor: isDark ? '#333' : '#E6D6FF'
+                        }
+                      ]}
+                      onPress={handleProfileIconPress}
+                      activeOpacity={0.7}
+                    >
+                      {profileImage ? (
+                        <Image source={{ uri: profileImage }} style={styles.modalProfileImage} />
+                      ) : (
+                        <Text style={styles.modalEmojiIcon}>{selectedAvatar}</Text>
+                      )}
+                      <View style={styles.modalEditIconOverlay}>
+                        <Ionicons name="camera" size={16} color="#FFFFFF" />
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={[styles.profilePictureText, dynamicStyles.textMuted]}>Tap to change profile picture</Text>
+                  </View>
+
+                  {/* Name Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Name *</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        dynamicStyles.bgSurface,
+                        dynamicStyles.borderColor,
+                        dynamicStyles.textPrimary
+                      ]}
+                      value={editProfile.name}
+                      onChangeText={(text) => setEditProfile(prev => ({ ...prev, name: text }))}
+                      placeholder="Enter your name"
+                      placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                      maxLength={50}
+                    />
+                  </View>
+
+                  {/* Gender Selection */}
+                  <View style={styles.inputSection}>
+                    <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Gender</Text>
+                    <View style={styles.genderOptions}>
+                      {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
+                        <TouchableOpacity
+                          key={gender}
+                          style={[
+                            styles.genderOption,
+                            { 
+                              backgroundColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#1E1E1E' : '#F8F8F8'),
+                              borderColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#333' : '#E6D6FF')
+                            }
+                          ]}
+                          onPress={() => setEditProfile(prev => ({ ...prev, gender }))}
+                        >
+                          <Text style={[
+                            styles.genderText,
+                            { color: editProfile.gender === gender ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#666') }
+                          ]}>{gender}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-                  </TouchableOpacity>
-                  <Text style={[styles.profilePictureText, dynamicStyles.textMuted]}>Tap to change profile picture</Text>
-                </View>
+                  </View>
 
-                {/* Name Input */}
-                <View style={styles.inputSection}>
-                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Name *</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      dynamicStyles.bgSurface,
-                      dynamicStyles.borderColor,
-                      dynamicStyles.textPrimary
-                    ]}
-                    value={editProfile.name}
-                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, name: text }))}
-                    placeholder="Enter your name"
-                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
-                    maxLength={50}
-                  />
-                </View>
+                  {/* Age Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Age</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        dynamicStyles.bgSurface,
+                        dynamicStyles.borderColor,
+                        dynamicStyles.textPrimary
+                      ]}
+                      value={editProfile.age}
+                      onChangeText={(text) => setEditProfile(prev => ({ ...prev, age: text }))}
+                      placeholder="Enter your age"
+                      placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                      keyboardType="numeric"
+                      maxLength={3}
+                    />
+                  </View>
 
-                {/* Gender Selection */}
-                <View style={styles.inputSection}>
-                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Gender</Text>
-                  <View style={styles.genderOptions}>
-                    {['Male', 'Female', 'Other', 'Prefer not to say'].map((gender) => (
-                      <TouchableOpacity
-                        key={gender}
-                        style={[
-                          styles.genderOption,
-                          { 
-                            backgroundColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#1E1E1E' : '#F8F8F8'),
-                            borderColor: editProfile.gender === gender ? theme.colors.primary : (isDark ? '#333' : '#E6D6FF')
-                          }
-                        ]}
-                        onPress={() => setEditProfile(prev => ({ ...prev, gender }))}
-                      >
-                        <Text style={[
-                          styles.genderText,
-                          { color: editProfile.gender === gender ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#666') }
-                        ]}>{gender}</Text>
-                      </TouchableOpacity>
-                    ))}
+                  {/* Location Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Location</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        dynamicStyles.bgSurface,
+                        dynamicStyles.borderColor,
+                        dynamicStyles.textPrimary
+                      ]}
+                      value={editProfile.location}
+                      onChangeText={(text) => setEditProfile(prev => ({ ...prev, location: text }))}
+                      placeholder="Enter your location"
+                      placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                      maxLength={100}
+                    />
+                  </View>
+
+                  {/* Bio Input */}
+                  <View style={styles.inputSection}>
+                    <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Bio</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        styles.bioInput,
+                        dynamicStyles.bgSurface,
+                        dynamicStyles.borderColor,
+                        dynamicStyles.textPrimary
+                      ]}
+                      value={editProfile.bio}
+                      onChangeText={(text) => setEditProfile(prev => ({ ...prev, bio: text }))}
+                      placeholder="Tell us about yourself..."
+                      placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
+                      multiline
+                      numberOfLines={4}
+                      maxLength={200}
+                      textAlignVertical="top"
+                    />
                   </View>
                 </View>
-
-                {/* Age Input */}
-                <View style={styles.inputSection}>
-                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Age</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      dynamicStyles.bgSurface,
-                      dynamicStyles.borderColor,
-                      dynamicStyles.textPrimary
-                    ]}
-                    value={editProfile.age}
-                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, age: text }))}
-                    placeholder="Enter your age"
-                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
-                    keyboardType="numeric"
-                    maxLength={3}
-                  />
-                </View>
-
-                {/* Location Input */}
-                <View style={styles.inputSection}>
-                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Location</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      dynamicStyles.bgSurface,
-                      dynamicStyles.borderColor,
-                      dynamicStyles.textPrimary
-                    ]}
-                    value={editProfile.location}
-                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, location: text }))}
-                    placeholder="Enter your location"
-                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
-                    maxLength={100}
-                  />
-                </View>
-
-                {/* Bio Input */}
-                <View style={styles.inputSection}>
-                  <Text style={[styles.inputLabel, dynamicStyles.textPrimary]}>Bio</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      styles.bioInput,
-                      dynamicStyles.bgSurface,
-                      dynamicStyles.borderColor,
-                      dynamicStyles.textPrimary
-                    ]}
-                    value={editProfile.bio}
-                    onChangeText={(text) => setEditProfile(prev => ({ ...prev, bio: text }))}
-                    placeholder="Tell us about yourself..."
-                    placeholderTextColor={isDark ? '#A0A0A0' : '#999'}
-                    multiline
-                    numberOfLines={4}
-                    maxLength={200}
-                    textAlignVertical="top"
-                  />
-                </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </SafeAreaView>
         </Modal>
+
+        {/* Custom Profile Picture Alert */}
+        <Modal
+          visible={showCustomAlert}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowCustomAlert(false)}
+        >
+          <View style={styles.customAlertOverlay}>
+            <View style={[styles.customAlertContainer, { 
+              backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+              borderColor: isDark ? '#333' : '#E6D6FF'
+            }]}>
+              <Text style={[styles.customAlertTitle, dynamicStyles.textPrimary]}>
+                Profile Picture
+              </Text>
+              <Text style={[styles.customAlertMessage, dynamicStyles.textMuted]}>
+                Choose an option for your profile picture
+              </Text>
+              
+              <View style={styles.customAlertButtons}>
+                <TouchableOpacity
+                  style={[styles.customAlertButton, styles.cancelButton, { 
+                    backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                    borderColor: isDark ? '#444' : '#DDD'
+                  }]}
+                  onPress={() => setShowCustomAlert(false)}
+                >
+                  <Text style={[styles.cancelButtonText, { color: isDark ? '#A0A0A0' : '#666' }]}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.customAlertButton, styles.galleryButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => handleCustomAlertOption('gallery')}
+                >
+                  <Ionicons name="images-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                  <Text style={styles.galleryButtonText}>
+                    Select from Gallery
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Global Success Alert - Outside ScrollView for perfect centering */}
+        <GlobalSuccessAlert />
       </ScrollView>
     </SafeAreaView>
   );
@@ -1252,6 +1294,9 @@ const styles = StyleSheet.create({
   profileScroll: {
     flex: 1,
   },
+  profileScrollContent: {
+    paddingBottom: 30,
+  },
   profileForm: {
     padding: 16,
   },
@@ -1353,6 +1398,102 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalSaveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Custom Alert styles
+  customAlertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  absoluteOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    zIndex: 9999, // Ensure it's on top of everything
+  },
+  customAlertContainer: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  customAlertTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  customAlertMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  customAlertButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  customAlertButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 44,
+  },
+  cancelButton: {
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  galleryButton: {
+    borderWidth: 0,
+  },
+  galleryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  buttonIcon: {
+    marginRight: 6,
+  },
+  // Success Alert specific styles
+  successIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successButton: {
+    borderWidth: 0,
+  },
+  successButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',

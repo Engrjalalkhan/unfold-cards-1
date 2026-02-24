@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -346,6 +346,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [currentProfile, setCurrentProfile] = React.useState(profile);
   const [submittedAnswersZone, setSubmittedAnswersZone] = React.useState(null);
   const [allZones, setAllZones] = React.useState(zones);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   // Load submitted answers zone and streak data
   React.useEffect(() => {
@@ -451,6 +452,50 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     }
   };
 
+  // Refresh function for pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('🔄 Refreshing Home screen data...');
+      
+      // Reload all data
+      await loadStreakData();
+      
+      // Reload submitted answers zone
+      const zone = await createSubmittedAnswersZone();
+      setSubmittedAnswersZone(zone);
+      
+      // Update all zones to include submitted answers zone
+      if (zone) {
+        setAllZones([...zones, zone]);
+      } else {
+        setAllZones(zones);
+      }
+      
+      // Reload profile data
+      try {
+        const savedProfileData = await AsyncStorage.getItem('USER_PROFILE_DATA');
+        if (savedProfileData) {
+          const profileData = JSON.parse(savedProfileData);
+          setCurrentProfile(profileData);
+        } else {
+          setCurrentProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading profile data during refresh:', error);
+      }
+      
+      // Update today's key in case date changed
+      setTodayKey(getDateKey());
+      
+      console.log('✅ Home screen data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Function to navigate to AllQuestionsScreen
   const handleViewAllQuestions = () => {
     console.log('handleViewAllQuestions called');
@@ -490,6 +535,15 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { backgroundColor: isDark ? '#000000' : '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+            progressBackgroundColor={isDark ? '#1E1E1E' : '#FFFFFF'}
+          />
+        }
       >
         {/* Header with Profile - Responsive with SafeArea */}
         <View style={[

@@ -319,7 +319,7 @@ export const scheduleReengageReminder = async () => {
   return null;
 };
 
-// Schedule daily reminder notification at specific time
+// Schedule daily reminder notification every 24 hours
 export const scheduleDailyReminder = async () => {
   try {
     console.log('📅 Scheduling daily reminder for every 24 hours...');
@@ -339,7 +339,7 @@ export const scheduleDailyReminder = async () => {
       console.log('Cancelled existing daily reminder:', existingId);
     }
 
-    // Schedule for every 24 hours at 10:00 AM
+    // Schedule for every 24 hours from now (more reliable than specific time)
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: `🌅 ${nextQuestionData.subcategory || 'Daily Question'}`,
@@ -355,9 +355,9 @@ export const scheduleDailyReminder = async () => {
         priority: 'high',
       },
       trigger: {
-        hour: 10, // 10:00 AM
-        minute: 0,
-        repeats: true, // Every 24 hours
+        type: 'timeInterval',
+        hours: 24, // Every 24 hours
+        repeats: true,
       },
     });
 
@@ -366,6 +366,7 @@ export const scheduleDailyReminder = async () => {
     console.log('✅ Daily reminder scheduled successfully (every 24 hours):', id);
     console.log('📋 Zone:', nextQuestionData.zone);
     console.log('📂 Subcategory:', nextQuestionData.subcategory);
+    console.log('⏰ First notification will arrive in 24 hours');
     
     return id;
   } catch (error) {
@@ -1364,6 +1365,156 @@ export const unsubscribeFromTopic = async (topic) => {
   } catch (error) {
     console.error(`Error removing topic subscription ${topic}:`, error);
     return true;
+  }
+};
+
+// Restore weekly highlights on app start (persists across app kills/restarts)
+export const restoreWeeklyHighlights = async () => {
+  try {
+    console.log('🔄 Restoring weekly highlights on app start...');
+    
+    // Check if weekly highlights were previously enabled
+    const weeklyHighlightsEnabled = await AsyncStorage.getItem(WEEKLY_HIGHLIGHTS_KEY);
+    
+    if (weeklyHighlightsEnabled === 'true') {
+      console.log('✅ Weekly highlights were enabled, checking existing schedule...');
+      
+      // Check if there's an existing scheduled notification
+      const existingId = await AsyncStorage.getItem('WEEKLY_HIGHLIGHTS_ID');
+      
+      if (existingId) {
+        try {
+          // Check if the notification is still scheduled
+          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          const isStillScheduled = scheduledNotifications.some(notif => notif.identifier === existingId);
+          
+          if (isStillScheduled) {
+            console.log('✅ Weekly highlights are still active and scheduled');
+            return existingId;
+          } else {
+            console.log('⚠️ Weekly highlights were enabled but not scheduled, rescheduling...');
+          }
+        } catch (error) {
+          console.log('⚠️ Could not check scheduled notifications, rescheduling...');
+        }
+      }
+      
+      // Schedule new weekly highlights if needed
+      const newId = await scheduleWeeklyHighlights();
+      if (newId) {
+        console.log('✅ Weekly highlights restored and scheduled successfully');
+        return newId;
+      } else {
+        console.log('❌ Failed to restore weekly highlights');
+        return null;
+      }
+    } else {
+      console.log('ℹ️ Weekly highlights were not enabled');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error restoring weekly highlights:', error);
+    return null;
+  }
+};
+
+// Restore new category alerts on app start (persists across app kills/restarts)
+export const restoreNewCategoryAlerts = async () => {
+  try {
+    console.log('🔄 Restoring new category alerts on app start...');
+    
+    // Check if new category alerts were previously enabled
+    const newCategoryAlertsEnabled = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+    
+    if (newCategoryAlertsEnabled === 'true') {
+      console.log('✅ New category alerts were enabled, checking existing schedule...');
+      
+      // Check if there's an existing scheduled notification
+      const existingId = await AsyncStorage.getItem('NEW_CATEGORY_ALERTS_ID');
+      
+      if (existingId) {
+        try {
+          // Check if the notification is still scheduled
+          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          const isStillScheduled = scheduledNotifications.some(notif => notif.identifier === existingId);
+          
+          if (isStillScheduled) {
+            console.log('✅ New category alerts are still active and scheduled');
+            return existingId;
+          } else {
+            console.log('⚠️ New category alerts were enabled but not scheduled, rescheduling...');
+          }
+        } catch (error) {
+          console.log('⚠️ Could not check scheduled notifications, rescheduling...');
+        }
+      }
+      
+      // Schedule new category alerts if needed
+      const newId = await scheduleNewCategoryAlert();
+      if (newId) {
+        console.log('✅ New category alerts restored and scheduled successfully');
+        return newId;
+      } else {
+        console.log('❌ Failed to restore new category alerts');
+        return null;
+      }
+    } else {
+      console.log('ℹ️ New category alerts were not enabled');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error restoring new category alerts:', error);
+    return null;
+  }
+};
+
+// Restore daily reminder on app start (persists across app kills/restarts)
+export const restoreDailyReminder = async () => {
+  try {
+    console.log('🔄 Restoring daily reminder on app start...');
+    
+    // Check if daily reminder was previously enabled
+    const dailyReminderEnabled = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+    
+    if (dailyReminderEnabled === 'true') {
+      console.log('✅ Daily reminder was enabled, checking existing schedule...');
+      
+      // Check if there's an existing scheduled notification
+      const existingId = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+      
+      if (existingId) {
+        try {
+          // Check if the notification is still scheduled
+          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          const isStillScheduled = scheduledNotifications.some(notif => notif.identifier === existingId);
+          
+          if (isStillScheduled) {
+            console.log('✅ Daily reminder is still active and scheduled');
+            return existingId;
+          } else {
+            console.log('⚠️ Daily reminder was enabled but not scheduled, rescheduling...');
+          }
+        } catch (error) {
+          console.log('⚠️ Could not check scheduled notifications, rescheduling...');
+        }
+      }
+      
+      // Schedule new daily reminder if needed
+      const newId = await scheduleDailyReminder();
+      if (newId) {
+        console.log('✅ Daily reminder restored and scheduled successfully');
+        return newId;
+      } else {
+        console.log('❌ Failed to restore daily reminder');
+        return null;
+      }
+    } else {
+      console.log('ℹ️ Daily reminder was not enabled');
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error restoring daily reminder:', error);
+    return null;
   }
 };
 

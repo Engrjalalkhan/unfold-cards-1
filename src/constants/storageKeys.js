@@ -14,5 +14,6 @@ export const DAILY_TWO_SECOND_KEY = '@unflod_cards:daily_two_second_enabled:v1';
 export const WEEKLY_TWO_SECOND_KEY = '@unflod_cards:weekly_two_second_enabled:v1';
 export const CATEGORY_TWO_SECOND_KEY = '@unflod_cards:category_two_second_enabled:v1';
 export const DAILY_QUESTION_INDEX_KEY = '@unflod_cards:daily_question_index:v1';
+export const ONBOARDING_COMPLETED_KEY = '@unflod_cards:onboarding_completed:v1';
 
 export const TOTAL_QUESTIONS = 600;

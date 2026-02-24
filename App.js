@@ -9,9 +9,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
 import { StatsManager } from './src/utils/statsManager';
-import { getFCMToken, setNavigationRef } from './src/services/notificationService';
+import { getFCMToken, setNavigationRef, restoreDailyReminder, restoreWeeklyHighlights, restoreNewCategoryAlerts } from './src/services/notificationService';
 import { initializePushNotifications } from './src/config/pushNotifications';
 import { debugNotifications } from './src/config/notificationDebug';
+import { ONBOARDING_COMPLETED_KEY } from './src/constants/storageKeys';
 
 // Import screens
 import SplashScreen from './src/components/SplashScreen';
@@ -132,7 +133,7 @@ const AppContent = () => {
 
   const handleOnboardingComplete = async () => {
     try {
-      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
       setShowOnboarding(false);
       setShowMoodMeter(true);
     } catch (error) {
@@ -142,6 +143,8 @@ const AppContent = () => {
 
   const handleMoodSelect = (mood) => {
     setShowMoodMeter(false);
+    // Save today's mood check to prevent showing again today
+    AsyncStorage.setItem('LAST_MOOD_CHECK_DATE', new Date().toDateString());
     // Navigate to MoodQuestionsScreen with the selected mood
     if (navigationRef.current) {
       navigationRef.current.navigate('MoodQuestions', { mood });
@@ -212,16 +215,31 @@ const AppContent = () => {
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
-        // Always show onboarding for this test
-        // In a real app, you would check AsyncStorage
+        // Check if onboarding was completed
+        const hasCompletedOnboarding = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY);
+        
+        // Check if mood meter was already shown today
+        const lastMoodCheckDate = await AsyncStorage.getItem('LAST_MOOD_CHECK_DATE');
+        const today = new Date().toDateString();
+        const shouldShowMoodMeter = lastMoodCheckDate !== today;
+        
         const timer = setTimeout(() => {
           setIsLoading(false);
-          setShowOnboarding(true);
+          
+          if (hasCompletedOnboarding === 'true') {
+            // Onboarding already completed
+            setShowOnboarding(false);
+            // Only show mood meter if it hasn't been shown today
+            setShowMoodMeter(shouldShowMoodMeter);
+          } else {
+            // First time, show onboarding
+            setShowOnboarding(true);
+          }
         }, 2000);
 
         return () => clearTimeout(timer);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error checking onboarding status:', error);
         setIsLoading(false);
         setShowOnboarding(true);
       }
@@ -240,6 +258,11 @@ const AppContent = () => {
       
       // Initialize push notifications
       initializePushNotifications(navigationRef);
+      
+      // Restore all notification preferences (persists across app kills/restarts)
+      restoreDailyReminder();
+      restoreWeeklyHighlights();
+      restoreNewCategoryAlerts();
       
       // Log FCM token for Firebase console testing
       logFCMToken();

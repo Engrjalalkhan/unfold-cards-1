@@ -242,9 +242,9 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
             )}
             
             <View style={styles.questionNumber}>
-              <Text style={styles.numberText}>
+              {/* <Text style={styles.numberText}>
                 {isSubmittedAnswers ? 'Answer' : 'Question'} {index + 1} of {questions.length}
-              </Text>
+              </Text> */}
             </View>
             
             {/* Action Buttons */}
