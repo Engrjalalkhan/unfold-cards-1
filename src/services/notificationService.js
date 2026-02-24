@@ -1543,7 +1543,6 @@ export const enableWeeklyHighlightsWithFirebase = async () => {
     if (!token) {
       console.log('⚠️ No Expo push token available, using local notifications only');
       await scheduleWeeklyHighlights();
-      await sendImmediateWeeklyNotification();
       await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'true');
       // No alert - just enable silently
       return true;
@@ -1558,9 +1557,6 @@ export const enableWeeklyHighlightsWithFirebase = async () => {
     // Schedule local notification as backup
     await scheduleWeeklyHighlights();
     
-    // Send immediate TEST notification (only once)
-    await sendImmediateWeeklyNotification();
-    
     // No alert - just enable silently
     return true;
   } catch (error) {
@@ -1568,7 +1564,6 @@ export const enableWeeklyHighlightsWithFirebase = async () => {
     // Fallback to local only
     try {
       await scheduleWeeklyHighlights();
-      await sendImmediateWeeklyNotification();
       await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'true');
       // No alert - just enable silently
       return true;

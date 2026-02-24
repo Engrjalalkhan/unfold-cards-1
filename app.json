@@ -7,16 +7,7 @@
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/logo.png",
-          "color": "#8B5CF6",
-          "defaultChannel": "default"
-        }
-      ]
-    ],
+    "plugins": [],
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -28,7 +19,10 @@
         "width": 150,
         "height": 150,
         "borderRadius": 75,
-        "overflow": "hidden"
+        "position": "absolute",
+        "bottom": 100,
+        "left": "50%",
+        "marginLeft": -75
       },
       "animation": {
         "wave": {
@@ -42,8 +36,12 @@
         }
       }
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.unfoldcards.app",
       "splash": {
         "image": "./assets/logo.png",
         "resizeMode": "contain",
@@ -58,26 +56,24 @@
     },
     "android": {
       "package": "com.rafeeque2.unfoldcards",
+      "icon": "./assets/logo.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
-      "googleServicesFile": "./google-services.json"
+      "compileSdkVersion": 34,
+      "targetSdkVersion": 34,
+      "buildToolsVersion": "34.0.0"
     },
     "web": {
       "favicon": "./assets/logo.png"
     },
     "extra": {
       "eas": {
-        "projectId": "572808569364"
-      },
-      "firebase": {
-        "projectId": "unfold-cards-8f621",
-        "apiKey": "AIzaSyCNECdSoMOcmMseymPO6f1HJ6OeSTuQCGg",
-        "messagingSenderId": "572808569364",
-        "appId": "1:572808569364:android:d42c51ca0ac93dd070fd01"
+        "projectId": "9f2effec-3ef2-4dad-bb89-fc0b807da0d4"
       }
-    }
+    },
+    "owner": "jalalkhan"
   }
 }
