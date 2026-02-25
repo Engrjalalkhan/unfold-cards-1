@@ -6,6 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../contexts/ThemeContext';
 import { zones } from '../../data/decks';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 const { width } = Dimensions.get('window');
 
@@ -75,6 +77,13 @@ function AllQuestionsScreen({ navigation, onToggleFavorite, isFavorite, onShareQ
   
   const handleShareQuestion = async (question, category) => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing all questions question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
       
       await Share.share({

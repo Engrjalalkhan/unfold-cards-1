@@ -933,7 +933,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 >
                   <Ionicons name="images-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
                   <Text style={styles.galleryButtonText}>
-                    Select from Gallery
+                    Select Photo
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emojiIcon: { 
-    fontSize: 85,
+    fontSize: 75,
     textAlign: 'center',
     textAlignVertical: 'center',
     lineHeight: 85,

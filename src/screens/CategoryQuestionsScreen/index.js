@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 const { width } = Dimensions.get('window');
 
@@ -71,6 +73,13 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   
   const handleShareQuestion = async (question, categoryName) => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing category question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       const shareContent = `Question from ${categoryName}:\n\n${question}\n\n- Unfold Cards App`;
       
       await Share.share({

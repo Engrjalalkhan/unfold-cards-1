@@ -18,6 +18,8 @@ import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 import { allSubcategories } from '../../data/decks';
 import { Ionicons } from '@expo/vector-icons';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = height * 0.6;
@@ -173,12 +175,26 @@ export function ShuffleScreen({ onOpen, onBack, onShareQuestion }) {
   // Handle sharing the current question
   const handleShareQuestion = async () => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing shuffle question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       const shareContent = `Question from ${pick.category?.name || 'Shuffle'}:\n\n${pick.question}\n\n- Unfold Cards App`;
       
       await Share.share({
         message: shareContent,
         title: 'Question from Unfold Cards',
       });
+      
+      console.log('Shared shuffle question:', pick.question);
+      
+      // Also call the original onShareQuestion if provided
+      if (onShareQuestion) {
+        onShareQuestion(`${pick.category?.name || 'Shuffle'}: ${pick.question}`);
+      }
     } catch (error) {
       console.error('Error sharing question:', error);
     }

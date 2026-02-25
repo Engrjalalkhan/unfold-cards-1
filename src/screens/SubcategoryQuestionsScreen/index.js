@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Share }
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +47,13 @@ export function SubcategoryQuestionsScreen({ route, navigation }) {
   
   const handleShareQuestion = async (question, category) => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing subcategory question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       const shareContent = `Question from ${category}:\n\n${question}\n\n- Unfold Cards App`;
       
       await Share.share({

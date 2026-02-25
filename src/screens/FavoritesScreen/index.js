@@ -3,12 +3,21 @@ import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, Sha
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 export function FavoritesScreen({ items, onOpen, onRemove, onBack, onShareQuestion, onToggleRead }) {
   const { theme, isDark } = useTheme();
   
   const handleShareQuestion = async (question, category) => {
     try {
+      // Update streak when sharing question
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing favorite question');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       // Handle both string and object question formats
       const questionText = typeof question === 'string' ? question : 
         (question && question.question) ? question.question : 'Unknown question';

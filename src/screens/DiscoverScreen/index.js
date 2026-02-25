@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../contexts/ThemeContext';
+import { StreakManager } from '../../utils/streakManager';
+import { StatsManager } from '../../utils/statsManager';
 
 // Responsive scaling function
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -49,6 +51,13 @@ const DiscoverScreen = ({ route, onBack }) => {
   
   const handleShareAnswer = async (question, answer, mood) => {
     try {
+      // Update streak when sharing answer
+      const newStreak = await StreakManager.updateStreak();
+      console.log('✅ Streak updated to:', newStreak, 'after sharing discover answer');
+      
+      // Increment times shared stat
+      await StatsManager.incrementTimesShared();
+      
       const shareContent = `Question: ${question}\n\nAnswer: ${answer}\n\nMood: ${mood}\n\n- Unfold Cards App`;
       
       await Share.share({
@@ -60,7 +69,7 @@ const DiscoverScreen = ({ route, onBack }) => {
       console.log('Shared answer:', question, answer, mood);
     } catch (error) {
       console.error('Error sharing answer:', error);
-      Alert.alert('Error', 'Could not share the answer. Please try again.');
+      Alert.alert('Error', 'Could not share answer. Please try again.');
     }
   };
   
