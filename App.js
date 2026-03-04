@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { lightTheme, darkTheme } from './src/theme/theme';
 import { StatsManager } from './src/utils/statsManager';
-import { getFCMToken, setNavigationRef, restoreDailyReminder, restoreWeeklyHighlights, restoreNewCategoryAlerts } from './src/services/notificationService';
+import { getFCMToken, setNavigationRef, restoreDailyReminder, restoreNewCategoryAlerts } from './src/services/notificationService';
 import { initializePushNotifications } from './src/config/pushNotifications';
 import { debugNotifications } from './src/config/notificationDebug';
 import { ONBOARDING_COMPLETED_KEY } from './src/constants/storageKeys';
@@ -244,29 +244,20 @@ const AppContent = () => {
         setShowOnboarding(true);
       }
     };
-
+    
     checkOnboarding();
     loadFavorites();
     loadStats();
     
-    // Initialize Firebase Push Notifications
-    if (Platform.OS !== 'web') {
-      console.log(' Initializing Firebase Push Notifications...');
-      
-      // Set navigation reference for notification handling
-      setNavigationRef(navigationRef);
-      
-      // Initialize push notifications
-      initializePushNotifications(navigationRef);
-      
-      // Restore all notification preferences (persists across app kills/restarts)
-      restoreDailyReminder();
-      restoreWeeklyHighlights();
-      restoreNewCategoryAlerts();
-      
-      // Log FCM token for Firebase console testing
-      logFCMToken();
-    }
+    // Set navigation reference for notification handling
+    setNavigationRef(navigationRef);
+    
+    // Restore all notification preferences (persists across app kills/restarts)
+    restoreDailyReminder();
+    restoreNewCategoryAlerts();
+    
+    // Log FCM token for Firebase console testing
+    logFCMToken();
   }, []);
 
   useEffect(() => {

@@ -1,8 +1,11 @@
-import { Platform, Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { messaging, Notifications } from '../config/firebase';
+import { Platform } from 'react-native';
+import { messaging } from '../config/firebase';
 import { getSubcategoryById } from '../data/decks';
 import { zones, allSubcategories } from '../data/decks';
+import { StatsManager } from '../utils/statsManager';
+import { StreakManager } from '../utils/streakManager';
 
 // Import all JSON data files directly for maximum question variety
 import relationshipData from '../data/questions.relationship.json';
@@ -14,11 +17,11 @@ import {
   NOTIF_ENABLED_KEY, 
   REENGAGE_ID_KEY,
   DAILY_REMINDER_KEY,
-  WEEKLY_HIGHLIGHTS_KEY,
+  DAILY_REMINDER_ID_KEY,
   NEW_CATEGORY_ALERT_KEY,
   FCM_TOKEN_KEY,
-  TWO_SECOND_NOTIF_KEY,
-  DAILY_QUESTION_INDEX_KEY
+  DAILY_QUESTION_INDEX_KEY,
+  FAVORITES_STORAGE_KEY
 } from '../constants/storageKeys';
 
 const pickSuggestionBody = () => {
@@ -197,51 +200,6 @@ const getTodayQuestion = () => {
   }
 };
 
-// Get random question for weekly notifications
-const getRandomWeeklyQuestion = () => {
-  try {
-    if (!Array.isArray(allCategories) || allCategories.length === 0) {
-      return {
-        question: "What's your favorite memory from this week?",
-        category: "Weekly Reflection"
-      };
-    }
-
-    // Pick random category for weekly variety
-    const randomCategory = allCategories[Math.floor(Math.random() * allCategories.length)];
-    
-    // Get all questions from this category
-    const allQuestions = [];
-    if (randomCategory.subcategories && Array.isArray(randomCategory.subcategories)) {
-      randomCategory.subcategories.forEach(sub => {
-        if (sub.questions && Array.isArray(sub.questions)) {
-          allQuestions.push(...sub.questions);
-        }
-      });
-    }
-
-    if (allQuestions.length === 0) {
-      return {
-        question: "What's your favorite memory from this week?",
-        category: randomCategory.name || "Weekly Reflection"
-      };
-    }
-
-    // Pick completely random question for weekly
-    const randomQuestion = allQuestions[Math.floor(Math.random() * allQuestions.length)];
-    
-    return {
-      question: randomQuestion.question || randomQuestion.text || "What's your favorite memory from this week?",
-      category: randomCategory.name || "Weekly Reflection"
-    };
-  } catch (error) {
-    console.error('Error getting random weekly question:', error);
-    return {
-      question: "What's your favorite memory from this week?",
-      category: "Weekly Reflection"
-    };
-  }
-};
 
 // Get random question from all categories (for other uses)
 const getRandomQuestion = () => {
@@ -289,6 +247,56 @@ const getRandomQuestion = () => {
   }
 };
 
+// Get random question from all 600 questions for immediate notification
+const getRandomQuestionFromAllData = () => {
+  try {
+    // Load all questions from all JSON data files
+    const allSubcategoriesList = loadAllQuestionsFromData();
+    
+    if (allSubcategoriesList.length === 0) {
+      console.warn('⚠️ No subcategories found in JSON data, using fallback');
+      return {
+        question: "What's one thing you're grateful for today?",
+        category: "Daily Reflection",
+        zone: "Unknown Zone",
+        subcategory: "Unknown"
+      };
+    }
+    
+    // Pick a random subcategory
+    const randomSubcategory = allSubcategoriesList[Math.floor(Math.random() * allSubcategoriesList.length)];
+    const questions = randomSubcategory.questions;
+    
+    if (questions.length === 0) {
+      return {
+        question: "What's one thing you're grateful for today?",
+        category: randomSubcategory.name || "Daily Reflection",
+        zone: randomSubcategory.zoneName || "Unknown Zone",
+        subcategory: randomSubcategory.name || "Unknown"
+      };
+    }
+    
+    // Pick a random question from this subcategory
+    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    
+    return {
+      question: randomQuestion,
+      category: randomSubcategory.name || "Daily Reflection",
+      zone: randomSubcategory.zoneName || "Unknown Zone",
+      subcategory: randomSubcategory.name || "Unknown",
+      source: randomSubcategory.source || "Unknown"
+    };
+  } catch (error) {
+    console.error('❌ Error getting random question from all data:', error);
+    return {
+      question: "What's one thing you're grateful for today?",
+      category: "Daily Reflection",
+      zone: "Unknown Zone",
+      subcategory: "Unknown"
+    };
+  }
+};
+
 export const scheduleReengageReminder = async () => {
   try {
     if (Platform.OS === 'web') return null;
@@ -323,23 +331,30 @@ export const scheduleReengageReminder = async () => {
 export const scheduleDailyReminder = async () => {
   try {
     console.log('📅 Scheduling daily reminder for every 24 hours...');
+    console.log('🔍 DEBUG: scheduleDailyReminder called');
     
     if (Platform.OS === 'web') {
       console.log('Daily reminders not supported on web');
       return null;
     }
 
+    console.log('🔍 DEBUG: About to get next daily question...');
     // Get next sequential question for daily reminder
     const nextQuestionData = await getNextDailyQuestion();
+    console.log('🔍 DEBUG: Got question data:', nextQuestionData.subcategory);
     
     // Cancel any existing daily reminders to avoid duplicates
-    const existingId = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+    const existingId = await AsyncStorage.getItem(DAILY_REMINDER_ID_KEY);
     if (existingId) {
       await Notifications.cancelScheduledNotificationAsync(existingId);
       console.log('Cancelled existing daily reminder:', existingId);
     }
-
-    // Schedule for every 24 hours from now (more reliable than specific time)
+    
+    // Schedule for exactly 24 hours from now (more reliable than specific time)
+    const triggerTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    console.log('🔍 DEBUG: About to schedule notification with 24-hour trigger...');
+    console.log('⏰ Scheduled for:', triggerTime.toLocaleString());
+    
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: `🌅 ${nextQuestionData.subcategory || 'Daily Question'}`,
@@ -355,22 +370,117 @@ export const scheduleDailyReminder = async () => {
         priority: 'high',
       },
       trigger: {
-        type: 'timeInterval',
-        hours: 24, // Every 24 hours
-        repeats: true,
+        type: 'date',
+        date: triggerTime,
+        repeats: false, // Will be rescheduled after each trigger
       },
     });
 
-    // Store the notification ID
-    await AsyncStorage.setItem(DAILY_REMINDER_KEY, id);
+    console.log('🔍 DEBUG: Notification scheduled with ID:', id);
+    // Store the notification ID in separate key
+    await AsyncStorage.setItem(DAILY_REMINDER_ID_KEY, id);
     console.log('✅ Daily reminder scheduled successfully (every 24 hours):', id);
     console.log('📋 Zone:', nextQuestionData.zone);
     console.log('📂 Subcategory:', nextQuestionData.subcategory);
-    console.log('⏰ First notification will arrive in 24 hours');
+    console.log('⏰ First notification will arrive in exactly 24 hours');
     
     return id;
   } catch (error) {
     console.error('❌ Error scheduling daily reminder:', error);
+    return null;
+  }
+};
+
+// Check the status of daily reminder
+export const checkDailyReminderStatus = async () => {
+  try {
+    console.log('🔍 Checking daily reminder status...');
+    
+    const isEnabled = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+    const existingId = await AsyncStorage.getItem(DAILY_REMINDER_ID_KEY);
+    
+    if (isEnabled !== 'true') {
+      console.log('❌ Daily reminders are disabled');
+      return { enabled: false, scheduled: false, nextTrigger: null };
+    }
+    
+    if (!existingId) {
+      console.log('⚠️ Daily reminders enabled but no notification ID found');
+      return { enabled: true, scheduled: false, nextTrigger: null };
+    }
+    
+    try {
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      const dailyNotification = scheduledNotifications.find(notif => notif.identifier === existingId);
+      
+      if (dailyNotification) {
+        const nextTrigger = dailyNotification.trigger;
+        console.log('✅ Daily reminder is scheduled');
+        console.log('⏰ Next trigger:', nextTrigger);
+        return { 
+          enabled: true, 
+          scheduled: true, 
+          nextTrigger: nextTrigger,
+          notificationId: existingId
+        };
+      } else {
+        console.log('⚠️ Daily reminder enabled but not currently scheduled');
+        return { enabled: true, scheduled: false, nextTrigger: null };
+      }
+    } catch (error) {
+      console.error('Error checking scheduled notifications:', error);
+      return { enabled: true, scheduled: false, nextTrigger: null };
+    }
+  } catch (error) {
+    console.error('❌ Error checking daily reminder status:', error);
+    return { enabled: false, scheduled: false, nextTrigger: null };
+  }
+};
+
+// Manually trigger the next daily reminder (for testing)
+export const triggerNextDailyReminder = async () => {
+  try {
+    console.log('🚀 Manually triggering next daily reminder...');
+    
+    // Cancel existing reminder
+    const existingId = await AsyncStorage.getItem(DAILY_REMINDER_ID_KEY);
+    if (existingId) {
+      await Notifications.cancelScheduledNotificationAsync(existingId);
+      console.log('Cancelled existing daily reminder:', existingId);
+    }
+    
+    // Schedule for 10 seconds from now for testing
+    const triggerTime = new Date(Date.now() + 10 * 1000);
+    console.log('⏰ Test notification scheduled for:', triggerTime.toLocaleString());
+    
+    const nextQuestionData = await getNextDailyQuestion();
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `🌅 ${nextQuestionData.subcategory || 'Daily Question'}`,
+        body: nextQuestionData.question,
+        data: { 
+          type: 'daily_question',
+          category: 'Daily Reminder',
+          zone: nextQuestionData.zone,
+          subcategory: nextQuestionData.subcategory,
+          screen: 'Notifications',
+          test: true // Mark as test notification
+        },
+        sound: 'default',
+        priority: 'high',
+      },
+      trigger: {
+        type: 'date',
+        date: triggerTime,
+        repeats: false,
+      },
+    });
+
+    console.log('✅ Test daily reminder scheduled:', id);
+    return id;
+  } catch (error) {
+    console.error('❌ Error triggering test daily reminder:', error);
     return null;
   }
 };
@@ -402,47 +512,6 @@ export const enableDailyReminders = async () => {
   }
 };
 
-export const scheduleWeeklyHighlights = async () => {
-  try {
-    console.log('📅 Scheduling weekly highlights for once per week...');
-    
-    if (Platform.OS === 'web') return null;
-    
-    // Get a random question for weekly highlight
-    const weeklyQuestionData = await getWeeklyHighlightQuestion();
-    
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '📊 Weekly Highlight',
-        body: weeklyQuestionData.question,
-        data: { 
-          type: 'weekly_highlights',
-          category: 'Weekly Highlights',
-          zone: weeklyQuestionData.zone,
-          subcategory: weeklyQuestionData.subcategory,
-          screen: 'Notifications'
-        },
-        sound: 'default', // Enable notification sound
-        priority: 'high',
-        // Add app logo
-        icon: require('../../assets/logo.png'),
-      },
-      trigger: { 
-        type: 'timeInterval',
-        days: 7, // Every 7 days (once per week)
-        repeats: true 
-      },
-    });
-    
-    console.log('✅ Weekly highlights scheduled successfully (once per week):', id);
-    console.log('📋 Zone:', weeklyQuestionData.zone);
-    console.log('📂 Subcategory:', weeklyQuestionData.subcategory);
-    return id;
-  } catch (error) {
-    console.error('❌ Error scheduling weekly highlights:', error);
-    return null;
-  }
-};
 
 export const scheduleNewCategoryAlert = async () => {
   try {
@@ -463,10 +532,138 @@ export const scheduleNewCategoryAlert = async () => {
   }
 };
 
+// Function to trigger new category alert when user adds new zone/category to home screen
+export const triggerNewCategoryAlert = async (categoryName, categoryDescription, zoneName = null) => {
+  try {
+    console.log('🆕 Triggering new category alert for:', categoryName);
+    
+    // Check notification settings before proceeding
+    const newCategoryAlertsEnabled = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+    
+    console.log('🔔 New category alerts enabled:', newCategoryAlertsEnabled);
+    
+    if (newCategoryAlertsEnabled !== 'true') {
+      console.log('🔕 New category alerts are disabled, NOT sending notification:', categoryName);
+      return null; // Don't send notification or add to screen
+    }
+    
+    if (Platform.OS === 'web') return null;
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🆕 New Category Available!',
+        body: `${categoryName}: ${categoryDescription || 'Discover new ways to connect!'}`,
+        data: { 
+          type: 'new_category',
+          category: 'General',
+          categoryName: categoryName,
+          zoneName: zoneName,
+          screen: 'Notifications',
+          userAction: 'home_screen_addition'
+        },
+        sound: 'default',
+        priority: 'high',
+        // Add app logo
+        icon: require('../../assets/logo.png'),
+      },
+      trigger: null, // Send immediately
+    });
+    
+    console.log('🆕 New category alert sent for home screen addition:', id);
+    console.log('📂 Category:', categoryName);
+    console.log('🏷️ Zone:', zoneName);
+    
+    return id;
+  } catch (error) {
+    console.error('Error sending new category alert for home screen addition:', error);
+    return null;
+  }
+};
+
+// Function to trigger custom zone creation notification
+export const triggerCustomZoneAlert = async (zoneName, subcategoriesCount, questionsCount) => {
+  try {
+    console.log(' Triggering custom zone alert for:', zoneName);
+    
+    // Check notification settings before proceeding
+    const newCategoryAlertsEnabled = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+    
+    console.log('🔔 Custom zone - New category alerts enabled:', newCategoryAlertsEnabled);
+    
+    if (newCategoryAlertsEnabled !== 'true') {
+      console.log('🔕 New category alerts are disabled, NOT sending custom zone notification:', zoneName);
+      return null; // Don't send notification or add to screen
+    }
+    
+    if (Platform.OS === 'web') return null;
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: ' Custom Zone Created!',
+        body: `Your "${zoneName}" zone with ${subcategoriesCount} subcategories and ${questionsCount} questions is ready to explore!`,
+        data: { 
+          type: 'custom_zone_created',
+          category: 'Custom Zones',
+          zoneName: zoneName,
+          subcategoriesCount: subcategoriesCount,
+          questionsCount: questionsCount,
+          screen: 'Notifications',
+          userAction: 'custom_zone_creation'
+        },
+        sound: 'default',
+        priority: 'high',
+        // Add app logo
+        icon: require('../../assets/logo.png'),
+      },
+      trigger: null, // Send immediately
+    });
+    
+    console.log(' Custom zone alert sent:', id);
+    console.log('📂 Zone:', zoneName);
+    console.log('📊 Subcategories:', subcategoriesCount);
+    console.log('❓ Questions:', questionsCount);
+    
+    return id;
+  } catch (error) {
+    console.error('Error sending custom zone alert:', error);
+    return null;
+  }
+};
+
+/*
+USAGE EXAMPLE:
+When user adds a new zone or category from the home screen, call this function:
+
+import { triggerNewCategoryAlert } from '../../services/notificationService';
+
+// When user adds a new zone:
+await triggerNewCategoryAlert(
+  'Mindfulness Zone',
+  'Practice daily reflection and mindfulness exercises',
+  'Mindfulness'
+);
+
+// When user adds a new category:
+await triggerNewCategoryAlert(
+  'Deep Questions',
+  'Explore thought-provoking questions for deeper connections'
+);
+*/
+
 // Function to send new category alert when a new category is actually added
 export const sendNewCategoryAlert = async (categoryName, categoryDescription) => {
   try {
     console.log(' Sending new category alert for:', categoryName);
+    
+    // Check notification settings before proceeding
+    const newCategoryAlertsEnabled = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
+    
+    console.log('🔔 Send new category - New category alerts enabled:', newCategoryAlertsEnabled);
+    
+    if (newCategoryAlertsEnabled !== 'true') {
+      console.log('🔕 New category alerts are disabled, NOT sending notification:', categoryName);
+      return null; // Don't send notification or add to screen
+    }
     
     if (Platform.OS === 'web') return null;
     
@@ -529,13 +726,12 @@ const getZoneFromCategory = (category) => {
     'emotional': 'Emotional Zone',
     'fun': 'Fun Zone',
     'daily reflection': 'Daily Reflection',
-    'weekly reflection': 'Weekly Highlights',
     'general': 'General',
     'daily_question': 'Daily Questions',
-    'weekly_highlights': 'Weekly Highlights',
     'new_category': 'New Categories',
-    'reengage': 'Reminders',
-    'two_second_question': 'Quick Questions'
+    'custom_zone_created': 'Custom Zones',
+    'custom zones': 'Custom Zones',
+    'reengage': 'Reminders'
   };
   
   // Convert category name to zone name
@@ -552,7 +748,34 @@ const getZoneFromCategory = (category) => {
 
 // Add notification received listener
 Notifications.addNotificationReceivedListener(notification => {
-  console.log('Notification received:', notification);
+  console.log('📱 Notification received:', notification.request.content.title);
+  
+  // Check if this is a daily question notification and reschedule for next day
+  const notificationType = notification.request.content.data?.type;
+  const isTest = notification.request.content.data?.test;
+  
+  if (notificationType === 'daily_question') {
+    console.log('🔄 Daily question notification received, rescheduling for next 24 hours...');
+    
+    // Don't reschedule if it's a test notification
+    if (!isTest) {
+      // Add a small delay to prevent immediate rescheduling loop
+      setTimeout(() => {
+        scheduleDailyReminder().catch(error => {
+          console.error('❌ Error rescheduling daily reminder:', error);
+        });
+      }, 2000); // 2 second delay to ensure proper processing
+    } else {
+      console.log('🧪 Test notification received, not rescheduling');
+    }
+  }
+  
+  // Don't automatically add custom zone or new category notifications to the notification screen
+  // These are already handled by the system notifications
+  if (notificationType === 'custom_zone_created' || notificationType === 'new_category') {
+    console.log('🔕 Skipping automatic notification screen addition for:', notificationType);
+    return;
+  }
   
   // Get zone information
   const category = notification.request.content.data?.category || 'General';
@@ -593,13 +816,14 @@ Notifications.addNotificationReceivedListener(notification => {
 
 // Add notification response listener (when user taps notification)
 Notifications.addNotificationResponseReceivedListener(response => {
-  console.log('📱 Notification tapped:', response);
+  console.log('📱 Notification tapped:', response.notification.request.content.title);
   console.log('🧭 Navigating to notification screen...');
   
   // Extract navigation data from notification
   const notificationData = response.notification.request.content.data || {};
   const targetScreen = notificationData.screen || 'Notifications';
   const notificationId = notificationData.id;
+  const isTest = notificationData.test;
   
   // Mark notification as read
   if (notificationId) {
@@ -625,6 +849,23 @@ Notifications.addNotificationResponseReceivedListener(response => {
     setTimeout(() => {
       console.log('⏰ Navigation timeout completed');
     }, 500);
+  }
+  
+  // Check if this is a daily question notification and reschedule for next 24 hours
+  if (notificationData.type === 'daily_question') {
+    console.log('🔄 Daily question notification triggered, rescheduling for next 24 hours...');
+    
+    // Don't reschedule if it's a test notification
+    if (!isTest) {
+      // Add a small delay to prevent immediate rescheduling loop
+      setTimeout(() => {
+        scheduleDailyReminder().catch(error => {
+          console.error('❌ Error rescheduling daily reminder:', error);
+        });
+      }, 2000); // 2 second delay to ensure proper processing
+    } else {
+      console.log('🧪 Test notification tapped, not rescheduling');
+    }
   }
   
   console.log('✅ Navigation triggered to:', targetScreen);
@@ -700,243 +941,6 @@ export const getUnreadCount = async () => {
   return receivedNotifications.filter(notif => !notif.read).length;
 };
 
-// Schedule continuous notifications every 2 seconds for daily testing
-export const scheduleTwoSecondNotifications = async () => {
-  try {
-    if (Platform.OS === 'web') return null;
-    
-    // Cancel any existing 2-second notifications
-    const existingId = await AsyncStorage.getItem('TWO_SECOND_NOTIF_ID');
-    if (existingId) {
-      await Notifications.cancelScheduledNotificationAsync(existingId);
-    }
-    
-    // Get random question from all categories for variety
-    const randomQuestionData = getRandomQuestion();
-    
-    // Schedule notification every 2 seconds continuously
-    const notificationId = Date.now().toString();
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⚡ Quick Question',
-        body: randomQuestionData.question,
-        data: { 
-          type: 'two_second_question',
-          category: randomQuestionData.category,
-          id: notificationId,
-          continuous: true
-        },
-        sound: 'default',
-        priority: 'high',
-        // Add app logo
-        icon: require('../../assets/logo.png'),
-      },
-      trigger: { 
-        type: 'timeInterval',
-        seconds: 2, // Every 2 seconds
-        repeats: true 
-      },
-    });
-    
-    // Store the notification ID for cancellation
-    await AsyncStorage.setItem('TWO_SECOND_NOTIF_ID', id);
-    await AsyncStorage.setItem(TWO_SECOND_NOTIF_KEY, 'true');
-    
-    console.log('⚡ Two-second notifications scheduled:', id);
-    console.log('Question category:', randomQuestionData.category);
-    return id;
-  } catch (error) {
-    console.error('Error scheduling two-second notifications:', error);
-    return null;
-  }
-};
-
-// Cancel two-second notifications
-export const cancelTwoSecondNotifications = async () => {
-  try {
-    const existingId = await AsyncStorage.getItem('TWO_SECOND_NOTIF_ID');
-    if (existingId) {
-      await Notifications.cancelScheduledNotificationAsync(existingId);
-      await AsyncStorage.removeItem('TWO_SECOND_NOTIF_ID');
-    }
-    await AsyncStorage.setItem(TWO_SECOND_NOTIF_KEY, 'false');
-    console.log('⏹️ Two-second notifications cancelled');
-    return true;
-  } catch (error) {
-    console.error('Error cancelling two-second notifications:', error);
-    return false;
-  }
-};
-
-// Send immediate Firebase push notification for 2-second interval
-export const sendTwoSecondPushNotification = async () => {
-  try {
-    // Get random question from all categories
-    const randomQuestionData = getRandomQuestion();
-    
-    // Get the Expo push token
-    const token = await getFCMToken();
-    
-    if (!token || token.startsWith('mock-token')) {
-      console.log('Using local notification - Firebase not configured');
-      return await sendImmediateTwoSecondNotification();
-    }
-    
-    // Send real Firebase push notification via Expo's push service
-    const message = {
-      to: token,
-      sound: 'default',
-      title: '⚡ Quick Question',
-      body: randomQuestionData.question,
-      data: { 
-        type: 'two_second_question',
-        immediate: true,
-        category: randomQuestionData.category,
-        continuous: true
-      },
-      priority: 'high',
-      channelId: 'two-second-questions',
-      ttl: 3600,
-      badge: 1,
-      // Add app logo for push notifications
-      icon: 'https://i.imgur.com/your-logo-url.png',
-    };
-    
-    // Send to Expo's push notification service
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-    
-    const result = await response.json();
-    console.log('⚡ Two-second push notification sent:', result);
-    console.log('Question category:', randomQuestionData.category);
-    
-    return result;
-  } catch (error) {
-    console.error('Error sending two-second push notification:', error);
-    // Fallback to local notification
-    return await sendImmediateTwoSecondNotification();
-  }
-};
-
-// Send immediate two-second notification for testing
-export const sendImmediateTwoSecondNotification = async () => {
-  try {
-    if (Platform.OS === 'web') return null;
-    
-    // Get random question from all categories
-    const randomQuestionData = getRandomQuestion();
-    
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '⚡ Quick Question',
-        body: randomQuestionData.question,
-        data: { 
-          type: 'two_second_question',
-          immediate: true,
-          category: randomQuestionData.category,
-          continuous: true
-        },
-        sound: 'default',
-        priority: 'high',
-        // Add app logo
-        icon: require('../../assets/logo.png'),
-      },
-      trigger: null, // Show immediately
-    });
-    
-    console.log('⚡ Immediate two-second notification sent:', id);
-    console.log('Question category:', randomQuestionData.category);
-    return id;
-  } catch (error) {
-    console.error('Error sending immediate two-second notification:', error);
-    return null;
-  }
-};
-
-// Enable two-second notifications with Firebase support
-export const enableTwoSecondNotifications = async () => {
-  try {
-    console.log('⚡ Enabling two-second notifications...');
-    
-    // Request permissions
-    const hasPermission = await requestFirebasePermission();
-    console.log('Firebase permission result:', hasPermission);
-    
-    if (!hasPermission) {
-      // No alert - just return false
-      return false;
-    }
-    
-    // Subscribe to Firebase topic
-    await subscribeToTopic('two_second_questions');
-    
-    // Save preference
-    await AsyncStorage.setItem(TWO_SECOND_NOTIF_KEY, 'true');
-    
-    // Schedule local notifications for continuous delivery
-    await scheduleTwoSecondNotifications();
-    
-    // Send immediate test notification
-    await sendTwoSecondPushNotification();
-    
-    // No alert - just enable silently
-    return true;
-  } catch (error) {
-    console.error('Error enabling two-second notifications:', error);
-    // Fallback to local only
-    try {
-      await scheduleTwoSecondNotifications();
-      await sendImmediateTwoSecondNotification();
-      await AsyncStorage.setItem(TWO_SECOND_NOTIF_KEY, 'true');
-      // No alert - just enable silently
-      return true;
-    } catch (fallbackError) {
-      console.error('Fallback error:', fallbackError);
-      // No alert - just return false
-      return false;
-    }
-  }
-};
-
-// Disable two-second notifications
-export const disableTwoSecondNotifications = async () => {
-  try {
-    console.log('⏹️ Disabling two-second notifications...');
-    
-    // Cancel scheduled notifications
-    await cancelTwoSecondNotifications();
-    
-    // Unsubscribe from Firebase topic
-    await unsubscribeFromTopic('two_second_questions');
-    
-    // Update preference
-    await AsyncStorage.setItem(TWO_SECOND_NOTIF_KEY, 'false');
-    
-    // No alert - just disable silently
-    return true;
-  } catch (error) {
-    console.error('Error disabling two-second notifications:', error);
-    return false;
-  }
-};
-
-// Check if two-second notifications are enabled
-export const isTwoSecondNotificationsEnabled = async () => {
-  try {
-    const enabled = await AsyncStorage.getItem(TWO_SECOND_NOTIF_KEY);
-    return enabled === 'true';
-  } catch (error) {
-    console.error('Error checking two-second notification status:', error);
-    return false;
-  }
-};
 export const scheduleDailyQuestionReminder = async () => {
   try {
     if (Platform.OS === 'web') return null;
@@ -987,7 +991,8 @@ export const sendFirebasePushNotification = async () => {
     
     if (!token || token.startsWith('mock-token')) {
       console.log('Using local notification - Firebase not configured');
-      return await sendImmediateDailyNotification();
+      // Return without sending immediate notification
+      return null;
     }
     
     // Send real Firebase push notification via your Cloud Function
@@ -1017,56 +1022,11 @@ export const sendFirebasePushNotification = async () => {
     return result;
   } catch (error) {
     console.error('Error sending Firebase daily notification:', error);
-    // Fallback to local notification
-    return await sendImmediateDailyNotification();
+    // Return without sending immediate notification
+    return null;
   }
 };
 
-// Send real Firebase push notification for weekly highlights
-export const sendWeeklyPushNotification = async () => {
-  try {
-    // Get random question for weekly variety
-    const weeklyQuestionData = getRandomWeeklyQuestion();
-    
-    // Get the Expo push token
-    const token = await getFCMToken();
-    
-    if (!token || token.startsWith('mock-token')) {
-      console.log('Using local notification - Firebase not configured');
-      return await sendImmediateWeeklyNotification();
-    }
-    
-    // Send real Firebase push notification via your Cloud Function
-    const response = await fetch('https://us-central1-unfold-cards-8f621.cloudfunctions.net/sendToDevice', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        token: token,
-        title: '📊 Weekly Question',
-        body: weeklyQuestionData.question,
-        notificationData: {
-          type: 'weekly_highlights',
-          immediate: true,
-          category: weeklyQuestionData.category,
-          screen: 'Notifications',
-          timestamp: new Date().toISOString()
-        }
-      }),
-    });
-    
-    const result = await response.json();
-    console.log('📊 Real Firebase weekly notification sent:', result);
-    console.log('Question category:', weeklyQuestionData.category);
-    
-    return result;
-  } catch (error) {
-    console.error('Error sending Firebase weekly notification:', error);
-    // Fallback to local notification
-    return await sendImmediateWeeklyNotification();
-  }
-};
 
 // Send real Firebase push notification for new category alerts
 export const sendNewCategoryPushNotification = async () => {
@@ -1076,7 +1036,8 @@ export const sendNewCategoryPushNotification = async () => {
     
     if (!token || token.startsWith('mock-token')) {
       console.log('Using local notification - Firebase not configured');
-      return await sendImmediateNewCategoryNotification();
+      // Return without sending immediate notification
+      return null;
     }
     
     // Send real Firebase push notification via your Cloud Function
@@ -1104,8 +1065,8 @@ export const sendNewCategoryPushNotification = async () => {
     return result;
   } catch (error) {
     console.error('Error sending Firebase new category notification:', error);
-    // Fallback to local notification
-    return await sendImmediateNewCategoryNotification();
+    // Return without sending immediate notification
+    return null;
   }
 };
 
@@ -1135,6 +1096,62 @@ export const sendImmediateNewCategoryNotification = async () => {
     return id;
   } catch (error) {
     console.error('Error sending immediate new category notification:', error);
+    return null;
+  }
+};
+
+// Send notification with random question after 24 hours (for enabling daily reminders)
+export const sendDailyRandomQuestionNotification = async () => {
+  try {
+    console.log('  Sending random question notification after 24 hours...');
+    
+    if (Platform.OS === 'web') {
+      console.log('Scheduled notifications not supported on web');
+      return null;
+    }
+    
+    // Get random question from all 600 questions
+    const randomQuestionData = getRandomQuestionFromAllData();
+    
+    console.log('  Selected random question from:', randomQuestionData.source);
+    console.log('🏷️ Zone:', randomQuestionData.zone);
+    console.log('📂 Subcategory:', randomQuestionData.subcategory);
+    console.log('❓ Question:', randomQuestionData.question);
+    
+    // Schedule notification for 24 hours from now
+    const triggerTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    console.log('⏰ Random question notification scheduled for:', triggerTime.toLocaleString());
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `  ${randomQuestionData.subcategory || 'Random Question'}`,
+        body: randomQuestionData.question,
+        data: { 
+          type: 'daily_question',
+          category: 'Daily Reminder',
+          zone: randomQuestionData.zone,
+          subcategory: randomQuestionData.subcategory,
+          screen: 'Notifications',
+          scheduled: true,
+          random: true // Mark as random question
+        },
+        sound: 'default',
+        priority: 'high',
+      },
+      trigger: {
+        type: 'date',
+        date: triggerTime,
+        repeats: false,
+      },
+    });
+
+    console.log('✅ Random question notification scheduled with ID:', id);
+    console.log('  Will arrive in 24 hours with a random question from 600 total questions');
+    console.log('📱 Works whether app is closed or opened');
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Error scheduling 24-hour random question notification:', error);
     return null;
   }
 };
@@ -1179,96 +1196,8 @@ export const sendImmediateDailyNotification = async () => {
     return null;
   }
 };
-// Send immediate weekly notification for testing
-export const sendImmediateWeeklyNotification = async () => {
-  try {
-    if (Platform.OS === 'web') return null;
-    
-    // Cancel any existing immediate notifications
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    
-    // Get a weekly highlight question
-    const weeklyQuestionData = await getWeeklyHighlightQuestion();
-    
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '📊 Weekly Highlight',
-        body: weeklyQuestionData.question,
-        data: { 
-          type: 'weekly_highlights', 
-          immediate: true,
-          category: 'Weekly Highlights'
-        },
-        sound: 'default', // Enable notification sound
-        priority: 'high', // High priority for immediate delivery
-        // Add app logo
-        icon: require('../../assets/logo.png'),
-      },
-      trigger: null, // Show immediately
-    });
-    
-    console.log('📊 Immediate weekly notification sent:', id);
-    console.log('Weekly question category:', weeklyQuestionData.category);
-    console.log('Weekly question:', weeklyQuestionData.question);
-    return id;
-  } catch (error) {
-    console.error('Error sending immediate weekly notification:', error);
-    return null;
-  }
-};
 
-// Get weekly highlight question
-const getWeeklyHighlightQuestion = async () => {
-  try {
-    // Load all questions from ALL JSON data files
-    const allSubcategoriesList = loadAllQuestionsFromData();
-    
-    // Get all questions for random selection
-    const allQuestions = [];
-    
-    allSubcategoriesList.forEach(sub => {
-      sub.questions.forEach(question => {
-        allQuestions.push({
-          question: question, // Direct string from JSON
-          category: sub.zoneName || "Weekly Reflection",
-          subcategory: sub.name || "Unknown",
-          source: sub.source || "Unknown"
-        });
-      });
-    });
-    
-    console.log('📈 Total weekly questions loaded:', allQuestions.length);
-    
-    if (allQuestions.length === 0) {
-      console.warn('⚠️ No weekly questions found in JSON data, using fallback');
-      return {
-        question: "What's been your biggest insight this week?",
-        category: "Weekly Reflection",
-        zone: "Unknown Zone",
-        subcategory: "Unknown"
-      };
-    }
-    
-    // Pick a random question for weekly highlight
-    const randomIndex = Math.floor(Math.random() * allQuestions.length);
-    const weeklyQuestionData = allQuestions[randomIndex];
-    
-    console.log('🎯 Weekly question source:', weeklyQuestionData.source);
-    console.log('🏷️ Weekly zone:', weeklyQuestionData.category);
-    console.log('📂 Weekly subcategory:', weeklyQuestionData.subcategory);
-    console.log('📝 Weekly question:', weeklyQuestionData.question);
-    
-    return weeklyQuestionData;
-  } catch (error) {
-    console.error('❌ Error getting weekly highlight question:', error);
-    return {
-      question: "What's been your biggest insight this week?",
-      category: "Weekly Reflection",
-      zone: "Unknown Zone",
-      subcategory: "Unknown"
-    };
-  }
-};
+
 
 export const requestFirebasePermission = async () => {
   try {
@@ -1368,55 +1297,6 @@ export const unsubscribeFromTopic = async (topic) => {
   }
 };
 
-// Restore weekly highlights on app start (persists across app kills/restarts)
-export const restoreWeeklyHighlights = async () => {
-  try {
-    console.log('🔄 Restoring weekly highlights on app start...');
-    
-    // Check if weekly highlights were previously enabled
-    const weeklyHighlightsEnabled = await AsyncStorage.getItem(WEEKLY_HIGHLIGHTS_KEY);
-    
-    if (weeklyHighlightsEnabled === 'true') {
-      console.log('✅ Weekly highlights were enabled, checking existing schedule...');
-      
-      // Check if there's an existing scheduled notification
-      const existingId = await AsyncStorage.getItem('WEEKLY_HIGHLIGHTS_ID');
-      
-      if (existingId) {
-        try {
-          // Check if the notification is still scheduled
-          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-          const isStillScheduled = scheduledNotifications.some(notif => notif.identifier === existingId);
-          
-          if (isStillScheduled) {
-            console.log('✅ Weekly highlights are still active and scheduled');
-            return existingId;
-          } else {
-            console.log('⚠️ Weekly highlights were enabled but not scheduled, rescheduling...');
-          }
-        } catch (error) {
-          console.log('⚠️ Could not check scheduled notifications, rescheduling...');
-        }
-      }
-      
-      // Schedule new weekly highlights if needed
-      const newId = await scheduleWeeklyHighlights();
-      if (newId) {
-        console.log('✅ Weekly highlights restored and scheduled successfully');
-        return newId;
-      } else {
-        console.log('❌ Failed to restore weekly highlights');
-        return null;
-      }
-    } else {
-      console.log('ℹ️ Weekly highlights were not enabled');
-      return null;
-    }
-  } catch (error) {
-    console.error('❌ Error restoring weekly highlights:', error);
-    return null;
-  }
-};
 
 // Restore new category alerts on app start (persists across app kills/restarts)
 export const restoreNewCategoryAlerts = async () => {
@@ -1479,8 +1359,8 @@ export const restoreDailyReminder = async () => {
     if (dailyReminderEnabled === 'true') {
       console.log('✅ Daily reminder was enabled, checking existing schedule...');
       
-      // Check if there's an existing scheduled notification
-      const existingId = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+      // Check if there's an existing scheduled notification ID
+      const existingId = await AsyncStorage.getItem(DAILY_REMINDER_ID_KEY);
       
       if (existingId) {
         try {
@@ -1587,19 +1467,13 @@ export const initializeFirebaseMessaging = async () => {
 // Notification preference management with Firebase topics
 export const updateNotificationPreferences = async (preferences) => {
   try {
-    const { dailyReminders, weeklyHighlights, newCategoryAlerts } = preferences;
+    const { dailyReminders, newCategoryAlerts } = preferences;
 
     // Subscribe/unsubscribe from Firebase topics based on preferences
     if (dailyReminders) {
       await subscribeToTopic('daily_reminders');
     } else {
       await unsubscribeFromTopic('daily_reminders');
-    }
-
-    if (weeklyHighlights) {
-      await subscribeToTopic('weekly_highlights');
-    } else {
-      await unsubscribeFromTopic('weekly_highlights');
     }
 
     if (newCategoryAlerts) {
@@ -1610,7 +1484,6 @@ export const updateNotificationPreferences = async (preferences) => {
 
     // Save preferences locally
     await AsyncStorage.setItem(DAILY_REMINDER_KEY, dailyReminders.toString());
-    await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, weeklyHighlights.toString());
     await AsyncStorage.setItem(NEW_CATEGORY_ALERT_KEY, newCategoryAlerts.toString());
 
     return true;
@@ -1624,107 +1497,86 @@ export const updateNotificationPreferences = async (preferences) => {
 export const enableDailyRemindersWithFirebase = async () => {
   try {
     console.log('🌅 Enabling daily reminders with real Firebase...');
+    console.log('🔍 DEBUG: About to get permissions...');
     
     // Request permissions
     const hasPermission = await requestFirebasePermission();
-    console.log('Firebase permission result:', hasPermission);
+    console.log('🔍 DEBUG: Firebase permission result:', hasPermission);
     
     if (!hasPermission) {
       // Permission denied - no alert, just return false
+      console.log('🔍 DEBUG: Permission denied, returning false');
       return false;
     }
     
+    console.log('🔍 DEBUG: About to get Expo push token...');
     // Get real Expo push token
     const token = await getFCMToken();
+    console.log('🔍 DEBUG: Token result:', token ? 'exists' : 'null');
+    
     if (!token) {
       console.log('⚠️ No Expo push token available, using local notifications only');
+      console.log('🔍 DEBUG: About to schedule daily reminder (local path)...');
       await scheduleDailyReminder();
-      await sendImmediateDailyNotification();
       await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
+      console.log('🔍 DEBUG: Local reminder scheduled, preference saved');
+      
+      // Send random question notification after 24 hours
+      console.log('  Scheduling random question notification for 24 hours...');
+      await sendDailyRandomQuestionNotification();
+      
       // No alert - just enable silently
       return true;
     }
     
+    console.log('🔍 DEBUG: About to subscribe to Firebase topic...');
     // Subscribe to Firebase topic (stored locally for backend handling)
-    await subscribeToTopic('daily_reminders');
+    // TEMPORARILY DISABLED TO TEST IF BACKEND IS SENDING IMMEDIATE NOTIFICATIONS
+    // await subscribeToTopic('daily_reminders');
+    console.log('🔕 Firebase subscription temporarily disabled for testing');
     
+    console.log('🔍 DEBUG: About to save preference...');
     // Save preference
     await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
+    console.log('🔍 DEBUG: Preference saved');
     
+    console.log('🔍 DEBUG: About to schedule local notification as backup...');
     // Schedule local notification as backup
     await scheduleDailyReminder();
+    console.log('🔍 DEBUG: Local backup notification scheduled');
     
-    // Send immediate TEST notification (only once)
-    await sendImmediateDailyNotification();
+    // Send random question notification after 24 hours
+    console.log('  Scheduling random question notification for 24 hours...');
+    await sendDailyRandomQuestionNotification();
     
     // No alert - just enable silently
+    console.log('🔍 DEBUG: Daily reminders enabled successfully, returning true');
     return true;
   } catch (error) {
-    console.error('Error enabling daily reminders:', error);
+    console.error('❌ Error enabling daily reminders:', error);
+    console.log('🔍 DEBUG: Entering fallback path...');
     // Fallback to local only
     try {
+      console.log('🔍 DEBUG: About to schedule daily reminder (fallback)...');
       await scheduleDailyReminder();
-      await sendImmediateDailyNotification();
       await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
+      console.log('🔍 DEBUG: Fallback reminder scheduled, preference saved');
+      
+      // Send random question notification after 24 hours
+      console.log('  Scheduling random question notification for 24 hours in fallback...');
+      await sendDailyRandomQuestionNotification();
+      
       // No alert - just enable silently
       return true;
     } catch (fallbackError) {
       console.error('Fallback error:', fallbackError);
+      console.log('🔍 DEBUG: Fallback failed, returning false');
       // No alert - just return false
       return false;
     }
   }
 };
 
-export const enableWeeklyHighlightsWithFirebase = async () => {
-  try {
-    console.log('📊 Enabling weekly highlights with real Firebase...');
-    
-    // Request permissions
-    const hasPermission = await requestFirebasePermission();
-    console.log('Firebase permission result:', hasPermission);
-    
-    if (!hasPermission) {
-      // Permission denied - no alert, just return false
-      return false;
-    }
-    
-    // Get real Expo push token
-    const token = await getFCMToken();
-    if (!token) {
-      console.log('⚠️ No Expo push token available, using local notifications only');
-      await scheduleWeeklyHighlights();
-      await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'true');
-      // No alert - just enable silently
-      return true;
-    }
-    
-    // Subscribe to Firebase topic (stored locally for backend handling)
-    await subscribeToTopic('weekly_highlights');
-    
-    // Save preference
-    await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'true');
-    
-    // Schedule local notification as backup
-    await scheduleWeeklyHighlights();
-    
-    // No alert - just enable silently
-    return true;
-  } catch (error) {
-    console.error('Error enabling weekly highlights:', error);
-    // Fallback to local only
-    try {
-      await scheduleWeeklyHighlights();
-      await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'true');
-      // No alert - just enable silently
-      return true;
-    } catch (fallbackError) {
-      console.error('Fallback error:', fallbackError);
-      // No alert - just return false
-      return false;
-    }
-  }
-};
 
 export const enableNewCategoryAlertsWithFirebase = async () => {
   try {
@@ -1736,6 +1588,7 @@ export const enableNewCategoryAlertsWithFirebase = async () => {
     
     if (!hasPermission) {
       // Permission denied - no alert, just return false
+      console.log('❌ Permission denied for new category alerts');
       return false;
     }
     
@@ -1744,8 +1597,8 @@ export const enableNewCategoryAlertsWithFirebase = async () => {
     if (!token) {
       console.log('⚠️ No Expo push token available, using local notifications only');
       await scheduleNewCategoryAlert();
-      await sendImmediateNewCategoryNotification();
       await AsyncStorage.setItem(NEW_CATEGORY_ALERT_KEY, 'true');
+      console.log('✅ New category alerts enabled locally (no token)');
       // No alert - just enable silently
       return true;
     }
@@ -1755,22 +1608,22 @@ export const enableNewCategoryAlertsWithFirebase = async () => {
     
     // Save preference
     await AsyncStorage.setItem(NEW_CATEGORY_ALERT_KEY, 'true');
+    console.log('✅ New category alerts preference saved to AsyncStorage');
     
     // Schedule local notification as backup
     await scheduleNewCategoryAlert();
     
-    // Send immediate TEST notification (only once)
-    await sendImmediateNewCategoryNotification();
-    
     // No alert - just enable silently
+    console.log('✅ New category alerts enabled with Firebase');
     return true;
   } catch (error) {
     console.error('Error enabling new category alerts:', error);
     // Fallback to local only
     try {
+      console.log('🔄 Attempting fallback to local notifications...');
       await scheduleNewCategoryAlert();
-      await sendImmediateNewCategoryNotification();
       await AsyncStorage.setItem(NEW_CATEGORY_ALERT_KEY, 'true');
+      console.log('✅ New category alerts enabled (fallback mode)');
       // No alert - just enable silently
       return true;
     } catch (fallbackError) {

@@ -87,12 +87,19 @@ const DiscoverScreen = ({ route, onBack }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🗑️ Deleting answer with ID:', itemId);
+              
               const existingSubmissions = await AsyncStorage.getItem('discoverSubmissions');
               const submissions = existingSubmissions ? JSON.parse(existingSubmissions) : [];
+              
+              console.log('📋 Current submissions count:', submissions.length);
               
               // Remove the item with the matching id
               const updatedSubmissions = submissions.filter(item => item.id !== itemId);
               
+              console.log('📋 Updated submissions count:', updatedSubmissions.length);
+              
+              // Save updated submissions to storage
               await AsyncStorage.setItem('discoverSubmissions', JSON.stringify(updatedSubmissions));
               
               // Update state to refresh the UI
@@ -101,14 +108,19 @@ const DiscoverScreen = ({ route, onBack }) => {
                 key: item.id
               })));
               
-              console.log('Deleted answer with id:', itemId);
-              
               // Adjust current index if necessary
-              if (currentIndex >= updatedSubmissions.length && currentIndex > 0) {
-                setCurrentIndex(currentIndex - 1);
+              if (updatedSubmissions.length === 0) {
+                setCurrentIndex(0);
+              } else if (currentIndex >= updatedSubmissions.length) {
+                setCurrentIndex(updatedSubmissions.length - 1);
               }
+              
+              console.log('✅ Successfully deleted answer with id:', itemId);
+              
+              // Show success feedback
+              Alert.alert('Success', 'Answer deleted successfully.');
             } catch (error) {
-              console.error('Error deleting answer:', error);
+              console.error('❌ Error deleting answer:', error);
               Alert.alert('Error', 'Could not delete the answer. Please try again.');
             }
           },
@@ -160,7 +172,7 @@ const DiscoverScreen = ({ route, onBack }) => {
     React.useCallback(() => {
       console.log('🔄 Discover screen focused - refreshing submissions...');
       loadSubmittedQuestions();
-    }, [])
+    }, [currentIndex])
   );
   
   const loadSubmittedQuestions = async () => {
@@ -168,34 +180,21 @@ const DiscoverScreen = ({ route, onBack }) => {
       const storedSubmissions = await AsyncStorage.getItem('discoverSubmissions');
       const submissions = storedSubmissions ? JSON.parse(storedSubmissions) : [];
       
-      // Combine with default questions if no submissions
-      const defaultQuestions = [
-        { 
-          id: '1', 
-          question: 'What was the highlight of your day today?',
-          answer: 'The highlight of my day was having lunch with an old friend.',
-          type: 'default'
-        },
-        { 
-          id: '2', 
-          question: 'What are you most grateful for right now?',
-          answer: 'I\'m grateful for my family and good health.',
-          type: 'default'
-        },
-        { 
-          id: '3', 
-          question: 'What challenge are you currently facing?',
-          answer: 'I\'m working on improving my time management skills.',
-          type: 'default'
-        },
-      ];
+      // Only show actual submissions, no default questions
+      // This ensures deleted items stay permanently deleted
+      console.log('📋 Loading submissions from storage:', submissions.length, 'items');
       
-      const allQuestions = submissions.length > 0 ? submissions : defaultQuestions;
-      
-      setSubmittedQuestions(allQuestions.map(item => ({
+      setSubmittedQuestions(submissions.map(item => ({
         ...item,
         key: item.id
       })));
+      
+      // Reset current index if it's out of bounds
+      if (submissions.length === 0) {
+        setCurrentIndex(0);
+      } else if (currentIndex >= submissions.length) {
+        setCurrentIndex(submissions.length - 1);
+      }
     } catch (error) {
       console.error('Error loading submitted questions:', error);
     }

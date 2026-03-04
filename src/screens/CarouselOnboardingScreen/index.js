@@ -246,5 +246,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 14,
+    bottom:10
   },
 });

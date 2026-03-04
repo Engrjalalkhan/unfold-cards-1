@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, FlatList, Dimensions, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, ScrollView, TouchableOpacity, FlatList, Dimensions, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getStoredNotifications, markNotificationAsRead, clearAllNotifications } from '../../services/notificationService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -30,19 +29,7 @@ export function NotificationsScreen({ onBack }) {
   const [selectedNotifications, setSelectedNotifications] = useState(new Set());
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
-  const [answer, setAnswer] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedType, setSelectedType] = useState('');
-  const [selectedZone, setSelectedZone] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
-  const [customType, setCustomType] = useState('');
-  const [customZone, setCustomZone] = useState('');
-  const [customSubcategory, setCustomSubcategory] = useState('');
 
-  // Predefined options for dropdowns
-  const typeOptions = ['Daily Reminder', 'Weekly Highlights', 'General', 'Custom', 'New Category Alert'];
-  const zoneOptions = ['Personal Growth', 'Relationships', 'Career', 'Health', 'Finance', 'Spirituality', 'Creativity'];
-  const subcategoryOptions = ['Self-Reflection', 'Goals', 'Habits', 'Mindfulness', 'Learning', 'Communication', 'Leadership'];
   useEffect(() => {
     const loadNotifications = async () => {
       try {
@@ -71,8 +58,6 @@ export function NotificationsScreen({ onBack }) {
     // Categorize based on notification type
     if (notification.type === 'daily_question' || notification.category === 'Daily Reminder') {
       category = 'Daily Reminder';
-    } else if (notification.type === 'weekly_highlights' || notification.category === 'Weekly Highlights') {
-      category = 'Weekly Highlights';
     } else if (notification.type === 'new_category' || notification.category === 'New Category Alert') {
       category = 'General';
     } else if (notification.type === 'custom' || notification.category === 'Custom') {
@@ -112,61 +97,10 @@ export function NotificationsScreen({ onBack }) {
         notif.id === item.id ? { ...notif, read: true } : notif
       ));
       
-      // Reset answer and show modal
-      setAnswer('');
+      // Show modal with notification description
       setSelectedNotification(item);
       console.log('📱 Setting modal visible to true');
       setModalVisible(true);
-    }
-  };
-
-  const handleSubmitAnswer = async () => {
-    if (!answer.trim() || !selectedNotification) return;
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Add answer to AsyncStorage (similar to DiscoverScreen)
-      const storedAnswers = await AsyncStorage.getItem('userAnswers');
-      const answers = storedAnswers ? JSON.parse(storedAnswers) : [];
-      
-      const finalType = customType || selectedType || selectedNotification?.category || 'General';
-      const finalZone = customZone || selectedZone || selectedNotification?.zone || 'General';
-      const finalSubcategory = customSubcategory || selectedSubcategory || selectedNotification?.subcategory || 'General';
-      
-      const newAnswer = {
-        id: Date.now().toString(),
-        questionId: selectedNotification.id,
-        questionTitle: selectedNotification.title,
-        question: selectedNotification.body,
-        answer: answer.trim(),
-        category: finalType,
-        zone: finalZone,
-        subcategory: finalSubcategory,
-        timestamp: new Date().toISOString(),
-        source: 'notification'
-      };
-      
-      answers.unshift(newAnswer);
-      await AsyncStorage.setItem('userAnswers', JSON.stringify(answers));
-      
-      console.log('✅ Answer saved from notification:', newAnswer);
-      
-      // Reset form fields
-      setModalVisible(false);
-      setAnswer('');
-      setSelectedType('');
-      setSelectedZone('');
-      setSelectedSubcategory('');
-      setCustomType('');
-      setCustomZone('');
-      setCustomSubcategory('');
-      setSelectedNotification(null);
-      
-    } catch (error) {
-      console.error('❌ Error saving answer:', error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -354,10 +288,6 @@ export function NotificationsScreen({ onBack }) {
     if (type === 'daily_question' || category === 'Daily Reminder') {
       return 'sunny';
     }
-    // Weekly Highlights icons
-    if (type === 'weekly_highlights' || category === 'Weekly Highlights') {
-      return 'bar-chart';
-    }
     // New Category Alert icons (in General)
     if (type === 'new_category' || category === 'New Category Alert') {
       return 'add-circle';
@@ -369,26 +299,21 @@ export function NotificationsScreen({ onBack }) {
     // Default icons for other types
     const iconMap = {
       'reengage': 'notifications',
-      'two_second_question': 'flash',
       'firebase': 'notifications'
-    };
-    return iconMap[type] || 'notifications';
   };
+  return iconMap[type] || 'notifications';
+};
 
-  const getCategoryColor = (type, category) => {
-    // Daily Reminder - Orange/Yellow
-    if (type === 'daily_question' || category === 'Daily Reminder') {
-      return '#FF9500';
-    }
-    // Weekly Highlights - Blue
-    if (type === 'weekly_highlights' || category === 'Weekly Highlights') {
-      return '#007AFF';
-    }
-    // New Category Alert - Green
-    if (type === 'new_category' || category === 'New Category Alert') {
-      return '#34C759';
-    }
-    // Custom notifications - Purple
+const getCategoryColor = (type, category) => {
+  // Daily Reminder - Orange
+  if (type === 'daily_question' || category === 'Daily Reminder') {
+    return '#FF9500';
+  }
+  // New Category Alert - Green
+  if (type === 'new_category' || category === 'New Category Alert') {
+    return '#34C759';
+  }
+  // Custom notifications - Purple
     if (type === 'custom' || category === 'Custom') {
       return '#8B5CF6';
     }
@@ -517,31 +442,6 @@ export function NotificationsScreen({ onBack }) {
               You'll see your notifications here when they arrive
             </Text>
             
-            {/* Test button for debugging */}
-            <TouchableOpacity
-              style={[
-                styles.testButton,
-                { backgroundColor: '#8B5CF6' }
-              ]}
-              onPress={() => {
-                console.log('🧪 Test button pressed');
-                const testNotification = {
-                  id: 'test-123',
-                  title: '🌅 Test Question',
-                  body: 'This is a test question to verify the modal works correctly. Can you see this?',
-                  category: 'Daily Reminder',
-                  zone: 'Test Zone',
-                  subcategory: 'Test Subcategory',
-                  timestamp: new Date().toISOString()
-                };
-                setSelectedNotification(testNotification);
-                setModalVisible(true);
-                console.log('🧪 Test notification set:', testNotification);
-                console.log('🧪 Modal visible set to true');
-              }}
-            >
-              <Text style={styles.testButtonText}>Test Modal</Text>
-            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.categoriesContainer}>
@@ -593,359 +493,21 @@ export function NotificationsScreen({ onBack }) {
             </View>
             
             {/* Modal Content */}
-            <ScrollView 
-              style={styles.modalScrollView} 
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              <View style={styles.modalBody}>
-                {/* Question Display */}
-                <View style={[
-                  styles.questionContainer,
-                  { backgroundColor: isDark ? '#000000' : '#F8F9FA' }
+            <View style={styles.modalBody}>
+              {/* Notification Description Only */}
+              <View style={[
+                styles.descriptionContainer,
+                { backgroundColor: isDark ? '#000000' : '#F8F9FA' }
+              ]}>
+                <Text style={[
+                  styles.descriptionText,
+                  { color: isDark ? '#A0A0A0' : '#2F2752' },
+                  isSmallScreen && styles.descriptionTextSmall
                 ]}>
-                  <Text style={[
-                    styles.questionLabel,
-                    { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                  ]}>
-                    Question
-                  </Text>
-                  <Text style={[
-                    styles.questionText,
-                    { color: isDark ? '#A0A0A0' : '#2F2752' },
-                    isSmallScreen && styles.questionTextSmall
-                  ]}>
-                    {selectedNotification?.body || 'No question available'}
-                  </Text>
-                </View>
-                
-                {/* Answer Input */}
-                <View style={styles.answerContainer}>
-                  <Text style={[
-                    styles.answerLabel,
-                    { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                  ]}>
-                    Your Answer
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.answerInput,
-                      dynamicStyles.bgSurface,
-                      dynamicStyles.borderColor,
-                      { color: isDark ? '#A0A0A0' : '#2F2752' },
-                      isSmallScreen && styles.answerInputSmall
-                    ]}
-                    placeholder="Type your answer here..."
-                    placeholderTextColor={isDark ? '#A0A0A0' : '#7D6BA6'}
-                    multiline
-                    value={answer}
-                    onChangeText={setAnswer}
-                    textAlignVertical="top"
-                    autoFocus={true}
-                  />
-                  <Text style={[
-                    styles.answerHint,
-                    { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                  ]}>
-                    Share your thoughts and insights about this question...
-                  </Text>
-                </View>
-
-                {/* Category Selection */}
-                <View style={styles.categorySelectionContainer}>
-                  <Text style={[
-                    styles.sectionLabel,
-                    { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                  ]}>
-                    Categorize Your Answer
-                  </Text>
-                  
-                  {/* Type Selection */}
-                  <View style={styles.selectionRow}>
-                    <Text style={[
-                      styles.selectionLabel,
-                      { color: isDark ? '#A0A0A0' : '#2F2752' }
-                    ]}>
-                      Type:
-                    </Text>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.optionsScrollView}
-                    >
-                      {typeOptions.map((option) => (
-                        <TouchableOpacity
-                          key={option}
-                          style={[
-                            styles.optionChip,
-                            { 
-                              backgroundColor: selectedType === option ? '#8B5CF6' : (isDark ? '#000000' : '#F0E5FF'),
-                              borderColor: isDark ? '#444' : '#DDD'
-                            }
-                          ]}
-                          onPress={() => {
-                            setSelectedType(option);
-                            setCustomType('');
-                          }}
-                        >
-                          <Text style={[
-                            styles.optionText,
-                            { color: selectedType === option ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#7D6BA6') }
-                          ]}>
-                            {option}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Custom Type Input */}
-                  {selectedType === 'Custom' && (
-                    <View style={styles.customInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.customInput,
-                          dynamicStyles.bgSurface,
-                          dynamicStyles.borderColor,
-                          { color: isDark ? '#A0A0A0' : '#2F2752' }
-                        ]}
-                        placeholder="Enter custom type..."
-                        placeholderTextColor={isDark ? '#A0A0A0' : '#7D6BA6'}
-                        value={customType}
-                        onChangeText={setCustomType}
-                      />
-                    </View>
-                  )}
-
-                  {/* Zone Selection */}
-                  <View style={styles.selectionRow}>
-                    <Text style={[
-                      styles.selectionLabel,
-                      { color: isDark ? '#A0A0A0' : '#2F2752' }
-                    ]}>
-                      Zone:
-                    </Text>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.optionsScrollView}
-                    >
-                      {zoneOptions.map((option) => (
-                        <TouchableOpacity
-                          key={option}
-                          style={[
-                            styles.optionChip,
-                            { 
-                              backgroundColor: selectedZone === option ? '#8B5CF6' : (isDark ? '#000000' : '#F0E5FF'),
-                              borderColor: isDark ? '#444' : '#DDD'
-                            }
-                          ]}
-                          onPress={() => {
-                            setSelectedZone(option);
-                            setCustomZone('');
-                          }}
-                        >
-                          <Text style={[
-                            styles.optionText,
-                            { color: selectedZone === option ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#7D6BA6') }
-                          ]}>
-                            {option}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Custom Zone Input */}
-                  {selectedZone === 'Custom' && (
-                    <View style={styles.customInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.customInput,
-                          dynamicStyles.bgSurface,
-                          dynamicStyles.borderColor,
-                          { color: isDark ? '#A0A0A0' : '#2F2752' }
-                        ]}
-                        placeholder="Enter custom zone..."
-                        placeholderTextColor={isDark ? '#A0A0A0' : '#7D6BA6'}
-                        value={customZone}
-                        onChangeText={setCustomZone}
-                      />
-                    </View>
-                  )}
-
-                  {/* Subcategory Selection */}
-                  <View style={styles.selectionRow}>
-                    <Text style={[
-                      styles.selectionLabel,
-                      { color: isDark ? '#A0A0A0' : '#2F2752' }
-                    ]}>
-                      Subcategory:
-                    </Text>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.optionsScrollView}
-                    >
-                      {subcategoryOptions.map((option) => (
-                        <TouchableOpacity
-                          key={option}
-                          style={[
-                            styles.optionChip,
-                            { 
-                              backgroundColor: selectedSubcategory === option ? '#8B5CF6' : (isDark ? '#000000' : '#F0E5FF'),
-                              borderColor: isDark ? '#444' : '#DDD'
-                            }
-                          ]}
-                          onPress={() => {
-                            setSelectedSubcategory(option);
-                            setCustomSubcategory('');
-                          }}
-                        >
-                          <Text style={[
-                            styles.optionText,
-                            { color: selectedSubcategory === option ? '#FFFFFF' : (isDark ? '#A0A0A0' : '#7D6BA6') }
-                          ]}>
-                            {option}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Custom Subcategory Input */}
-                  {selectedSubcategory === 'Custom' && (
-                    <View style={styles.customInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.customInput,
-                          dynamicStyles.bgSurface,
-                          dynamicStyles.borderColor,
-                          { color: isDark ? '#A0A0A0' : '#2F2752' }
-                        ]}
-                        placeholder="Enter custom subcategory..."
-                        placeholderTextColor={isDark ? '#A0A0A0' : '#7D6BA6'}
-                        value={customSubcategory}
-                        onChangeText={setCustomSubcategory}
-                      />
-                    </View>
-                  )}
-                </View>
-                
-                {/* Notification Metadata */}
-                <View style={styles.modalMetadata}>
-                  <View style={styles.metadataRow}>
-                    <Text style={[
-                      styles.metadataLabel,
-                      { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                    ]}>
-                      Type:
-                    </Text>
-                    <Text style={[
-                      styles.metadataValue,
-                      { color: isDark ? '#A0A0A0' : '#4A3A75' }
-                    ]}>
-                      {selectedNotification?.category || 'General'}
-                    </Text>
-                  </View>
-                  
-                  {selectedNotification?.zone && (
-                    <View style={styles.metadataRow}>
-                      <Text style={[
-                        styles.metadataLabel,
-                        { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                      ]}>
-                        Zone:
-                      </Text>
-                      <Text style={[
-                        styles.metadataValue,
-                        { color: isDark ? '#A0A0A0' : '#4A3A75' }
-                      ]}>
-                        {selectedNotification.zone}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {selectedNotification?.subcategory && (
-                    <View style={styles.metadataRow}>
-                      <Text style={[
-                        styles.metadataLabel,
-                        { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                      ]}>
-                        Subcategory:
-                      </Text>
-                      <Text style={[
-                        styles.metadataValue,
-                        { color: isDark ? '#A0A0A0' : '#4A3A75' }
-                      ]}>
-                        {selectedNotification.subcategory}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  <View style={styles.metadataRow}>
-                    <Text style={[
-                      styles.metadataLabel,
-                      { color: isDark ? '#A0A0A0' : '#7D6BA6' }
-                    ]}>
-                      Received:
-                    </Text>
-                    <Text style={[
-                      styles.metadataValue,
-                      { color: isDark ? '#A0A0A0' : '#4A3A75' }
-                    ]}>
-                      {selectedNotification?.timestamp ? 
-                        new Date(selectedNotification.timestamp).toLocaleString() : 
-                        'Unknown'
-                      }
-                    </Text>
-                  </View>
-                </View>
-                
-                {/* Action Buttons */}
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={[
-                      styles.skipButton,
-                      { backgroundColor: isDark ? '#000000' : '#F0E5FF' },
-                      isSmallScreen && styles.skipButtonSmall
-                    ]}
-                    onPress={() => {
-                      console.log('🔔 Skip button pressed');
-                      setModalVisible(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.skipButtonText,
-                      { color: isDark ? '#FFFFFF' : '#8B5CF6' },
-                      isSmallScreen && styles.skipButtonTextSmall
-                    ]}>
-                      Skip
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.submitButton,
-                      { backgroundColor: answer.trim() ? '#8B5CF6' : '#CCCCCC' },
-                      isSmallScreen && styles.submitButtonSmall
-                    ]}
-                    onPress={() => {
-                      console.log('🔔 Submit button pressed, answer:', answer);
-                      handleSubmitAnswer();
-                    }}
-                    disabled={!answer.trim() || isSubmitting}
-                  >
-                    <Text style={[
-                      styles.submitButtonText,
-                      isSmallScreen && styles.submitButtonTextSmall
-                    ]}>
-                      {isSubmitting ? 'Saving...' : 'Submit Answer'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                  {selectedNotification?.body || 'No description available'}
+                </Text>
               </View>
-            </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1257,18 +819,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  testButton: {
-    marginTop: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   selectedNotificationCard: {
     borderWidth: 2,
     borderColor: '#8B5CF6',
@@ -1324,20 +874,18 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#000000',
-    borderRadius: 20,
-    width: '100%',
+    borderRadius: 16,
+    width: '85%',
     maxWidth: 400,
-    maxHeight: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
-    flex: 1,
+    alignSelf: 'center',
   },
   modalContentSmall: {
     maxWidth: 350,
-    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1600,5 +1148,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Simplified Modal styles
+  descriptionContainer: {
+    padding: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  descriptionText: {
+    fontSize: 17,
+    fontWeight: '500',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  descriptionTextSmall: {
+    fontSize: 15,
+    lineHeight: 22,
   },
 });

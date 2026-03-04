@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share, RefreshControl, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,11 @@ import { getMoodRecommendations, getRecommendedZones, isZoneRecommended } from '
 import { useTheme } from '../../contexts/ThemeContext';
 import { StreakManager } from '../../utils/streakManager';
 import { StatsManager } from '../../utils/statsManager';
+import { CustomZoneModal } from '../../components/CustomZoneModal';
+import { SimpleCustomZoneModal } from '../../components/SimpleCustomZoneModal';
+import { CustomAlertProvider } from '../../components/CustomAlert';
+import { customZoneStorage } from '../../utils/customZoneStorage';
+import { showCustomAlert } from '../../components/CustomAlert';
 
 // Helper function to get time of day
 const getTimeOfDay = () => {
@@ -31,6 +36,10 @@ const getZoneIcon = (zoneId) => {
     'fun-zone': 'game-controller',
     'submitted-answers-zone': 'checkmark-circle'
   };
+  // For custom zones, use a default icon
+  if (zoneId && zoneId.startsWith('custom-')) {
+    return 'star';
+  }
   return iconMap[zoneId] || 'albums-outline';
 };
 
@@ -347,51 +356,71 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [submittedAnswersZone, setSubmittedAnswersZone] = React.useState(null);
   const [allZones, setAllZones] = React.useState(zones);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [customZoneModalVisible, setCustomZoneModalVisible] = React.useState(false);
+  const [customZones, setCustomZones] = React.useState([]);
 
-  // Load submitted answers zone and streak data
+  // Load submitted answers zone, custom zones, and streak data
   React.useEffect(() => {
-    const loadSubmittedAnswersZone = async () => {
+    const loadData = async () => {
       try {
+        // Load submitted answers zone
         const zone = await createSubmittedAnswersZone();
         setSubmittedAnswersZone(zone);
         
-        // Update all zones to include submitted answers zone
-        if (zone) {
-          setAllZones([...zones, zone]);
-        } else {
-          setAllZones(zones);
+        // Always load custom zones since users can create them regardless of notification setting
+        const custom = await customZoneStorage.getCustomZones();
+        setCustomZones(custom);
+        
+        // Update all zones to include submitted answers zone and custom zones
+        // Order: regular zones -> custom zones -> submitted answers zone
+        let updatedZones = [...zones];
+        if (custom.length > 0) {
+          updatedZones.push(...custom);
         }
+        if (zone) {
+          updatedZones.push(zone);
+        }
+        setAllZones(updatedZones);
       } catch (error) {
-        console.error('Error loading submitted answers zone:', error);
+        console.error('Error loading data:', error);
         setAllZones(zones);
       }
     };
     
-    loadSubmittedAnswersZone();
+    loadData();
     loadStreakData(); // Load streak data immediately
   }, []);
 
-  // Refresh submitted answers zone and streak data when screen comes into focus
+  // Refresh submitted answers zone, custom zones, and streak data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      const loadSubmittedAnswersZone = async () => {
+      const loadData = async () => {
         try {
+          // Load submitted answers zone
           const zone = await createSubmittedAnswersZone();
           setSubmittedAnswersZone(zone);
           
-          // Update all zones to include submitted answers zone
-          if (zone) {
-            setAllZones([...zones, zone]);
-          } else {
-            setAllZones(zones);
+          // Always load custom zones since users can create them regardless of notification setting
+          const custom = await customZoneStorage.getCustomZones();
+          setCustomZones(custom);
+          
+          // Update all zones to include submitted answers zone and custom zones
+          // Order: regular zones -> custom zones -> submitted answers zone
+          let updatedZones = [...zones];
+          if (custom.length > 0) {
+            updatedZones.push(...custom);
           }
+          if (zone) {
+            updatedZones.push(zone);
+          }
+          setAllZones(updatedZones);
         } catch (error) {
-          console.error('Error refreshing submitted answers zone:', error);
+          console.error('Error refreshing data:', error);
           setAllZones(zones);
         }
       };
       
-      loadSubmittedAnswersZone();
+      loadData();
     }, [])
   );
 
@@ -465,12 +494,20 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
       const zone = await createSubmittedAnswersZone();
       setSubmittedAnswersZone(zone);
       
-      // Update all zones to include submitted answers zone
-      if (zone) {
-        setAllZones([...zones, zone]);
-      } else {
-        setAllZones(zones);
+      // Reload custom zones
+      const custom = await customZoneStorage.getCustomZones();
+      setCustomZones(custom);
+      
+      // Update all zones to include submitted answers zone and custom zones
+      // Order: regular zones -> custom zones -> submitted answers zone
+      let updatedZones = [...zones];
+      if (custom.length > 0) {
+        updatedZones.push(...custom);
       }
+      if (zone) {
+        updatedZones.push(zone);
+      }
+      setAllZones(updatedZones);
       
       // Reload profile data
       try {
@@ -508,6 +545,30 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     }
   };
 
+  // Handle custom zone creation
+  const handleCustomZoneCreated = async (newZone) => {
+    try {
+      // Reload custom zones
+      const custom = await customZoneStorage.getCustomZones();
+      setCustomZones(custom);
+      
+      // Update all zones to include new custom zone
+      // Order: regular zones -> custom zones -> submitted answers zone
+      let updatedZones = [...zones];
+      if (custom.length > 0) {
+        updatedZones.push(...custom);
+      }
+      if (submittedAnswersZone) {
+        updatedZones.push(submittedAnswersZone);
+      }
+      setAllZones(updatedZones);
+      
+      console.log('✅ Custom zone created and added to home screen:', newZone.name);
+    } catch (error) {
+      console.error('Error handling custom zone creation:', error);
+    }
+  };
+
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -528,200 +589,379 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     setExpandedZoneId((prev) => (prev === id ? null : id));
   };
 
+  const handleLongPressZone = (zone) => {
+    // Only allow long press options for custom zones
+    if (!zone.id || !zone.id.startsWith('custom-')) {
+      console.log('❌ Not a custom zone, ignoring long press:', zone.name);
+      return;
+    }
+    
+    // Debug: Log everything about the zone
+    console.log('🔍 LONG PRESS DEBUG - Zone object:', JSON.stringify(zone, null, 2));
+    console.log('🔍 Zone ID type:', typeof zone.id);
+    console.log('🔍 Zone ID value:', zone.id);
+    console.log('🔍 Zone name:', zone.name);
+    console.log('🔍 Zone keys:', Object.keys(zone));
+    
+    // Try to delete immediately for testing
+    showCustomAlert({
+      title: 'Debug Info',
+      message: `Zone: ${zone.name}\nID: ${zone.id}\nType: ${typeof zone.id}`,
+      type: 'default',
+      buttons: [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('Cancelled'),
+        },
+        {
+          text: 'FORCE DELETE NOW',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🚀 FORCE DELETE TRIGGERED');
+            await confirmDeleteCustomZone(zone);
+          },
+        },
+      ]
+    });
+  };
+
+  const handleDeleteCustomZone = async (zone) => {
+    // Show detailed delete confirmation
+    showCustomAlert({
+      title: 'Delete Custom Zone',
+      message: `Are you sure you want to delete "${zone.name}"? This action cannot be undone and will remove all subcategories and questions.`,
+      type: 'delete',
+      buttons: [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('Delete cancelled'),
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('Executing delete for zone:', zone.name);
+            await confirmDeleteCustomZone(zone);
+          },
+        },
+      ]
+    });
+  };
+
+  const confirmDeleteCustomZone = async (zone) => {
+    try {
+      console.log('🗑️ FORCE DELETE - Starting delete process for zone:', zone);
+      console.log('🆔 Zone ID:', zone.id);
+      console.log('📛 Zone Name:', zone.name);
+      
+      // Direct storage deletion approach
+      console.log('📦 Direct storage access...');
+      const CUSTOM_ZONES_KEY = 'customZones';
+      
+      // Get current zones
+      const stored = await AsyncStorage.getItem(CUSTOM_ZONES_KEY);
+      let customZones = stored ? JSON.parse(stored) : [];
+      console.log('� Current zones in storage:', customZones.length);
+      console.log('📋 Zone names in storage:', customZones.map(z => z.name));
+      
+      // Find and remove the zone
+      const originalLength = customZones.length;
+      customZones = customZones.filter(z => {
+        const shouldKeep = !(z.id === zone.id || z.name === zone.name);
+        if (!shouldKeep) {
+          console.log('�️ Removing zone:', z.name, 'ID:', z.id);
+        }
+        return shouldKeep;
+      });
+      
+      console.log('📊 Zones after filter:', customZones.length);
+      console.log('📋 Remaining zone names:', customZones.map(z => z.name));
+      
+      // Save back to storage
+      await AsyncStorage.setItem(CUSTOM_ZONES_KEY, JSON.stringify(customZones));
+      console.log('✅ Storage updated');
+      
+      // Verify deletion
+      const verifyStored = await AsyncStorage.getItem(CUSTOM_ZONES_KEY);
+      const verifyZones = verifyStored ? JSON.parse(verifyStored) : [];
+      console.log('✅ Verification - zones count:', verifyZones.length);
+      
+      // Update state
+      setCustomZones(customZones);
+      
+      // Update all zones
+      let updatedZones = [...zones];
+      if (customZones.length > 0) {
+        updatedZones.push(...customZones);
+      }
+      if (submittedAnswersZone) {
+        updatedZones.push(submittedAnswersZone);
+      }
+      setAllZones(updatedZones);
+      console.log('✅ UI updated - final zones count:', updatedZones.length);
+      
+      // Show success
+      setTimeout(() => {
+        showCustomAlert({
+          title: 'Success',
+          message: `"${zone.name}" has been deleted successfully!`,
+          type: 'success',
+          buttons: [
+            {
+              text: 'OK',
+              style: 'default',
+              onPress: () => console.log('Success acknowledged'),
+            },
+          ]
+        });
+      }, 300);
+      
+    } catch (error) {
+      console.error('❌ FORCE DELETE ERROR:', error);
+      console.error('❌ Error stack:', error.stack);
+      setTimeout(() => {
+        showCustomAlert({
+          title: 'Delete Error',
+          message: `Error: ${error.message}`,
+          type: 'default',
+          buttons: [
+            {
+              text: 'OK',
+              style: 'default',
+              onPress: () => console.log('Error acknowledged'),
+            },
+          ]
+        });
+      }, 300);
+    }
+  };
+
   const dynamicStyles = getDynamicStyles(theme, isDark);
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
-      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
-      <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { backgroundColor: isDark ? '#000000' : '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
-            progressBackgroundColor={isDark ? '#1E1E1E' : '#FFFFFF'}
-          />
-        }
-      >
-        {/* Header with Profile - Responsive with SafeArea */}
-        <View style={[
-          styles.headerContainer, 
-          { 
-            backgroundColor: isDark ? '#000000' : '#FFFFFF',
-            paddingTop: insets.top + 16 
+    <CustomAlertProvider>
+      <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+        <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContent, { backgroundColor: isDark ? '#000000' : '#FFFFFF', paddingBottom: insets.bottom + 20 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+              progressBackgroundColor={isDark ? '#1E1E1E' : '#FFFFFF'}
+            />
           }
-        ]}>
-          <View style={styles.profileSection}>
-            {/* Removed avatar container with purple background circle as requested */}
-            <View style={styles.profileInfo}>
-              <Text style={[styles.userName, dynamicStyles.textPrimary]}>
-                Hi {currentProfile?.name || 'Friend'}
-              </Text>
-              <Text style={[styles.userStatus, dynamicStyles.textMuted]}>
-                🔥 {streakDays} {streakDays === 1 ? 'day' : 'day'} streak
-              </Text>
+        >
+          {/* Header with Profile - Responsive with SafeArea */}
+          <View style={[
+            styles.headerContainer, 
+            { 
+              backgroundColor: isDark ? '#000000' : '#FFFFFF',
+              paddingTop: insets.top + 16 
+            }
+          ]}>
+            <View style={styles.profileSection}>
+              {/* Removed avatar container with purple background circle as requested */}
+              <View style={styles.profileInfo}>
+                <Text style={[styles.userName, dynamicStyles.textPrimary]}>
+                  Hi {currentProfile?.name || 'Friend'}
+                </Text>
+                <Text style={[styles.userStatus, dynamicStyles.textMuted]}>
+                  🔥 {streakDays} {streakDays === 1 ? 'day' : 'day'} streak
+                </Text>
+              </View>
+              <TouchableOpacity style={[styles.settingsButton, dynamicStyles.bgSurface]} onPress={onNavigateToNotifications}>
+                <Ionicons name="notifications-outline" size={20} color={theme.colors.text} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={[styles.settingsButton, dynamicStyles.bgSurface]} onPress={onNavigateToNotifications}>
-              <Ionicons name="notifications-outline" size={20} color={theme.colors.text} />
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Daily Question Card */}
-        <View style={styles.cardContainer}>
-          <DailyQuestion 
-            key={todayKey} 
-            onAnswer={onAnswerDaily} 
-            theme={theme} 
-            isDark={isDark}
-            onNavigateToDiscover={onNavigateToDiscover}
-            setStreakDays={setStreakDays}
-          />
-        </View>
-
-        {/* Mood Recommendations */}
-        <MoodRecommendations currentMood={currentMood} theme={theme} isDark={isDark} />
-
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <TouchableOpacity 
-            style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}
-            onPress={onNavigateToDiscover}
-          >
-            <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
-            <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Discover</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}
-            onPress={onNavigateToFavorites}
-          >
-            <Ionicons name="heart" size={24} color={theme.colors.primary} />
-            <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Favorites</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]} onPress={onNavigateToProgress}>
-            <Ionicons name="bar-chart" size={24} color={theme.colors.primary} />
-            <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Progress</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }, dynamicStyles.borderColor]}>
-            <Ionicons name="search-outline" size={20} color={theme.colors.textMuted} style={styles.searchIcon} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search zones or questions..."
-              placeholderTextColor={theme.colors.textMuted}
-              style={[styles.searchInput, { color: theme.colors.text }]}
+          {/* Daily Question Card */}
+          <View style={styles.cardContainer}>
+            <DailyQuestion 
+              key={todayKey} 
+              onAnswer={onAnswerDaily} 
+              theme={theme} 
+              isDark={isDark}
+              onNavigateToDiscover={onNavigateToDiscover}
+              setStreakDays={setStreakDays}
             />
           </View>
-        </View>
 
-        {/* Zones Section */}
-        <View style={styles.zonesSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, dynamicStyles.textPrimary]}>Explore Zones</Text>
-            <TouchableOpacity onPress={handleViewAllQuestions}>
-              <Text style={[styles.viewAllText, { color: '#0066CC' }]}>View all</Text>
+          {/* Mood Recommendations */}
+          <MoodRecommendations currentMood={currentMood} theme={theme} isDark={isDark} />
+
+          {/* Quick Actions */}
+          <View style={styles.quickActionsContainer}>
+            <TouchableOpacity 
+              style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}
+              onPress={onNavigateToDiscover}
+            >
+              <Ionicons name="sparkles" size={24} color={theme.colors.primary} />
+              <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Discover</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]}
+              onPress={onNavigateToFavorites}
+            >
+              <Ionicons name="heart" size={24} color={theme.colors.primary} />
+              <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Favorites</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.quickActionCard, dynamicStyles.bgSurface, dynamicStyles.borderColor]} onPress={onNavigateToProgress}>
+              <Ionicons name="bar-chart" size={24} color={theme.colors.primary} />
+              <Text style={[styles.quickActionText, dynamicStyles.textPrimary]}>Progress</Text>
             </TouchableOpacity>
           </View>
 
-          {(function() {
-            const q = query.trim().toLowerCase();
-            const displayed = allZones.map((zone) => {
-              const filteredSubcategories = q
-                ? zone.subcategories.filter((c) =>
-                    (c.name || '').toLowerCase().includes(q) || (zone.name || '').toLowerCase().includes(q)
-                  )
-                : zone.subcategories;
-              return {
-                id: zone.id,
-                name: zone.name,
-                color: zone.color,
-                subcategories: filteredSubcategories
-              };
-            }).filter((z) => z.subcategories && z.subcategories.length > 0);
-            return displayed;
-          })().map((zone) => {
-            const expanded = expandedZoneId === zone.id;
-            const isRecommended = currentMood && isZoneRecommended(zone.id, currentMood);
-            
-            return (
-              <View key={zone.id} style={styles.zoneContainer}>
-                <TouchableOpacity
-                  style={[styles.zoneCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}
-                  onPress={() => toggleZone(zone.id)}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient
-                    style={[styles.zoneGradient, { borderRadius: 20 }]}
-                    colors={[zone.color + '15', 'transparent']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                  
-                  <View style={styles.zoneContent}>
-                    <View style={styles.zoneHeader}>
-                      <View style={[styles.zoneIcon, { backgroundColor: zone.color }]}>
-                        <Ionicons name={getZoneIcon(zone.id)} size={24} color="#FFFFFF" />
-                      </View>
-                      <View style={styles.zoneInfo}>
-                        <Text style={[styles.zoneName, dynamicStyles.textPrimary]}>{zone.name}</Text>
-                        <Text style={[styles.zoneCount, dynamicStyles.textMuted]}>
-                          Explore Questions
-                        </Text>
-                      </View>
-                      {isRecommended && (
-                        <View style={[styles.recommendedBadge, { backgroundColor: theme.colors.primary }]}>
-                          <Text style={styles.recommendedText}>Recommended</Text>
-                        </View>
-                      )}
-                      <Ionicons 
-                        name={expanded ? "chevron-up" : "chevron-down"} 
-                        size={20} 
-                        color={theme.colors.textMuted} 
-                      />
-                    </View>
-                    
-                    {!expanded && zone.previewQuestions && zone.previewQuestions.length > 0 && (
-                      <View style={styles.previewSection}>
-                        {zone.previewQuestions.slice(0, 3).map((question, index) => (
-                          <Text key={index} style={[styles.previewQuestion, dynamicStyles.textMuted]}>
-                            • {question.length > 50 ? question.substring(0, 50) + '...' : question}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
+          {/* Search */}
+          <View style={styles.searchContainer}>
+            <View style={[styles.searchBar, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }, dynamicStyles.borderColor]}>
+              <Ionicons name="search-outline" size={20} color={theme.colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search zones or questions..."
+                placeholderTextColor={theme.colors.textMuted}
+                style={[styles.searchInput, { color: theme.colors.text }]}
+              />
+            </View>
+          </View>
 
-                {/* Expanded Subcategories */}
-                {expanded && (
-                  <View style={styles.subcategoriesContainer}>
-                    {zone.subcategories.map((subcategory) => (
-                      <View key={subcategory.id}>
-                        <CategoryCard
-                          category={subcategory}
-                          onPress={() => {
-                            // Handle submitted answers the same way as regular categories
-                            onSelectCategory(subcategory);
-                          }}  
-                          theme={theme}
-                          isDark={isDark}
+          {/* Zones Section */}
+          <View style={styles.zonesSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, dynamicStyles.textPrimary]}>Explore Zones</Text>
+              <View style={styles.headerButtons}>
+                <TouchableOpacity 
+                  style={[styles.customZoneSmallButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => setCustomZoneModalVisible(true)}
+                >
+                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                  <Text style={styles.customZoneSmallButtonText}>Add Zone</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleViewAllQuestions}>
+                  <Text style={[styles.viewAllText, { color: '#0066CC' }]}>View all</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {(function() {
+              const q = query.trim().toLowerCase();
+              const displayed = allZones.map((zone) => {
+                const filteredSubcategories = q
+                  ? zone.subcategories.filter((c) =>
+                      (c.name || '').toLowerCase().includes(q) || (zone.name || '').toLowerCase().includes(q)
+                    )
+                  : zone.subcategories;
+                return {
+                  id: zone.id,
+                  name: zone.name,
+                  color: zone.color,
+                  subcategories: filteredSubcategories
+                };
+              }).filter((z) => z.subcategories && z.subcategories.length > 0);
+              return displayed;
+            })().map((zone) => {
+              const expanded = expandedZoneId === zone.id;
+              const isRecommended = currentMood && isZoneRecommended(zone.id, currentMood);
+              
+              return (
+                <View key={zone.id} style={styles.zoneContainer}>
+                  <TouchableOpacity
+                    style={[styles.zoneCard, dynamicStyles.bgSurface, dynamicStyles.borderColor, dynamicStyles.shadowColor]}
+                    onPress={() => toggleZone(zone.id)}
+                    onLongPress={() => {
+                      console.log('🔥 Long press detected for zone:', zone.name);
+                      handleLongPressZone(zone);
+                    }}
+                    delayLongPress={500}
+                    activeOpacity={0.9}
+                  >
+                    <LinearGradient
+                      style={[styles.zoneGradient, { borderRadius: 20 }]}
+                      colors={[zone.color + '15', 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    />
+                    
+                    <View style={styles.zoneContent}>
+                      <View style={styles.zoneHeader}>
+                        <View style={[styles.zoneIcon, { backgroundColor: zone.color }]}>
+                          <Ionicons name={getZoneIcon(zone.id)} size={24} color="#FFFFFF" />
+                        </View>
+                        <View style={styles.zoneInfo}>
+                          <Text style={[styles.zoneName, dynamicStyles.textPrimary]}>{zone.name}</Text>
+                          <Text style={[styles.zoneCount, dynamicStyles.textMuted]}>
+                            Explore Questions
+                          </Text>
+                          {/* {zone.id && zone.id.startsWith('custom-') && (
+                            <Text style={[styles.customZoneHint, { color: theme.colors.textMuted }]}>
+                              Long press for options
+                            </Text>
+                          )} */}
+                        </View>
+                        {isRecommended && (
+                          <View style={[styles.recommendedBadge, { backgroundColor: theme.colors.primary }]}>
+                            <Text style={styles.recommendedText}>Recommended</Text>
+                          </View>
+                        )}
+                        <Ionicons 
+                          name={expanded ? "chevron-up" : "chevron-down"} 
+                          size={20} 
+                          color={theme.colors.textMuted} 
                         />
                       </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+                      
+                      {!expanded && zone.previewQuestions && zone.previewQuestions.length > 0 && (
+                        <View style={styles.previewSection}>
+                          {zone.previewQuestions.slice(0, 3).map((question, index) => (
+                            <Text key={index} style={[styles.previewQuestion, dynamicStyles.textMuted]}>
+                              • {question.length > 50 ? question.substring(0, 50) + '...' : question}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Expanded Subcategories */}
+                  {expanded && (
+                    <View style={styles.subcategoriesContainer}>
+                      {zone.subcategories.map((subcategory) => (
+                        <View key={subcategory.id}>
+                          <CategoryCard
+                            category={subcategory}
+                            onPress={() => {
+                              // Handle submitted answers the same way as regular categories
+                              onSelectCategory(subcategory);
+                            }}  
+                            theme={theme}
+                            isDark={isDark}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        {/* Custom Zone Modal */}
+        <SimpleCustomZoneModal
+          visible={customZoneModalVisible}
+          onClose={() => setCustomZoneModalVisible(false)}
+          theme={theme}
+          isDark={isDark}
+          onZoneCreated={handleCustomZoneCreated}
+        />
+      </SafeAreaView>
+    </CustomAlertProvider>
   );
 }
 
@@ -1305,5 +1545,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Header buttons styles
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  customZoneSmallButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  customZoneSmallButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  customZoneHint: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 2,
   },
 });

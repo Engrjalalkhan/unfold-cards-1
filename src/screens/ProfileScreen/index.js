@@ -16,33 +16,21 @@ import {
   FAVORITES_STORAGE_KEY, 
   PROFILE_STORAGE_KEY, 
   DAILY_REMINDER_KEY, 
-  WEEKLY_HIGHLIGHTS_KEY, 
   NEW_CATEGORY_ALERT_KEY
 } from '../../constants/storageKeys';
-import {
+import { 
   scheduleDailyReminder,
-  scheduleWeeklyHighlights,
   scheduleNewCategoryAlert,
   enableDailyRemindersWithFirebase,
-  enableWeeklyHighlightsWithFirebase,
   enableNewCategoryAlertsWithFirebase,
   subscribeToTopic,
-  unsubscribeFromTopic,
-  sendFirebasePushNotification
+  unsubscribeFromTopic
 } from '../../services/notificationService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// Avatar options
-const AVATAR_OPTIONS = [
-  '👤', '👨', '👩', '🧑', '👶', '👴', '👵', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱',
-  '👨‍🦳', '👩‍🦳', '👨‍🦲', '👩‍🦲', '🦸', '🦸‍♀️', '🦹', '🦹‍♀️', '🧙', '🧙‍♀️',
-  '🧚', '🧚‍♀️', '🧛', '🧛‍♀️', '🧜', '🧜‍♀️', '🧞', '🧞‍♀️', '🧟', '🧟‍♀️',
-  '🤖', '👽', '🎭', '🤡', '🦄', '🦋', '🐶', '🐱', '🐭', '🐹', '🐰',
-  '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔',
-  '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴',
-  '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️'
-];
+// Default avatar from assets
+const DEFAULT_AVATAR = require('../../../assets/avatar.png');
 
 const getDynamicStyles = (theme, isDark) => ({
   bgBackground: { backgroundColor: isDark ? '#000000' : theme.colors.background },
@@ -73,10 +61,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   const { theme, isDark, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [dailyReminder, setDailyReminder] = React.useState(false);
-  const [weeklyHighlights, setWeeklyHighlights] = React.useState(false);
   const [newCategoryAlert, setNewCategoryAlert] = React.useState(false);
-  const [showAvatarModal, setShowAvatarModal] = React.useState(false);
-  const [selectedAvatar, setSelectedAvatar] = React.useState('👤');
   const [profileImage, setProfileImage] = React.useState(null);
   const [showEditProfileModal, setShowEditProfileModal] = React.useState(false);
   const [showCustomAlert, setShowCustomAlert] = React.useState(false);
@@ -119,28 +104,16 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   React.useEffect(() => {
     (async () => {
       try {
-        const savedAvatar = await AsyncStorage.getItem('USER_AVATAR');
         const savedProfileImage = await AsyncStorage.getItem('PROFILE_IMAGE');
         const savedProfileData = await AsyncStorage.getItem('USER_PROFILE_DATA');
         
-        if (savedAvatar) {
-          setSelectedAvatar(savedAvatar);
-        }
         if (savedProfileImage) {
           setProfileImage(savedProfileImage);
         }
+        
         if (savedProfileData) {
           const profileData = JSON.parse(savedProfileData);
-          setEditProfile(profileData);
-        } else {
-          // Initialize with current profile data
-          setEditProfile({
-            name: profile?.name || 'Friend',
-            gender: profile?.gender || '',
-            bio: profile?.bio || '',
-            location: profile?.location || '',
-            age: profile?.age || ''
-          });
+          console.log('Loaded profile data:', profileData);
         }
       } catch (error) {
         console.log('Error loading profile data:', error);
@@ -175,18 +148,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     setShowEditProfileModal(false);
     showGlobalSuccessAlert('Profile updated successfully!');
   };
-  const saveAvatar = async (avatar) => {
-    try {
-      await AsyncStorage.setItem('USER_AVATAR', avatar);
-      setSelectedAvatar(avatar);
-      // Clear profile image when emoji avatar is selected
-      await AsyncStorage.removeItem('PROFILE_IMAGE');
-      setProfileImage(null);
-    } catch (error) {
-      console.log('Error saving avatar:', error);
-    }
-  };
-
   // Handle gallery image selection
   const pickImage = async () => {
     try {
@@ -207,11 +168,19 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const imageUri = result.assets[0].uri;
-        await AsyncStorage.setItem('PROFILE_IMAGE', imageUri);
+        
+        // Update state immediately
         setProfileImage(imageUri);
-        // Clear emoji avatar when gallery image is selected
-        await AsyncStorage.removeItem('USER_AVATAR');
-        setSelectedAvatar('👤');
+        
+        // Save to storage
+        await AsyncStorage.setItem('PROFILE_IMAGE', imageUri);
+        
+        console.log('✅ Profile image updated successfully:', imageUri);
+        
+        // Small delay to ensure UI updates properly
+        setTimeout(() => {
+          console.log('🔄 Profile image state updated:', profileImage);
+        }, 100);
       }
     } catch (error) {
       console.log('Error picking image:', error);
@@ -219,8 +188,24 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     }
   };
 
+  // Handle delete profile picture
+  const deleteProfilePicture = async () => {
+    try {
+      // Remove profile image from storage
+      await AsyncStorage.removeItem('PROFILE_IMAGE');
+      setProfileImage(null);
+      
+      showGlobalSuccessAlert('Profile picture deleted successfully!');
+    } catch (error) {
+      console.log('Error deleting profile picture:', error);
+      Alert.alert('Error', 'Failed to delete profile picture.');
+    }
+  };
+
   // Show options when user icon is clicked
   const handleProfileIconPress = () => {
+    console.log('📸 Profile icon clicked. Current profileImage:', profileImage ? 'exists' : 'null');
+    console.log('📸 Profile image length:', profileImage?.length || 0);
     setShowCustomAlert(true);
   };
 
@@ -228,6 +213,8 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     setShowCustomAlert(false);
     if (option === 'gallery') {
       pickImage();
+    } else if (option === 'delete') {
+      deleteProfilePicture();
     }
   };
 
@@ -315,10 +302,8 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     (async () => {
       try {
         const daily = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
-        const weekly = await AsyncStorage.getItem(WEEKLY_HIGHLIGHTS_KEY);
         const category = await AsyncStorage.getItem(NEW_CATEGORY_ALERT_KEY);
         setDailyReminder(daily === 'true');
-        setWeeklyHighlights(weekly === 'true');
         setNewCategoryAlert(category === 'true');
       } catch {}
     })();
@@ -331,7 +316,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         await scheduler();
       }
       if (key === DAILY_REMINDER_KEY) setDailyReminder(value);
-      if (key === WEEKLY_HIGHLIGHTS_KEY) setWeeklyHighlights(value);
       if (key === NEW_CATEGORY_ALERT_KEY) setNewCategoryAlert(value);
     } catch {}
   };
@@ -350,16 +334,13 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         
         if (success) {
           console.log('✅ Daily reminders enabled with Firebase');
-          // Firebase already sends immediate notification in enableDailyRemindersWithFirebase
+          // Firebase already handles preference saving and scheduling
         } else {
           console.log('⚠️ Firebase failed, using local notifications only...');
           
           // Fallback to local notifications
           const localSuccess = await scheduleDailyReminder();
           if (localSuccess) {
-            // Send immediate test notification so user sees it works
-            await sendImmediateDailyNotification();
-            await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
             console.log('✅ Daily reminders enabled with local notifications');
           } else {
             console.log('❌ Local notifications failed');
@@ -373,9 +354,10 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         await unsubscribeFromTopic('daily_reminders');
         
         // Cancel local notifications
-        const existingId = await AsyncStorage.getItem(DAILY_REMINDER_KEY);
+        const existingId = await AsyncStorage.getItem('DAILY_REMINDER_ID_KEY');
         if (existingId) {
           await Notifications.cancelScheduledNotificationAsync(existingId);
+          await AsyncStorage.removeItem('DAILY_REMINDER_ID_KEY');
         }
         
         // Update preference
@@ -388,30 +370,27 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     }
   };
 
-  const handleWeeklyHighlightToggle = async (value) => {
-    setWeeklyHighlights(value);
-    
-    if (value) {
-      const success = await enableWeeklyHighlightsWithFirebase();
-      if (!success) {
-        setWeeklyHighlights(false); // Revert on failure
-      }
-    } else {
-      await unsubscribeFromTopic('weekly_highlights');
-      await AsyncStorage.setItem(WEEKLY_HIGHLIGHTS_KEY, 'false');
-    }
-  };
-
+  
   const handleNewCategoryAlertToggle = async (value) => {
+    console.log('🔄 New category alert toggle:', value);
     setNewCategoryAlert(value);
     
     if (value) {
+      console.log('🔔 Enabling new category alerts...');
       const success = await enableNewCategoryAlertsWithFirebase();
+      console.log('📋 Firebase enable result:', success);
       if (!success) {
+        console.log('❌ Firebase failed, reverting toggle');
         setNewCategoryAlert(false); // Revert on failure
+      } else {
+        console.log('✅ New category alerts enabled successfully');
       }
     } else {
+      console.log('🔕 Disabling new category alerts...');
       await unsubscribeFromTopic('new_category_alerts');
+      // Save preference to AsyncStorage
+      await AsyncStorage.setItem(NEW_CATEGORY_ALERT_KEY, 'false');
+      console.log('✅ New category alerts disabled and preference saved');
     }
   };
 
@@ -450,7 +429,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.profileImage} />
             ) : (
-              <Text style={styles.emojiIcon}>{selectedAvatar}</Text>
+              <Image source={DEFAULT_AVATAR} style={styles.profileImage} />
             )}
             <View style={styles.editIconOverlay}>
               <Ionicons name="camera" size={16} color="#FFFFFF" />
@@ -607,18 +586,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
             </View>
             <View style={[styles.notificationItem, dynamicStyles.notificationItem]}>
               <View style={styles.notificationInfo}>
-                <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>Weekly Highlights</Text>
-                <Text style={[styles.notificationDesc, dynamicStyles.textMuted]}>Weekly summary of your progress</Text>
-              </View>
-              <Switch
-                value={weeklyHighlights}
-                onValueChange={handleWeeklyHighlightToggle}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor={Platform.OS === 'ios' ? undefined : theme.colors.primaryText}
-              />
-            </View>
-            <View style={[styles.notificationItem, dynamicStyles.notificationItem]}>
-              <View style={styles.notificationInfo}>
                 <Text style={[styles.notificationLabel, dynamicStyles.textPrimary]}>New Category Alerts</Text>
                 <Text style={[styles.notificationDesc, dynamicStyles.textMuted]}>Be notified about new question categories</Text>
               </View>
@@ -683,56 +650,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
           </View>
         )}
 
-        {/* Avatar Selection Modal */}
-        <Modal
-          visible={showAvatarModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowAvatarModal(false)}
-        >
-          <SafeAreaView style={[styles.modalContainer, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#333' : '#E6D6FF' }]}>
-              <TouchableOpacity onPress={() => setShowAvatarModal(false)} style={styles.modalCloseButton}>
-                <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#5A3785'} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, dynamicStyles.textPrimary]}>Choose Avatar</Text>
-              <View style={styles.modalSpacer} />
-            </View>
-            
-            <ScrollView 
-              style={styles.avatarScroll}
-              contentContainerStyle={styles.avatarGrid}
-              showsVerticalScrollIndicator={false}
-            >
-              {AVATAR_OPTIONS.map((avatar, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.avatarItem,
-                    { 
-                      backgroundColor: isDark ? '#1E1E1E' : '#F8F8F8',
-                      borderColor: selectedAvatar === avatar ? theme.colors.primary : (isDark ? '#333' : '#E6D6FF'),
-                      borderWidth: selectedAvatar === avatar ? 2 : 1
-                    }
-                  ]}
-                  onPress={() => {
-                    saveAvatar(avatar);
-                    setShowAvatarModal(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.avatarEmoji}>{avatar}</Text>
-                  {selectedAvatar === avatar && (
-                    <View style={[styles.selectedIndicator, { backgroundColor: theme.colors.primary }]}>
-                      <Ionicons name="check" size={12} color="#FFFFFF" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
-
         {/* Edit Profile Modal */}
         <Modal
           visible={showEditProfileModal}
@@ -779,7 +696,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                       {profileImage ? (
                         <Image source={{ uri: profileImage }} style={styles.modalProfileImage} />
                       ) : (
-                        <Text style={styles.modalEmojiIcon}>{selectedAvatar}</Text>
+                        <Image source={DEFAULT_AVATAR} style={styles.modalProfileImage} />
                       )}
                       <View style={styles.modalEditIconOverlay}>
                         <Ionicons name="camera" size={16} color="#FFFFFF" />
@@ -897,6 +814,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
 
         {/* Custom Profile Picture Alert */}
         <Modal
+          key={profileImage || 'no-image'}
           visible={showCustomAlert}
           transparent={true}
           animationType="fade"
@@ -916,6 +834,30 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               
               <View style={styles.customAlertButtons}>
                 <TouchableOpacity
+                  style={[styles.customAlertButton, styles.galleryButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => handleCustomAlertOption('gallery')}
+                >
+                  <Ionicons name="images-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                  <Text style={styles.galleryButtonText}>
+                    Select Photo
+                  </Text>
+                </TouchableOpacity>
+                
+                {profileImage && profileImage.length > 0 && (
+                  <TouchableOpacity
+                    style={[styles.customAlertButton, styles.deleteButton, { 
+                      backgroundColor: '#FF4444'
+                    }]}
+                    onPress={() => handleCustomAlertOption('delete')}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
+                    <Text style={styles.deleteButtonText}>
+                      Delete Photo
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
+                <TouchableOpacity
                   style={[styles.customAlertButton, styles.cancelButton, { 
                     backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
                     borderColor: isDark ? '#444' : '#DDD'
@@ -924,16 +866,6 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
                 >
                   <Text style={[styles.cancelButtonText, { color: isDark ? '#A0A0A0' : '#666' }]}>
                     Cancel
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.customAlertButton, styles.galleryButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => handleCustomAlertOption('gallery')}
-                >
-                  <Ionicons name="images-outline" size={18} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.galleryButtonText}>
-                    Select Photo
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -972,8 +904,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   emojiCircle: { 
-    width: 120, 
-    height: 120, 
+    // width: 100, 
+    // height: 100, 
     borderRadius: 60, 
     backgroundColor: '#FFFFFF', 
     borderWidth: 1, 
@@ -1004,15 +936,15 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   emojiIcon: { 
-    fontSize: 75,
+    fontSize: 50,
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 85,
+    lineHeight: 60,
   },
   profileImage: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 100,
+    height: 100,
+    borderRadius: 100,
   },
   profileTitle: { color: '#6B3AA0', fontSize: 28, fontWeight: '800', marginTop: 12 },
   profileTagline: { color: '#8B6FB1', fontSize: 14, marginTop: 6 },
@@ -1278,7 +1210,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatarEmoji: {
-    fontSize: 28,
+    fontSize: 20,
   },
   selectedIndicator: {
     position: 'absolute',
@@ -1316,15 +1248,15 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   modalProfileImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
   modalEmojiIcon: {
-    fontSize: 70,
+    fontSize: 45,
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 70,
+    lineHeight: 50,
   },
   modalEditIconOverlay: {
     position: 'absolute',
@@ -1448,12 +1380,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   customAlertButtons: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 12,
     width: '100%',
   },
   customAlertButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1474,6 +1405,14 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   galleryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    borderWidth: 0,
+  },
+  deleteButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',

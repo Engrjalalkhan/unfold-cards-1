@@ -64,7 +64,8 @@
       "edgeToEdgeEnabled": true,
       "compileSdkVersion": 34,
       "targetSdkVersion": 34,
-      "buildToolsVersion": "34.0.0"
+      "buildToolsVersion": "34.0.0",
+      "gradleCommand": ":app:assembleRelease"
     },
     "web": {
       "favicon": "./assets/logo.png"
