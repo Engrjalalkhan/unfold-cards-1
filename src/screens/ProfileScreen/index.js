@@ -24,7 +24,9 @@ import {
   enableDailyRemindersWithFirebase,
   enableNewCategoryAlertsWithFirebase,
   subscribeToTopic,
-  unsubscribeFromTopic
+  unsubscribeFromTopic,
+  cleanupDailyQuestionNotifications,
+  emergencyCleanupAllNotifications
 } from '../../services/notificationService';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -114,6 +116,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         if (savedProfileData) {
           const profileData = JSON.parse(savedProfileData);
           console.log('Loaded profile data:', profileData);
+          setEditProfile(profileData);
         }
       } catch (error) {
         console.log('Error loading profile data:', error);
@@ -350,10 +353,13 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
       } else {
         console.log('🔕 Disabling daily reminders...');
         
+        // Clean up all existing daily question notifications first
+        await cleanupDailyQuestionNotifications();
+        
         // Unsubscribe from Firebase topic
         await unsubscribeFromTopic('daily_reminders');
         
-        // Cancel local notifications
+        // Cancel any remaining local notifications
         const existingId = await AsyncStorage.getItem('DAILY_REMINDER_ID_KEY');
         if (existingId) {
           await Notifications.cancelScheduledNotificationAsync(existingId);
@@ -362,7 +368,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
         
         // Update preference
         await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'false');
-        console.log('✅ Daily reminders disabled');
+        console.log('✅ Daily reminders disabled and cleaned up');
       }
     } catch (error) {
       console.error('❌ Error in daily reminder toggle:', error);
@@ -1237,8 +1243,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   profilePictureButton: {
-    width: 100,
-    height: 100,
+    // width: 100,
+    // height: 100,
     borderRadius: 50,
     backgroundColor: '#F8F8F8',
     borderWidth: 2,
