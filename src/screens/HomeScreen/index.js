@@ -17,6 +17,7 @@ import { SimpleCustomZoneModal } from '../../components/SimpleCustomZoneModal';
 import { CustomAlertProvider } from '../../components/CustomAlert';
 import { customZoneStorage } from '../../utils/customZoneStorage';
 import { showCustomAlert } from '../../components/CustomAlert';
+import { initializeRevenueCat, isPremiumUser, presentPaywall, presentPaywallFallback, presentDemoPaywall, presentDashboardPaywall } from '../../services/revenuecat';
 
 // Helper function to get time of day
 const getTimeOfDay = () => {
@@ -358,11 +359,23 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [refreshing, setRefreshing] = React.useState(false);
   const [customZoneModalVisible, setCustomZoneModalVisible] = React.useState(false);
   const [customZones, setCustomZones] = React.useState([]);
+  const [isPremium, setIsPremium] = React.useState(false);
 
   // Load submitted answers zone, custom zones, and streak data
   React.useEffect(() => {
     const loadData = async () => {
       try {
+        // Initialize RevenueCat
+        const revenueCatInitialized = await initializeRevenueCat();
+        if (revenueCatInitialized) {
+          // Check premium status
+          const premiumStatus = await isPremiumUser();
+          setIsPremium(premiumStatus);
+        } else {
+          console.log('RevenueCat not initialized, using default premium status');
+          setIsPremium(false);
+        }
+        
         // Load submitted answers zone
         const zone = await createSubmittedAnswersZone();
         setSubmittedAnswersZone(zone);
@@ -545,7 +558,6 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     }
   };
 
-  // Handle custom zone creation
   const handleCustomZoneCreated = async (newZone) => {
     try {
       // Reload custom zones
@@ -569,6 +581,42 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     }
   };
 
+  const handleAddZonePress = async () => {
+    try {
+      if (isPremium) {
+        // User is premium, allow adding zone
+        setCustomZoneModalVisible(true);
+      } else {
+        // User is not premium, show RevenueCat dashboard paywall
+        console.log('Showing RevenueCat dashboard paywall...');
+        let result = await presentDashboardPaywall();
+        
+        // Check if purchase was successful
+        if (result && result.result === 'purchased') {
+          if (result.demo) {
+            console.log('🎭 DEMO: Purchase successful! User is now premium.');
+          } else {
+            console.log('Purchase successful! User is now premium.');
+          }
+          setIsPremium(true);
+          // Now allow adding zone
+          setCustomZoneModalVisible(true);
+        } else if (result && result.result === 'cancelled') {
+          console.log('Paywall cancelled by user.');
+        } else if (result && result.result === 'no_offering') {
+          console.log('No offering available - products not set up in Google Play');
+        } else {
+          console.log('Paywall closed without purchase.');
+        }
+      }
+    } catch (error) {
+      console.error('Error handling add zone press:', error);
+      // Fallback to showing modal if paywall fails
+      setCustomZoneModalVisible(true);
+    }
+  };
+
+  
   React.useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -838,7 +886,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
               <View style={styles.headerButtons}>
                 <TouchableOpacity 
                   style={[styles.customZoneSmallButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => setCustomZoneModalVisible(true)}
+                  onPress={handleAddZonePress}
                 >
                   <Ionicons name="add" size={16} color="#FFFFFF" />
                   <Text style={styles.customZoneSmallButtonText}>Add Zone</Text>

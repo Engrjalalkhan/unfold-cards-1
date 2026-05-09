@@ -7,6 +7,7 @@ import {
   testRandomQuestionNotification,
   sendDailyRandomQuestionNotification,
   sendImmediateRandomQuestionNotification,
+  sendTestDailyRandomQuestionNotification,
   checkDailyReminderStatus
 } from './notificationService';
 
@@ -119,6 +120,39 @@ export const testCompleteFlow = async () => {
     
   } catch (error) {
     console.error('❌ Error testing complete flow:', error);
+    return null;
+  }
+};
+
+// Test 24-hour random notification scheduling specifically
+export const test24HourNotification = async () => {
+  console.log('📅 Testing 24-hour random notification scheduling...');
+  
+  try {
+    const dailyId = await sendDailyRandomQuestionNotification();
+    console.log('24-hour notification scheduled with ID:', dailyId);
+    console.log('📱 You should receive it in 24 hours');
+    
+    return dailyId;
+  } catch (error) {
+    console.error('❌ Error testing 24-hour notification:', error);
+    return null;
+  }
+};
+
+// Test 24-hour notification with 10-minute delay for debugging
+export const test24HourNotificationDebug = async () => {
+  console.log('🧪 Testing 24-hour notification with 10-minute delay (debug)...');
+  
+  try {
+    const dailyId = await sendTestDailyRandomQuestionNotification();
+    console.log('TEST 24-hour notification scheduled with ID:', dailyId);
+    console.log('📱 You should receive it in 10 minutes');
+    console.log('🧪 This will help us debug if the 24-hour logic works');
+    
+    return dailyId;
+  } catch (error) {
+    console.error('❌ Error testing debug 24-hour notification:', error);
     return null;
   }
 };

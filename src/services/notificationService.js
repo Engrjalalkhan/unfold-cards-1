@@ -787,13 +787,6 @@ Notifications.addNotificationReceivedListener(notification => {
     }
   }
   
-  // Don't automatically add custom zone or new category notifications to the notification screen
-  // These are already handled by the system notifications
-  if (notificationType === 'custom_zone_created' || notificationType === 'new_category') {
-    console.log('🔕 Skipping automatic notification screen addition for:', notificationType);
-    return;
-  }
-  
   // Get zone information
   const category = notification.request.content.data?.category || 'General';
   const zone = getZoneFromCategory(category);
@@ -1288,6 +1281,64 @@ export const sendImmediateRandomQuestionNotification = async () => {
   }
 };
 
+// Test version of 24-hour notification with 10-minute delay for debugging
+export const sendTestDailyRandomQuestionNotification = async () => {
+  try {
+    console.log('🧪 Sending TEST random question notification after 10 minutes...');
+    console.log('📱 Works whether app is closed or opened');
+    
+    if (Platform.OS === 'web') {
+      console.log('Scheduled notifications not supported on web');
+      return null;
+    }
+    
+    // Get random question from all 600 questions
+    const randomQuestionData = getRandomQuestionFromAllData();
+    
+    console.log('🎲 TEST - Selected random question from:', randomQuestionData.source);
+    console.log('🏷️ TEST - Zone:', randomQuestionData.zone);
+    console.log('📂 TEST - Subcategory:', randomQuestionData.subcategory);
+    console.log('❓ TEST - Question:', randomQuestionData.question);
+    
+    // Schedule notification for 10 minutes from now (for testing)
+    const triggerTime = new Date(Date.now() + 10 * 60 * 1000);
+    console.log('⏰ TEST - Random question notification scheduled for:', triggerTime.toLocaleString());
+    
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `TEST: ${randomQuestionData.subcategory || 'Random Question'}`,
+        body: randomQuestionData.question,
+        data: { 
+          type: 'daily_question',
+          category: 'Daily Reminder',
+          zone: randomQuestionData.zone,
+          subcategory: randomQuestionData.subcategory,
+          screen: 'Notifications',
+          scheduled: true,
+          random: true, // Mark as random question
+          test: true // Mark as test notification
+        },
+        sound: 'default',
+        priority: 'high',
+      },
+      trigger: {
+        type: 'date',
+        date: triggerTime,
+        repeats: false,
+      },
+    });
+
+    console.log('✅ TEST - Random question notification scheduled with ID:', id);
+    console.log('🎲 TEST - Will arrive in 10 minutes with a random question from 600 total questions');
+    console.log('📱 Works whether app is closed or opened');
+    
+    return id;
+  } catch (error) {
+    console.error('❌ Error scheduling TEST 24-hour random question notification:', error);
+    return null;
+  }
+};
+
 // Send notification with random question after 24 hours (works whether app is closed or opened)
 export const sendDailyRandomQuestionNotification = async () => {
   try {
@@ -1568,13 +1619,13 @@ export const restoreDailyReminder = async () => {
         }
       }
       
-      // Schedule new daily reminder if needed
-      const newId = await scheduleDailyReminder();
+      // Schedule new daily random question notification if needed
+      const newId = await sendDailyRandomQuestionNotification();
       if (newId) {
-        console.log('✅ Daily reminder restored and scheduled successfully');
+        console.log('✅ Daily random question reminder restored and scheduled successfully');
         return newId;
       } else {
-        console.log('❌ Failed to restore daily reminder');
+        console.log('❌ Failed to restore daily random question reminder');
         return null;
       }
     } else {
@@ -1800,9 +1851,7 @@ export const enableDailyRemindersWithFirebase = async () => {
       console.log('🎲 Sending immediate random question notification (1 hour)...');
       await sendImmediateRandomQuestionNotification();
       
-      // Schedule 24-hour random question notification for subsequent days
-      console.log('📅 Scheduling 24-hour random question notification...');
-      await sendDailyRandomQuestionNotification();
+      // Note: The 24-hour notification will be scheduled automatically when the 1-hour notification is received
       
       // No alert - just enable silently
       return true;
@@ -1824,13 +1873,11 @@ export const enableDailyRemindersWithFirebase = async () => {
     await scheduleDailyReminder();
     console.log('🔍 DEBUG: Local backup notification scheduled');
     
-    // Send immediate random question notification after 2 seconds
-    console.log('🎲 Sending immediate random question notification (2 seconds)...');
+    // Send immediate random question notification after 1 hour
+    console.log('🎲 Sending immediate random question notification (1 hour)...');
     await sendImmediateRandomQuestionNotification();
     
-    // Schedule 24-hour random question notification for subsequent days
-    console.log('📅 Scheduling 24-hour random question notification...');
-    await sendDailyRandomQuestionNotification();
+    // Note: The 24-hour notification will be scheduled automatically when the 1-hour notification is received
     
     // No alert - just enable silently
     console.log('🔍 DEBUG: Daily reminders enabled successfully, returning true');
@@ -1845,13 +1892,11 @@ export const enableDailyRemindersWithFirebase = async () => {
       await AsyncStorage.setItem(DAILY_REMINDER_KEY, 'true');
       console.log('🔍 DEBUG: Fallback reminder scheduled, preference saved');
       
-      // Send immediate random question notification after 2 seconds
-      console.log('🎲 Sending immediate random question notification in fallback (2 seconds)...');
+      // Send immediate random question notification after 1 hour
+      console.log('🎲 Sending immediate random question notification in fallback (1 hour)...');
       await sendImmediateRandomQuestionNotification();
       
-      // Schedule 24-hour random question notification for subsequent days
-      console.log('📅 Scheduling 24-hour random question notification in fallback...');
-      await sendDailyRandomQuestionNotification();
+      // Note: The 24-hour notification will be scheduled automatically when the 1-hour notification is received
       
       // No alert - just enable silently
       return true;
