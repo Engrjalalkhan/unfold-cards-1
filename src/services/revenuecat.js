@@ -51,33 +51,38 @@ export const isPremiumUser = async () => {
 // Present RevenueCat Paywall with UI
 export const presentPaywall = async () => {
   try {
+    console.log('🎯 Presenting RevenueCat Paywall...');
+    
     // First try to get offerings to ensure products are available
     const offerings = await Purchases.getOfferings();
-    console.log('Available offerings for paywall:', offerings);
+    console.log('📦 Available offerings for paywall:', offerings);
     
     if (!offerings.current) {
-      console.log('No current offering available, using demo mode');
+      console.log('❌ No current offering available, using demo mode');
       return await presentDemoPaywall();
     }
     
     // Check if Paywall UI is available
-    console.log('Checking Paywall UI availability...');
-    console.log('Paywall object:', Paywall);
-    console.log('Paywall.present function:', Paywall?.present);
+    console.log('🔍 Checking Paywall UI availability...');
+    console.log('📱 Paywall object:', Paywall);
+    console.log('🔧 Paywall.present function:', Paywall?.present);
     
     if (Paywall && typeof Paywall.present === 'function') {
       console.log('✅ Paywall UI is available, presenting dashboard paywall...');
-      const result = await Paywall.present();
-      console.log('Paywall result:', result);
+      const result = await Paywall.present({
+        offeringIdentifier: offerings.current.identifier,
+      });
+      console.log('✅ Paywall result:', result);
       return result;
     } else {
       console.log('❌ Paywall UI not available - package not properly installed or linked');
-      console.log('Trying alternative approach...');
+      console.log('💡 Install: npm install react-native-purchases-ui');
+      console.log('🔄 Trying alternative approach...');
       return await presentCustomPaywall();
     }
   } catch (error) {
-    console.error('Failed to present paywall:', error);
-    console.error('Error details:', error.message);
+    console.error('❌ Failed to present paywall:', error);
+    console.error('🔍 Error details:', error.message);
     // Fallback to demo mode
     return await presentDemoPaywall();
   }
@@ -141,30 +146,52 @@ export const presentPaywallWithOffering = async (offeringIdentifier) => {
 // Present dashboard paywall (uses published paywall from dashboard)
 export const presentDashboardPaywall = async () => {
   try {
-    console.log('Presenting dashboard paywall...');
+    console.log('🎨 Presenting RevenueCat Dashboard Paywall...');
     
     // Get offerings to find the current one
     const offerings = await Purchases.getOfferings();
     
     if (!offerings.current) {
-      console.log('No current offering found for dashboard paywall');
+      console.log('❌ No current offering found for dashboard paywall');
+      console.log('💡 Make sure you have configured offerings in RevenueCat dashboard');
       return await presentDemoPaywall();
     }
     
-    console.log(`Using current offering: ${offerings.current.identifier}`);
+    console.log(`✅ Using current offering: ${offerings.current.identifier}`);
+    console.log(`📦 Available packages: ${offerings.current.availablePackages.length}`);
     
-    // Try to present the dashboard paywall
-    if (Paywall) {
-      const result = await Paywall.present();
-      console.log('Dashboard paywall presented successfully');
-      return result;
-    } else {
-      console.log('Paywall UI not available, falling back to offering display');
+    // Check if Paywall UI is available
+    if (!Paywall) {
+      console.log('❌ Paywall UI not available - react-native-purchases-ui not properly installed');
+      console.log('💡 Install: npm install react-native-purchases-ui');
+      console.log('💡 Then run: npx pod-install (iOS) or cd android && ./gradlew clean (Android)');
       return await presentCustomPaywall();
     }
+    
+    console.log('✅ Paywall UI is available, presenting dashboard paywall...');
+    
+    // Present the dashboard paywall with current offering
+    const result = await Paywall.present({
+      offeringIdentifier: offerings.current.identifier,
+    });
+    
+    console.log('✅ Dashboard paywall presented successfully');
+    console.log('📊 Paywall result:', result);
+    
+    return result;
   } catch (error) {
-    console.error('Failed to present dashboard paywall:', error);
-    return await presentDemoPaywall();
+    console.error('❌ Failed to present dashboard paywall:', error);
+    console.error('🔍 Error details:', error.message);
+    
+    // Check if it's a specific error type
+    if (error.message.includes('not configured') || error.message.includes('no paywall')) {
+      console.log('💡 No paywall configured in RevenueCat dashboard');
+      console.log('💡 Go to RevenueCat dashboard → Paywalls → Create paywall');
+    }
+    
+    // Fallback to custom paywall
+    console.log('🔄 Falling back to custom paywall...');
+    return await presentCustomPaywall();
   }
 };
 
