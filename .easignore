@@ -1,0 +1,44 @@
+# --- from .gitignore (required when .easignore exists) ---
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.kotlin/
+*.orig.*
+*.p8
+*.p12
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+.env*.local
+*.tsbuildinfo
+
+# --- Android build outputs (often huge; not needed for EAS) ---
+android/build/
+android/.gradle/
+android/app/build/
+**/.cxx/
+
+# --- iOS (if present) ---
+ios/build/
+ios/Pods/
+DerivedData/
+
+# --- Not needed for mobile app build ---
+.git/
+.vscode/
+.cursor/
+*.md
+!assets/**/*.md
+cloud-functions/
+deploy-functions.sh
+build-release.bat
+FIREBASE_*.md
+
+# --- Logs & local artifacts ---
+*.log
+coverage/

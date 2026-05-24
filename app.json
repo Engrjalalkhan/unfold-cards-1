@@ -2,8 +2,8 @@
   "expo": {
     "name": "Unfold Cards",
     "slug": "unfold-cards",
-    "version": "1.1.0",
-    "versionCode": 2,
+    "version": "1.2.0",
+    "versionCode": 3,
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -71,14 +71,14 @@
     "web": {
       "favicon": "./assets/logo.png"
     },
-    "owner": "jalalkhan",
+    "owner": "rafeeque-2",
     "extra": {
-      "eas": {
-        "projectId": "b01ca6da-465b-4898-b578-e5d909392888"
-      },
       "revenueCat": {
         "iosApiKey": "appl_api_xxxxxxxxxx",
-        "androidApiKey": "test_cIOWSMnbzPLtWMmJyjZUOSLeHFu"
+        "androidApiKey": "goog_xbkqiybNjGFTsoxUWuIdYeYDbdX"
+      },
+      "eas": {
+        "projectId": "1e227a65-3cca-4855-ad88-4cfcf48d2c33"
       }
     }
   }

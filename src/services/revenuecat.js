@@ -1,8 +1,23 @@
-import { Platform } from 'react-native';
-import Purchases from 'react-native-purchases';
-import { Paywall } from 'react-native-purchases-ui';
+import React from 'react';
+import {
+  Modal,
+  View,
+  StyleSheet,
+  Platform,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
-// Get API key from app.json
+/** RevenueCat dashboard offering identifier (marked as Current). */
+export const DEFAULT_OFFERING_ID = 'default_offering';
+
+const PLAY_PRODUCT_IDS = ['premium:monthly', 'premium:yearly'];
+const PRODUCT_PROBE_MS = 8000;
+const HELP_OVERLAY_MS = 12000;
+
 const getAppConfig = () => {
   try {
     const appJson = require('../../app.json');
@@ -17,19 +32,234 @@ const getAppConfig = () => {
   }
 };
 
-// RevenueCat configuration
 const REVENUECAT_API_KEY = getAppConfig();
 
-// Initialize RevenueCat
+const getActiveOffering = (offerings) => {
+  if (!offerings) return null;
+  return offerings.current ?? offerings.all?.[DEFAULT_OFFERING_ID] ?? null;
+};
+
+const withTimeout = (promise, ms, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+    }),
+  ]);
+
+/** Forward all native RevenueCat logs to Metro. */
+const enableRevenueCatLogging = () => {
+  try {
+    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+    Purchases.setLogHandler((level, message) => {
+      console.warn(`[RevenueCat/${level}] ${message}`);
+    });
+  } catch (error) {
+    console.warn('[RevenueCat] Could not enable verbose logging:', error);
+  }
+};
+
+/** Probe whether Play / RevenueCat products are reachable on this device. */
+export const probeSubscriptionProducts = async () => {
+  console.warn('[RevenueCat] probing products:', PLAY_PRODUCT_IDS.join(', '));
+  try {
+    const products = await withTimeout(
+      Purchases.getProducts(PLAY_PRODUCT_IDS),
+      PRODUCT_PROBE_MS,
+      'getProducts'
+    );
+    console.warn(
+      '[RevenueCat] getProducts OK:',
+      products.map((p) => ({ id: p.identifier, price: p.priceString }))
+    );
+    return { ok: true, products };
+  } catch (error) {
+    console.warn('[RevenueCat] getProducts failed:', error?.message ?? error);
+    return { ok: false, error };
+  }
+};
+
+export const prefetchOfferingsInBackground = () => {
+  withTimeout(Purchases.getOfferings(), PRODUCT_PROBE_MS, 'getOfferings')
+    .then((offerings) => {
+      const offering = getActiveOffering(offerings);
+      console.warn('[RevenueCat] offerings OK:', {
+        current: offerings?.current?.identifier ?? 'none',
+        active: offering?.identifier ?? 'none',
+        packages:
+          offering?.availablePackages?.map((p) => ({
+            package: p.identifier,
+            product: p.product?.identifier,
+            price: p.product?.priceString,
+          })) ?? [],
+      });
+    })
+    .catch((err) => {
+      console.warn('[RevenueCat] offerings failed:', err?.message ?? err);
+    });
+};
+
+export const presentDashboardPaywall = async () => {
+  console.warn('[RevenueCat] presentDashboardPaywall — native modal');
+  try {
+    const paywallResult = await RevenueCatUI.presentPaywall({
+      displayCloseButton: true,
+    });
+    console.warn('[RevenueCat] presentPaywall result:', paywallResult);
+    return { result: paywallResult };
+  } catch (error) {
+    console.error('[RevenueCat] presentPaywall failed:', error);
+    return { result: PAYWALL_RESULT.ERROR, reason: 'use_embedded_paywall', error };
+  }
+};
+
+function PaywallHelpOverlay({ onClose }) {
+  return (
+    <View style={styles.helpOverlay}>
+      <View style={styles.helpCard}>
+        <Text style={styles.helpTitle}>Subscriptions not loading</Text>
+        <Text style={styles.helpBody}>
+          The paywall design opened, but Google Play prices did not load. This
+          usually happens on debug builds or emulators.{'\n\n'}
+          To see real packages and prices:{'\n'}
+          1. Upload the app to Play Console → Internal testing{'\n'}
+          2. Install from the Play Store test link (not expo run:android){'\n'}
+          3. Sign in with a license tester Google account{'\n'}
+          4. Confirm products premium:monthly / premium:yearly are Active in Play
+          Console{'\n\n'}
+          For quick dev testing, add RevenueCat Test Store products in your
+          dashboard offering.
+        </Text>
+        <TouchableOpacity style={styles.helpButton} onPress={onClose}>
+          <Text style={styles.helpButtonText}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+/** Embedded dashboard paywall + diagnostics overlay when products cannot load. */
+export function RevenueCatPaywallModal({
+  visible,
+  offering,
+  onClose,
+  onPurchaseSuccess,
+}) {
+  const [showHelp, setShowHelp] = React.useState(false);
+  const [probing, setProbing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setShowHelp(false);
+      setProbing(false);
+      return undefined;
+    }
+
+    console.warn('[RevenueCat] Paywall modal opened');
+    setProbing(true);
+
+    const helpTimer = setTimeout(() => {
+      console.warn('[RevenueCat] Paywall still loading — showing help overlay');
+      setShowHelp(true);
+    }, HELP_OVERLAY_MS);
+
+    probeSubscriptionProducts()
+      .then((result) => {
+        if (!result.ok) {
+          setShowHelp(true);
+        }
+      })
+      .finally(() => setProbing(false));
+
+    return () => clearTimeout(helpTimer);
+  }, [visible]);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={styles.paywallContainer}>
+        <RevenueCatUI.Paywall
+          style={styles.paywall}
+          options={{
+            ...(offering ? { offering } : {}),
+            displayCloseButton: true,
+          }}
+          onDismiss={() => {
+            console.warn('[RevenueCat] Paywall dismissed');
+            onClose();
+          }}
+          onPurchaseStarted={({ packageBeingPurchased }) => {
+            console.warn(
+              '[RevenueCat] Purchase started:',
+              packageBeingPurchased?.identifier
+            );
+          }}
+          onPurchaseCompleted={({ customerInfo }) => {
+            console.warn('[RevenueCat] Purchase completed');
+            const hasPremium =
+              customerInfo?.entitlements?.active?.premium !== undefined;
+            onPurchaseSuccess?.(hasPremium, customerInfo);
+            onClose();
+          }}
+          onPurchaseError={({ error }) => {
+            console.warn('[RevenueCat] Purchase error:', error?.message ?? error);
+          }}
+          onRestoreCompleted={({ customerInfo }) => {
+            console.warn('[RevenueCat] Restore completed');
+            const hasPremium =
+              customerInfo?.entitlements?.active?.premium !== undefined;
+            if (hasPremium) {
+              onPurchaseSuccess?.(true, customerInfo);
+              onClose();
+            }
+          }}
+          onRestoreError={({ error }) => {
+            console.warn('[RevenueCat] Restore error:', error?.message ?? error);
+          }}
+        />
+
+        {probing && !showHelp ? (
+          <View style={styles.probeBanner}>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={styles.probeText}>Loading subscription options…</Text>
+          </View>
+        ) : null}
+
+        {showHelp ? (
+          <PaywallHelpOverlay
+            onClose={() => {
+              setShowHelp(false);
+              onClose();
+            }}
+          />
+        ) : null}
+      </View>
+    </Modal>
+  );
+}
+
 export const initializeRevenueCat = async () => {
   try {
     if (!REVENUECAT_API_KEY || REVENUECAT_API_KEY.includes('xxxxxxxxxx')) {
       console.warn('RevenueCat API key not configured - Running in demo mode');
-      return false; // Return false to trigger demo mode
+      return false;
     }
 
-    await Purchases.configure({ apiKey: REVENUECAT_API_KEY });
-    console.log('RevenueCat initialized successfully');
+    enableRevenueCatLogging();
+    Purchases.configure({
+      apiKey: REVENUECAT_API_KEY,
+      diagnosticsEnabled: true,
+    });
+    console.warn('[RevenueCat] SDK configured');
+    prefetchOfferingsInBackground();
     return true;
   } catch (error) {
     console.error('RevenueCat initialization failed:', error);
@@ -37,7 +267,6 @@ export const initializeRevenueCat = async () => {
   }
 };
 
-// Check if user has premium access
 export const isPremiumUser = async () => {
   try {
     const customerInfo = await Purchases.getCustomerInfo();
@@ -48,215 +277,75 @@ export const isPremiumUser = async () => {
   }
 };
 
-// Present RevenueCat Paywall with UI
-export const presentPaywall = async () => {
-  try {
-    console.log('🎯 Presenting RevenueCat Paywall...');
-    
-    // First try to get offerings to ensure products are available
-    const offerings = await Purchases.getOfferings();
-    console.log('📦 Available offerings for paywall:', offerings);
-    
-    if (!offerings.current) {
-      console.log('❌ No current offering available, using demo mode');
-      return await presentDemoPaywall();
-    }
-    
-    // Check if Paywall UI is available
-    console.log('🔍 Checking Paywall UI availability...');
-    console.log('📱 Paywall object:', Paywall);
-    console.log('🔧 Paywall.present function:', Paywall?.present);
-    
-    if (Paywall && typeof Paywall.present === 'function') {
-      console.log('✅ Paywall UI is available, presenting dashboard paywall...');
-      const result = await Paywall.present({
-        offeringIdentifier: offerings.current.identifier,
-      });
-      console.log('✅ Paywall result:', result);
-      return result;
-    } else {
-      console.log('❌ Paywall UI not available - package not properly installed or linked');
-      console.log('💡 Install: npm install react-native-purchases-ui');
-      console.log('🔄 Trying alternative approach...');
-      return await presentCustomPaywall();
-    }
-  } catch (error) {
-    console.error('❌ Failed to present paywall:', error);
-    console.error('🔍 Error details:', error.message);
-    // Fallback to demo mode
-    return await presentDemoPaywall();
-  }
-};
-
-// Custom paywall using offerings (without UI package)
-export const presentCustomPaywall = async () => {
-  try {
-    console.log('Getting offerings from RevenueCat...');
-    const offerings = await Purchases.getOfferings();
-    
-    console.log('All offerings:', offerings);
-    console.log('Current offering:', offerings.current);
-    console.log('Available packages:', offerings.current?.availablePackages);
-    
-    if (offerings.current !== null && offerings.current.availablePackages.length > 0) {
-      // Get the first available package
-      const firstPackage = offerings.current.availablePackages[0];
-      console.log('Found package:', firstPackage);
-      console.log('Package identifier:', firstPackage.identifier);
-      console.log('Package price:', firstPackage.product.priceString);
-      
-      // For now, just return success without purchasing (for testing)
-      console.log('🎭 TEST MODE: Would purchase package:', firstPackage.identifier);
-      return { result: 'purchased', customerInfo: null, testMode: true };
-      
-      // Uncomment below for real purchase:
-      // const { customerInfo } = await Purchases.purchasePackage(firstPackage);
-      // return { result: 'purchased', customerInfo };
-    } else {
-      console.log('No offerings or packages available');
-      return { result: 'no_offering' };
-    }
-  } catch (error) {
-    console.error('Custom paywall failed:', error);
-    throw error;
-  }
-};
-
-// Present paywall with specific offering
-export const presentPaywallWithOffering = async (offeringIdentifier) => {
-  try {
-    // Check if Paywall is available
-    if (!Paywall) {
-      console.error('Paywall UI not available. Make sure react-native-purchases-ui is properly installed.');
-      return await presentCustomPaywall();
-    }
-    
-    console.log(`Presenting paywall with offering: ${offeringIdentifier}`);
-    const result = await Paywall.present({
-      offeringIdentifier,
-    });
-    return result;
-  } catch (error) {
-    console.error('Failed to present paywall with offering:', error);
-    // Fallback to custom paywall
-    return await presentCustomPaywall();
-  }
-};
-
-// Present dashboard paywall (uses published paywall from dashboard)
-export const presentDashboardPaywall = async () => {
-  try {
-    console.log('🎨 Presenting RevenueCat Dashboard Paywall...');
-    
-    // Get offerings to find the current one
-    const offerings = await Purchases.getOfferings();
-    
-    if (!offerings.current) {
-      console.log('❌ No current offering found for dashboard paywall');
-      console.log('💡 Make sure you have configured offerings in RevenueCat dashboard');
-      return await presentDemoPaywall();
-    }
-    
-    console.log(`✅ Using current offering: ${offerings.current.identifier}`);
-    console.log(`📦 Available packages: ${offerings.current.availablePackages.length}`);
-    
-    // Check if Paywall UI is available
-    if (!Paywall) {
-      console.log('❌ Paywall UI not available - react-native-purchases-ui not properly installed');
-      console.log('💡 Install: npm install react-native-purchases-ui');
-      console.log('💡 Then run: npx pod-install (iOS) or cd android && ./gradlew clean (Android)');
-      return await presentCustomPaywall();
-    }
-    
-    console.log('✅ Paywall UI is available, presenting dashboard paywall...');
-    
-    // Present the dashboard paywall with current offering
-    const result = await Paywall.present({
-      offeringIdentifier: offerings.current.identifier,
-    });
-    
-    console.log('✅ Dashboard paywall presented successfully');
-    console.log('📊 Paywall result:', result);
-    
-    return result;
-  } catch (error) {
-    console.error('❌ Failed to present dashboard paywall:', error);
-    console.error('🔍 Error details:', error.message);
-    
-    // Check if it's a specific error type
-    if (error.message.includes('not configured') || error.message.includes('no paywall')) {
-      console.log('💡 No paywall configured in RevenueCat dashboard');
-      console.log('💡 Go to RevenueCat dashboard → Paywalls → Create paywall');
-    }
-    
-    // Fallback to custom paywall
-    console.log('🔄 Falling back to custom paywall...');
-    return await presentCustomPaywall();
-  }
-};
-
-// Demo paywall for testing without RevenueCat setup
-export const presentDemoPaywall = async () => {
-  return new Promise((resolve) => {
-    console.log('🎭 DEMO MODE: Showing demo paywall');
-    console.log('In a real implementation, this would show your RevenueCat dashboard paywall');
-    
-    // Simulate user interaction after 2 seconds
-    setTimeout(() => {
-      console.log('🎭 DEMO: User completed purchase');
-      resolve({ result: 'purchased', demo: true });
-    }, 2000);
-  });
-};
-
-// Fallback: Present paywall using offerings (without UI)
-export const presentPaywallFallback = async () => {
-  try {
-    const offerings = await Purchases.getOfferings();
-    if (offerings.current !== null) {
-      // Use the first available package from the current offering
-      const firstPackage = offerings.current.availablePackages[0];
-      if (firstPackage) {
-        const { customerInfo } = await Purchases.purchasePackage(firstPackage);
-        return { result: 'purchased', customerInfo };
-      }
-    }
-    return { result: 'cancelled' };
-  } catch (error) {
-    console.error('Fallback paywall failed:', error);
-    throw error;
-  }
-};
-
-// Get current offerings
-export const getOfferings = async () => {
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings;
-  } catch (error) {
-    console.error('Failed to get offerings:', error);
-    return null;
-  }
-};
-
-// Purchase package
-export const purchasePackage = async (packageToPurchase) => {
-  try {
-    const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
-    return customerInfo;
-  } catch (error) {
-    console.error('Purchase failed:', error);
-    throw error;
-  }
-};
-
-// Restore purchases
 export const restorePurchases = async () => {
   try {
-    const customerInfo = await Purchases.restoreTransactions();
-    return customerInfo;
+    return await Purchases.restorePurchases();
   } catch (error) {
     console.error('Restore failed:', error);
     throw error;
   }
 };
+
+const styles = StyleSheet.create({
+  paywallContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  paywall: {
+    flex: 1,
+  },
+  probeBanner: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  probeText: {
+    color: '#fff',
+    fontSize: 13,
+  },
+  helpOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  helpCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+  },
+  helpTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  helpBody: {
+    color: '#ccc',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  helpButton: {
+    marginTop: 16,
+    backgroundColor: '#6C63FF',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  helpButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+});
+
+export { PAYWALL_RESULT };

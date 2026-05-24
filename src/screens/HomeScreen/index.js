@@ -17,7 +17,11 @@ import { SimpleCustomZoneModal } from '../../components/SimpleCustomZoneModal';
 import { CustomAlertProvider } from '../../components/CustomAlert';
 import { customZoneStorage } from '../../utils/customZoneStorage';
 import { showCustomAlert } from '../../components/CustomAlert';
-import { initializeRevenueCat, isPremiumUser, presentPaywall, presentPaywallFallback, presentDemoPaywall, presentDashboardPaywall } from '../../services/revenuecat';
+import {
+  initializeRevenueCat,
+  isPremiumUser,
+  RevenueCatPaywallModal,
+} from '../../services/revenuecat';
 
 // Helper function to get time of day
 const getTimeOfDay = () => {
@@ -360,6 +364,8 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   const [customZoneModalVisible, setCustomZoneModalVisible] = React.useState(false);
   const [customZones, setCustomZones] = React.useState([]);
   const [isPremium, setIsPremium] = React.useState(false);
+  const [paywallModalVisible, setPaywallModalVisible] = React.useState(false);
+  const [paywallOffering, setPaywallOffering] = React.useState(null);
 
   // Load submitted answers zone, custom zones, and streak data
   React.useEffect(() => {
@@ -581,39 +587,30 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     }
   };
 
-  const handleAddZonePress = async () => {
-    try {
-      if (isPremium) {
-        // User is premium, allow adding zone
-        setCustomZoneModalVisible(true);
-      } else {
-        // User is not premium, show RevenueCat dashboard paywall
-        console.log('Showing RevenueCat dashboard paywall...');
-        let result = await presentDashboardPaywall();
-        
-        // Check if purchase was successful
-        if (result && result.result === 'purchased') {
-          if (result.demo) {
-            console.log('🎭 DEMO: Purchase successful! User is now premium.');
-          } else {
-            console.log('Purchase successful! User is now premium.');
-          }
-          setIsPremium(true);
-          // Now allow adding zone
-          setCustomZoneModalVisible(true);
-        } else if (result && result.result === 'cancelled') {
-          console.log('Paywall cancelled by user.');
-        } else if (result && result.result === 'no_offering') {
-          console.log('No offering available - products not set up in Google Play');
-        } else {
-          console.log('Paywall closed without purchase.');
-        }
-      }
-    } catch (error) {
-      console.error('Error handling add zone press:', error);
-      // Fallback to showing modal if paywall fails
+  const openEmbeddedPaywall = () => {
+    console.warn('[Add Zone] opening embedded RevenueCat dashboard paywall');
+    setPaywallOffering(null);
+    setPaywallModalVisible(true);
+  };
+
+  const handlePaywallPurchaseSuccess = (hasPremium) => {
+    if (hasPremium) {
+      setIsPremium(true);
       setCustomZoneModalVisible(true);
     }
+  };
+
+  const handleAddZonePress = () => {
+    console.warn('[Add Zone] button pressed');
+
+    if (isPremium) {
+      console.warn('[Add Zone] user is premium — opening custom zone modal');
+      setCustomZoneModalVisible(true);
+      return;
+    }
+
+    console.warn('[Add Zone] opening RevenueCat dashboard paywall');
+    openEmbeddedPaywall();
   };
 
   
@@ -884,9 +881,11 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, dynamicStyles.textPrimary]}>Explore Zones</Text>
               <View style={styles.headerButtons}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.customZoneSmallButton, { backgroundColor: theme.colors.primary }]}
                   onPress={handleAddZonePress}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons name="add" size={16} color="#FFFFFF" />
                   <Text style={styles.customZoneSmallButtonText}>Add Zone</Text>
@@ -1007,6 +1006,16 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
           theme={theme}
           isDark={isDark}
           onZoneCreated={handleCustomZoneCreated}
+        />
+
+        <RevenueCatPaywallModal
+          visible={paywallModalVisible}
+          offering={paywallOffering}
+          onClose={() => {
+            setPaywallModalVisible(false);
+            setPaywallOffering(null);
+          }}
+          onPurchaseSuccess={handlePaywallPurchaseSuccess}
         />
       </SafeAreaView>
     </CustomAlertProvider>
