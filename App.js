@@ -31,6 +31,7 @@ import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
 import { DarkModeScreen } from './src/screens/DarkModeScreen';
 import { SubmittedAnswersScreen } from './src/screens/SubmittedAnswersScreen';
+import { PremiumSuccessScreen } from './src/screens/PremiumSuccessScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -333,16 +334,20 @@ const AppContent = () => {
 
   // Create screen components with theme
   const screens = {
-    Home: () => <HomeScreen 
-      theme={theme} 
-      onSelectCategory={handleSelectCategory}
-      onAnswerDaily={() => console.log('Daily question answered')}
-      onNavigateToNotifications={handleNavigateToNotifications}
-      onViewAllQuestions={handleViewAllQuestions}
-      onNavigateToDiscover={handleNavigateToDiscover}
-      onNavigateToFavorites={handleNavigateToFavorites}
-      onNavigateToProgress={handleNavigateToProgress}
-    />,
+    Home: ({ navigation, route }) => (
+      <HomeScreen
+        theme={theme}
+        navigation={navigation}
+        route={route}
+        onSelectCategory={handleSelectCategory}
+        onAnswerDaily={() => console.log('Daily question answered')}
+        onNavigateToNotifications={handleNavigateToNotifications}
+        onViewAllQuestions={handleViewAllQuestions}
+        onNavigateToDiscover={handleNavigateToDiscover}
+        onNavigateToFavorites={handleNavigateToFavorites}
+        onNavigateToProgress={handleNavigateToProgress}
+      />
+    ),
     CategoryQuestions: () => {
       console.log('CategoryQuestions screen rendering, selectedCategory:', selectedCategory?.name);
       if (!selectedCategory) {
@@ -463,6 +468,7 @@ const AppContent = () => {
     SubmittedAnswers: ({ navigation, route }) => {
       return <SubmittedAnswersScreen navigation={navigation} route={route} />;
     },
+    PremiumSuccess: () => <PremiumSuccessScreen />,
   };
 
   return (
@@ -512,8 +518,8 @@ const AppContent = () => {
               component={component}
               options={{ 
                 tabBarLabel: name.toUpperCase(),
-                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' ? () => null : undefined,
-                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' ? { display: 'none' } : undefined
+                tabBarButton: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' || name === 'PremiumSuccess' ? () => null : undefined,
+                tabBarItemStyle: name === 'CategoryQuestions' || name === 'AllQuestions' || name === 'MoodQuestions' || name === 'SubcategoryQuestions' || name === 'Discover' || name === 'Notifications' || name === 'Progress' || name === 'DarkMode' || name === 'SubmittedAnswers' || name === 'PremiumSuccess' ? { display: 'none' } : undefined
               }}
             />
           ))}

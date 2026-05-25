@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, ScrollView, SafeAreaView, TextInput, TouchableOpacity, LayoutAnimation, Platform, UIManager, Image, StatusBar, Share, RefreshControl, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { zones, allSubcategories, createSubmittedAnswersZone } from '../../data/decks';
@@ -352,6 +352,7 @@ function MoodRecommendations({ currentMood, theme, isDark }) {
 export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAnswerDaily, onNavigateToNotifications, onViewAllQuestions, onNavigateToDiscover, onNavigateToFavorites, onNavigateToProgress }) {
   const { theme, isDark } = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const [expandedZoneId, setExpandedZoneId] = React.useState(null);
   const [todayKey, setTodayKey] = React.useState(getDateKey());
@@ -441,6 +442,17 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
       
       loadData();
     }, [])
+  );
+
+  // After premium purchase: open custom zone modal when returning from success screen
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.openCustomZone) {
+        setIsPremium(true);
+        setCustomZoneModalVisible(true);
+        navigation.setParams({ openCustomZone: undefined, premiumWelcome: undefined });
+      }
+    }, [route.params?.openCustomZone, navigation])
   );
 
   // Load profile data directly from AsyncStorage for latest data
@@ -594,10 +606,24 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   };
 
   const handlePaywallPurchaseSuccess = (hasPremium) => {
+    setPaywallModalVisible(false);
+    setPaywallOffering(null);
+
     if (hasPremium) {
       setIsPremium(true);
-      setCustomZoneModalVisible(true);
+      navigation.navigate('PremiumSuccess', { openCustomZone: true });
     }
+  };
+
+  const handlePaywallPurchaseError = (error) => {
+    const message =
+      error?.message ??
+      'The purchase could not be completed. Try again or use Restore purchases.';
+    showCustomAlert({
+      title: 'Purchase failed',
+      message,
+      buttons: [{ text: 'OK', style: 'default' }],
+    });
   };
 
   const handleAddZonePress = () => {
@@ -1016,6 +1042,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
             setPaywallOffering(null);
           }}
           onPurchaseSuccess={handlePaywallPurchaseSuccess}
+          onPurchaseError={handlePaywallPurchaseError}
         />
       </SafeAreaView>
     </CustomAlertProvider>
