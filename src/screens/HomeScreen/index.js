@@ -565,8 +565,16 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
   };
 
   // Function to navigate to AllQuestionsScreen
-  const handleViewAllQuestions = () => {
+  const handleViewAllQuestions = async () => {
     console.log('handleViewAllQuestions called');
+    
+    // Check if user is premium, if not show paywall
+    if (!isPremium) {
+      console.log('[View All] User is not premium, showing paywall');
+      await handleAddZonePress();
+      return;
+    }
+    
     try {
       console.log('Attempting to navigate to AllQuestionsScreen...');
       navigation.navigate('AllQuestions');
@@ -1008,7 +1016,13 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                         <View key={subcategory.id}>
                           <CategoryCard
                             category={subcategory}
-                            onPress={() => {
+                            onPress={async () => {
+                              // Check if user is premium, if not show paywall
+                              if (!isPremium) {
+                                console.log('[Subcategory] User is not premium, showing paywall for:', subcategory.name);
+                                await handleAddZonePress();
+                                return;
+                              }
                               // Handle submitted answers the same way as regular categories
                               onSelectCategory(subcategory);
                             }}  
