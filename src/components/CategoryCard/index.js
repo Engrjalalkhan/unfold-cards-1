@@ -1,9 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, Animated, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { hexToRgba } from '../../utils/helpers';
 
-export function CategoryCard({ category, onPress, theme, isDark }) {
+export function CategoryCard({ category, onPress, theme, isDark, isLocked, showLockIcon }) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
@@ -50,7 +51,16 @@ export function CategoryCard({ category, onPress, theme, isDark }) {
           <Text style={[styles.deckTitle, { color: isDark ? '#FFFFFF' : '#2F2752' }]}>{categoryName}</Text>
           <Text style={[styles.deckSubtitle, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>{categoryQuestions.length} questions</Text>
         </View>
-        <Text style={[styles.chevron, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>›</Text>
+        {showLockIcon ? (
+          <Ionicons
+            name={isLocked ? 'lock-closed' : 'lock-open'}
+            size={22}
+            color={isLocked ? (isDark ? '#A0A0A0' : '#7A6FA3') : categoryColor}
+            style={styles.lockIcon}
+          />
+        ) : (
+          <Text style={[styles.chevron, { color: isDark ? '#A0A0A0' : '#7A6FA3' }]}>›</Text>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -79,4 +89,5 @@ const styles = StyleSheet.create({
   deckTitle: { color: '#2F2752', fontSize: 18, fontWeight: '700' },
   deckSubtitle: { color: '#7A6FA3', fontSize: 13, marginTop: 2 },
   chevron: { color: '#7A6FA3', fontSize: 24, marginLeft: 12 },
+  lockIcon: { marginLeft: 12 },
 });

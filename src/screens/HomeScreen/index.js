@@ -16,6 +16,11 @@ import { CustomZoneModal } from '../../components/CustomZoneModal';
 import { SimpleCustomZoneModal } from '../../components/SimpleCustomZoneModal';
 import { CustomAlertProvider } from '../../components/CustomAlert';
 import { customZoneStorage } from '../../utils/customZoneStorage';
+import {
+  canOpenSubcategory,
+  recordSubcategoryOpen,
+  resetSubcategoryOpenCount,
+} from '../../utils/subcategoryAccessManager';
 import { showCustomAlert } from '../../components/CustomAlert';
 import {
   initializeRevenueCat,
@@ -378,6 +383,9 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
           // Check premium status
           const premiumStatus = await isPremiumUser();
           setIsPremium(premiumStatus);
+          if (premiumStatus) {
+            await resetSubcategoryOpenCount();
+          }
         } else {
           console.log('RevenueCat not initialized, using default premium status');
           setIsPremium(false);
@@ -416,6 +424,12 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     React.useCallback(() => {
       const loadData = async () => {
         try {
+          const premiumStatus = await isPremiumUser();
+          setIsPremium(premiumStatus);
+          if (premiumStatus) {
+            await resetSubcategoryOpenCount();
+          }
+
           // Load submitted answers zone
           const zone = await createSubmittedAnswersZone();
           setSubmittedAnswersZone(zone);
@@ -449,6 +463,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     React.useCallback(() => {
       if (route.params?.openCustomZone) {
         setIsPremium(true);
+        resetSubcategoryOpenCount();
         setCustomZoneModalVisible(true);
         navigation.setParams({ openCustomZone: undefined, premiumWelcome: undefined });
       }
@@ -619,6 +634,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
     if (hasPremium) {
       setIsPremium(true);
+      resetSubcategoryOpenCount();
       navigation.navigate('PremiumSuccess', { openCustomZone: true });
     }
   };
@@ -1016,14 +1032,25 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                         <View key={subcategory.id}>
                           <CategoryCard
                             category={subcategory}
+                            showLockIcon
+                            isLocked={!isPremium}
                             onPress={async () => {
-                              // Check if user is premium, if not show paywall
-                              if (!isPremium) {
-                                console.log('[Subcategory] User is not premium, showing paywall for:', subcategory.name);
-                                await handleAddZonePress();
+                              if (isPremium) {
+                                onSelectCategory(subcategory);
                                 return;
                               }
-                              // Handle submitted answers the same way as regular categories
+
+                              const allowed = await canOpenSubcategory();
+                              if (!allowed) {
+                                console.log(
+                                  '[Subcategory] Free limit reached, showing paywall for:',
+                                  subcategory.name
+                                );
+                                openEmbeddedPaywall();
+                                return;
+                              }
+
+                              await recordSubcategoryOpen();
                               onSelectCategory(subcategory);
                             }}  
                             theme={theme}
