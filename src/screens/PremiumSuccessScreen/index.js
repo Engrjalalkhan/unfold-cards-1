@@ -42,15 +42,38 @@ const FEATURES = [
 
 export function PremiumSuccessScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
-  const openCustomZone = route.params?.openCustomZone ?? false;
+const route = useRoute();
 
-  const handleStartExploring = () => {
-    navigation.navigate('Home', {
-      openCustomZone,
-      premiumWelcome: true,
+const source = route.params?.source ?? 'home';
+const subCategory = route.params?.subCategory ?? null;
+
+const handleStartExploring = () => {
+
+  // Open View All Screen
+  if (source === 'viewAll') {
+    navigation.navigate('ViewAllScreen');
+    return;
+  }
+
+  // Open SubCategory Screen
+  if (source === 'subCategory') {
+    navigation.navigate('SubCategoryScreen', {
+      subCategory,
     });
-  };
+    return;
+  }
+
+  // Open Custom Zone Modal/Screen
+  if (source === 'customZone') {
+    navigation.navigate('Home', {
+      openCustomZone: true,
+    });
+    return;
+  }
+
+  // Default
+  navigation.navigate('Home');
+};
 
   return (
     <View style={styles.root}>
