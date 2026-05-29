@@ -1,10 +1,14 @@
 import React from 'react';
-import { Modal, View, StyleSheet, Platform } from 'react-native';
+import { Modal, View, StyleSheet, Platform, Text } from 'react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import { Ionicons } from '@expo/vector-icons';
 
 /** RevenueCat dashboard offering identifier (marked as Current). */
 export const DEFAULT_OFFERING_ID = 'default_offering';
+
+/** Entitlement identifier configured in RevenueCat dashboard. */
+export const PREMIUM_ENTITLEMENT_ID = 'premium';
 
 const getAppConfig = () => {
   try {
@@ -26,6 +30,9 @@ const getActiveOffering = (offerings) => {
   if (!offerings) return null;
   return offerings.current ?? offerings.all?.[DEFAULT_OFFERING_ID] ?? null;
 };
+
+export const hasPremiumEntitlement = (customerInfo) =>
+  customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID] !== undefined;
 
 /** Forward native RevenueCat logs to Metro (dev only). */
 const enableRevenueCatLogging = () => {
@@ -65,6 +72,7 @@ export const presentDashboardPaywall = async () => {
   try {
     const paywallResult = await RevenueCatUI.presentPaywall({
       displayCloseButton: true,
+      requiredEntitlementIdentifier: PREMIUM_ENTITLEMENT_ID,
     });
     console.warn('[RevenueCat] presentPaywall result:', paywallResult);
     return { result: paywallResult };
@@ -74,6 +82,11 @@ export const presentDashboardPaywall = async () => {
   }
 };
 
+const getSecurePaymentLabel = () =>
+  Platform.OS === 'ios'
+    ? 'Secure payment via Apple App Store'
+    : 'Secure payment via Google Play';
+
 /** Full-screen RevenueCat dashboard paywall (no blocking overlays). */
 export function RevenueCatPaywallModal({
   visible,
@@ -81,10 +94,20 @@ export function RevenueCatPaywallModal({
   onClose,
   onPurchaseSuccess,
   onPurchaseError,
+  onRestoreNoPurchases,
 }) {
   if (!visible) {
     return null;
   }
+
+  const handlePremiumUnlocked = (customerInfo) => {
+    const hasPremium = hasPremiumEntitlement(customerInfo);
+    if (hasPremium) {
+      onPurchaseSuccess?.(true, customerInfo);
+      onClose();
+    }
+    return hasPremium;
+  };
 
   return (
     <Modal
@@ -99,6 +122,7 @@ export function RevenueCatPaywallModal({
           options={{
             ...(offering ? { offering } : {}),
             displayCloseButton: true,
+            requiredEntitlementIdentifier: PREMIUM_ENTITLEMENT_ID,
           }}
           onDismiss={() => {
             console.warn('[RevenueCat] Paywall dismissed');
@@ -112,10 +136,7 @@ export function RevenueCatPaywallModal({
           }}
           onPurchaseCompleted={({ customerInfo }) => {
             console.warn('[RevenueCat] Purchase completed');
-            const hasPremium =
-              customerInfo?.entitlements?.active?.premium !== undefined;
-            onPurchaseSuccess?.(hasPremium, customerInfo);
-            onClose();
+            handlePremiumUnlocked(customerInfo);
           }}
           onPurchaseError={({ error }) => {
             console.warn('[RevenueCat] Purchase error:', error?.message ?? error);
@@ -123,11 +144,9 @@ export function RevenueCatPaywallModal({
           }}
           onRestoreCompleted={({ customerInfo }) => {
             console.warn('[RevenueCat] Restore completed');
-            const hasPremium =
-              customerInfo?.entitlements?.active?.premium !== undefined;
-            if (hasPremium) {
-              onPurchaseSuccess?.(true, customerInfo);
-              onClose();
+            const restored = handlePremiumUnlocked(customerInfo);
+            if (!restored) {
+              onRestoreNoPurchases?.();
             }
           }}
           onRestoreError={({ error }) => {
@@ -135,10 +154,27 @@ export function RevenueCatPaywallModal({
             onPurchaseError?.(error);
           }}
         />
+        <View style={styles.securePaymentBar}>
+          <Ionicons name="lock-closed" size={14} color="#9CA3AF" />
+          <Text style={styles.securePaymentText}>{getSecurePaymentLabel()}</Text>
+        </View>
       </View>
     </Modal>
   );
 }
+
+let customerInfoListenerAttached = false;
+
+const attachCustomerInfoListener = () => {
+  if (customerInfoListenerAttached) return;
+  customerInfoListenerAttached = true;
+  Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+    console.warn(
+      '[RevenueCat] Customer info updated, premium:',
+      hasPremiumEntitlement(customerInfo)
+    );
+  });
+};
 
 export const initializeRevenueCat = async () => {
   try {
@@ -152,6 +188,7 @@ export const initializeRevenueCat = async () => {
       apiKey: REVENUECAT_API_KEY,
       diagnosticsEnabled: __DEV__,
     });
+    attachCustomerInfoListener();
     console.warn('[RevenueCat] SDK configured');
     prefetchOfferingsInBackground();
     return true;
@@ -164,7 +201,7 @@ export const initializeRevenueCat = async () => {
 export const isPremiumUser = async () => {
   try {
     const customerInfo = await Purchases.getCustomerInfo();
-    return customerInfo.entitlements.active.premium !== undefined;
+    return hasPremiumEntitlement(customerInfo);
   } catch (error) {
     console.error('Failed to check premium status:', error);
     return false;
@@ -180,6 +217,14 @@ export const restorePurchases = async () => {
   }
 };
 
+export const restorePurchasesWithResult = async () => {
+  const customerInfo = await restorePurchases();
+  return {
+    customerInfo,
+    hasPremium: hasPremiumEntitlement(customerInfo),
+  };
+};
+
 const styles = StyleSheet.create({
   paywallContainer: {
     flex: 1,
@@ -187,6 +232,22 @@ const styles = StyleSheet.create({
   },
   paywall: {
     flex: 1,
+  },
+  securePaymentBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#111',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#333',
+  },
+  securePaymentText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

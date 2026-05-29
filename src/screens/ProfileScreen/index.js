@@ -28,6 +28,11 @@ import {
   cleanupDailyQuestionNotifications,
   emergencyCleanupAllNotifications
 } from '../../services/notificationService';
+import {
+  initializeRevenueCat,
+  restorePurchasesWithResult,
+} from '../../services/revenuecat';
+import { resetTrialProgress } from '../../utils/trialSubcategoryAccess';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -76,6 +81,7 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
   });
   const [currentStats, setCurrentStats] = React.useState({});
   const [currentStreak, setCurrentStreak] = React.useState(0);
+  const [isRestoringPurchases, setIsRestoringPurchases] = React.useState(false);
 
   // Load stats and streak data
   React.useEffect(() => {
@@ -400,6 +406,44 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
     }
   };
 
+  const handleRestorePurchases = async () => {
+    if (isRestoringPurchases) return;
+
+    setIsRestoringPurchases(true);
+    try {
+      const initialized = await initializeRevenueCat();
+      if (!initialized) {
+        Alert.alert(
+          'Restore unavailable',
+          'Purchases could not be restored right now. Please try again later.'
+        );
+        return;
+      }
+
+      const { hasPremium } = await restorePurchasesWithResult();
+
+      if (hasPremium) {
+        await resetTrialProgress();
+        Alert.alert(
+          'Purchases restored',
+          'Your premium subscription has been restored successfully.'
+        );
+      } else {
+        Alert.alert(
+          'No purchases found',
+          'We could not find an active premium subscription for this account.'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Restore failed',
+        error?.message ?? 'Unable to restore purchases. Please try again.'
+      );
+    } finally {
+      setIsRestoringPurchases(false);
+    }
+  };
+
   const dynamicStyles = getDynamicStyles(theme, isDark);
   const backgroundColor = isDark ? '#000000' : theme.colors.background;
   const surfaceColor = isDark ? '#1E1E1E' : theme.colors.surface;
@@ -631,6 +675,26 @@ export function ProfileScreen({ profile, setProfile, favoritesCount, stats, favo
               name="chevron-forward" 
               size={20} 
               color={isDark ? '#A0A0A0' : theme.colors.textMuted} 
+              style={styles.chevronIcon}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.settingRow, styles.settingRowBorder, dynamicStyles.borderColor]}
+            onPress={handleRestorePurchases}
+            disabled={isRestoringPurchases}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, dynamicStyles.textPrimary]}>Restore Purchases</Text>
+              <Text style={[styles.settingDesc, dynamicStyles.textMuted]}>
+                {isRestoringPurchases
+                  ? 'Restoring...'
+                  : 'Restore premium on a new device'}
+              </Text>
+            </View>
+            <Ionicons
+              name="refresh-outline"
+              size={20}
+              color={isDark ? '#A0A0A0' : theme.colors.textMuted}
               style={styles.chevronIcon}
             />
           </TouchableOpacity>
@@ -1166,6 +1230,7 @@ const styles = StyleSheet.create({
   },
   settingsCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6D6FF', shadowColor: 'rgba(157,78,221,0.25)', shadowOpacity: 0.22, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, marginBottom: 12, elevation: 3 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 12 },
+  settingRowBorder: { borderTopWidth: 1 },
   settingInfo: { flex: 1, marginRight: 16 },
   settingRight: { flexDirection: 'row', alignItems: 'center' },
   chevronIcon: { marginLeft: 8 },

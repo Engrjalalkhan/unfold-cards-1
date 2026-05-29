@@ -6,14 +6,74 @@ import { Header } from '../../navigation/Header';
 import { useTheme } from '../../contexts/ThemeContext';
 import { StreakManager } from '../../utils/streakManager';
 import { StatsManager } from '../../utils/statsManager';
+import {
+  isTrialSubcategory,
+  canViewQuestionIndex,
+  recordQuestionView,
+  resetTrialProgress,
+  FREE_TRIAL_QUESTIONS,
+} from '../../utils/trialSubcategoryAccess';
+import {
+  initializeRevenueCat,
+  isPremiumUser,
+  RevenueCatPaywallModal,
+} from '../../services/revenuecat';
+import { showCustomAlert } from '../../components/CustomAlert';
 
 const { width } = Dimensions.get('window');
 
 export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, isFavorite, onShareQuestion, favorites }) {
   const { theme, isDark } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
+  const [paywallModalVisible, setPaywallModalVisible] = useState(false);
   const scrollViewRef = useRef(null);
   const scrollPositionRef = useRef(0); // Track scroll position to prevent loops
+
+  const isTrialGated = isTrialSubcategory(category?.id) && !isPremium;
+  const lastFreeQuestionIndex = FREE_TRIAL_QUESTIONS - 1;
+
+  useEffect(() => {
+    const loadPremiumStatus = async () => {
+      await initializeRevenueCat();
+      const premiumStatus = await isPremiumUser();
+      setIsPremium(premiumStatus);
+      if (premiumStatus) {
+        await resetTrialProgress();
+      }
+    };
+    loadPremiumStatus();
+  }, []);
+
+  useEffect(() => {
+    if (isTrialGated) {
+      recordQuestionView(category.id, 0);
+    }
+  }, [category?.id, isTrialGated]);
+
+  const openPaywall = () => {
+    setPaywallModalVisible(true);
+  };
+
+  const scrollToIndex = (index, animated = true) => {
+    setCurrentIndex(index);
+    scrollPositionRef.current = index;
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        x: index * width,
+        y: 0,
+        animated,
+      });
+    }, 50);
+  };
+
+  const handlePaywallPurchaseSuccess = async (hasPremium) => {
+    setPaywallModalVisible(false);
+    if (hasPremium) {
+      setIsPremium(true);
+      await resetTrialProgress();
+    }
+  };
   
   // Check if this is a submitted answers category
   const isSubmittedAnswers = category.id && category.id.includes('submitted-');
@@ -37,9 +97,19 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   const handleScrollEnd = (event) => {
     const contentOffset = event.nativeEvent.contentOffset;
     const index = Math.round(contentOffset.x / width);
+
+    if (isTrialGated && !canViewQuestionIndex(index, isPremium)) {
+      openPaywall();
+      scrollToIndex(lastFreeQuestionIndex, true);
+      return;
+    }
+
     setCurrentIndex(index);
-    scrollPositionRef.current = index; // Track position
-    console.log('Scroll ended, current index:', index);
+    scrollPositionRef.current = index;
+
+    if (isTrialGated) {
+      recordQuestionView(category.id, index);
+    }
   };
 
   // Preserve scroll position when favorites change - multiple attempts
@@ -121,23 +191,21 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   };
 
   const goToNext = () => {
-    console.log('goToNext called, currentIndex:', currentIndex, 'total:', category.questions.length);
-    if (currentIndex < category.questions.length - 1) {
-      const newIndex = currentIndex + 1;
-      setCurrentIndex(newIndex);
-      
-      // Use ScrollView scrollTo for reliable navigation
-      setTimeout(() => {
-        if (scrollViewRef.current) {
-          const offset = newIndex * width;
-          scrollViewRef.current.scrollTo({ 
-            x: offset, 
-            y: 0, 
-            animated: true 
-          });
-          console.log('ScrollView scrollTo called for next, offset:', offset);
-        }
-      }, 50);
+    if (currentIndex >= questions.length - 1) {
+      return;
+    }
+
+    const newIndex = currentIndex + 1;
+
+    if (isTrialGated && !canViewQuestionIndex(newIndex, isPremium)) {
+      openPaywall();
+      return;
+    }
+
+    scrollToIndex(newIndex);
+
+    if (isTrialGated) {
+      recordQuestionView(category.id, newIndex);
     }
   };
 
@@ -289,6 +357,7 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
   };
 
   return (
+    <>
     <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#000000' : theme.colors.background }]}>
       <Header title={category.name || 'Questions'} onBack={onBack} />
       
@@ -367,6 +436,31 @@ export function CategoryQuestionsScreen({ category, onBack, onToggleFavorite, is
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+
+    <RevenueCatPaywallModal
+      visible={paywallModalVisible}
+      offering={null}
+      onClose={() => setPaywallModalVisible(false)}
+      onPurchaseSuccess={handlePaywallPurchaseSuccess}
+      onPurchaseError={(error) => {
+        showCustomAlert({
+          title: 'Purchase failed',
+          message:
+            error?.message ??
+            'The purchase could not be completed. Try again or use Restore purchases.',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+      }}
+      onRestoreNoPurchases={() => {
+        showCustomAlert({
+          title: 'No purchases found',
+          message:
+            'We could not find an active premium subscription for this account.',
+          buttons: [{ text: 'OK', style: 'default' }],
+        });
+      }}
+    />
+    </>
   );
 }
 

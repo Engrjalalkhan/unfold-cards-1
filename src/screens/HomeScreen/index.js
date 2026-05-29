@@ -16,11 +16,7 @@ import { CustomZoneModal } from '../../components/CustomZoneModal';
 import { SimpleCustomZoneModal } from '../../components/SimpleCustomZoneModal';
 import { CustomAlertProvider } from '../../components/CustomAlert';
 import { customZoneStorage } from '../../utils/customZoneStorage';
-import {
-  canOpenSubcategory,
-  recordSubcategoryOpen,
-  resetSubcategoryOpenCount,
-} from '../../utils/subcategoryAccessManager';
+import { isTrialSubcategory, resetTrialProgress } from '../../utils/trialSubcategoryAccess';
 import { showCustomAlert } from '../../components/CustomAlert';
 import {
   initializeRevenueCat,
@@ -384,7 +380,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
           const premiumStatus = await isPremiumUser();
           setIsPremium(premiumStatus);
           if (premiumStatus) {
-            await resetSubcategoryOpenCount();
+            await resetTrialProgress();
           }
         } else {
           console.log('RevenueCat not initialized, using default premium status');
@@ -427,7 +423,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
           const premiumStatus = await isPremiumUser();
           setIsPremium(premiumStatus);
           if (premiumStatus) {
-            await resetSubcategoryOpenCount();
+            await resetTrialProgress();
           }
 
           // Load submitted answers zone
@@ -463,7 +459,6 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     React.useCallback(() => {
       if (route.params?.openCustomZone) {
         setIsPremium(true);
-        resetSubcategoryOpenCount();
         setCustomZoneModalVisible(true);
         navigation.setParams({ openCustomZone: undefined, premiumWelcome: undefined });
       }
@@ -634,7 +629,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
 
     if (hasPremium) {
       setIsPremium(true);
-      resetSubcategoryOpenCount();
+      resetTrialProgress();
       navigation.navigate('PremiumSuccess', { openCustomZone: true });
     }
   };
@@ -646,6 +641,15 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
     showCustomAlert({
       title: 'Purchase failed',
       message,
+      buttons: [{ text: 'OK', style: 'default' }],
+    });
+  };
+
+  const handleRestoreNoPurchases = () => {
+    showCustomAlert({
+      title: 'No purchases found',
+      message:
+        'We could not find an active premium subscription for this account. If you recently purchased, try again or contact support.',
       buttons: [{ text: 'OK', style: 'default' }],
     });
   };
@@ -1034,24 +1038,17 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
                             category={subcategory}
                             showLockIcon
                             isLocked={!isPremium}
-                            onPress={async () => {
-                              if (isPremium) {
+                            onPress={() => {
+                              if (isPremium || isTrialSubcategory(subcategory.id)) {
                                 onSelectCategory(subcategory);
                                 return;
                               }
 
-                              const allowed = await canOpenSubcategory();
-                              if (!allowed) {
-                                console.log(
-                                  '[Subcategory] Free limit reached, showing paywall for:',
-                                  subcategory.name
-                                );
-                                openEmbeddedPaywall();
-                                return;
-                              }
-
-                              await recordSubcategoryOpen();
-                              onSelectCategory(subcategory);
+                              console.log(
+                                '[Subcategory] User is not premium, showing paywall for:',
+                                subcategory.name
+                              );
+                              openEmbeddedPaywall();
                             }}  
                             theme={theme}
                             isDark={isDark}
@@ -1084,6 +1081,7 @@ export function HomeScreen({ profile, stats, currentMood, onSelectCategory, onAn
           }}
           onPurchaseSuccess={handlePaywallPurchaseSuccess}
           onPurchaseError={handlePaywallPurchaseError}
+          onRestoreNoPurchases={handleRestoreNoPurchases}
         />
       </SafeAreaView>
     </CustomAlertProvider>
