@@ -3,7 +3,7 @@
     "name": "Unfold Cards",
     "slug": "unfold-cards",
     "version": "1.2.1",
-    "versionCode": 4,
+    "versionCode": 5,
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
