@@ -2,8 +2,8 @@
   "expo": {
     "name": "Unfold Cards",
     "slug": "unfold-cards",
-    "version": "1.2.0",
-    "versionCode": 3,
+    "version": "1.2.1",
+    "versionCode": 4,
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -65,8 +65,7 @@
       "edgeToEdgeEnabled": true,
       "compileSdkVersion": 34,
       "targetSdkVersion": 34,
-      "buildToolsVersion": "34.0.0",
-      "gradleCommand": ":app:assembleRelease"
+      "buildToolsVersion": "34.0.0"
     },
     "web": {
       "favicon": "./assets/logo.png"
